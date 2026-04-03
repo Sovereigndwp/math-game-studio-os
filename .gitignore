@@ -23,3 +23,9 @@ memory/job_workspaces/
 
 # Benchmark reports (generated output — not source)
 reports/
+
+# Claude Code worktrees (session-local, not source)
+.claude/worktrees/
+
+# Debug payloads written by shared_agent_runner on validation failure
+memory/**/*.INVALID_DEBUG.*.json
