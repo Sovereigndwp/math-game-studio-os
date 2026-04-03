@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "gate_decision",
+  "type": "object",
+  "properties": {
+    "job_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "artifact_name": {
+      "type": "string",
+      "const": "gate_decision"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "produced_by": {
+      "type": "string",
+      "const": "Quality Gate Engine"
+    },
+    "timestamp": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pass",
+        "revise",
+        "reject"
+      ]
+    },
+    "target_artifact": {
+      "type": "string",
+      "minLength": 1
+    },
+    "target_artifact_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "stage_name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "failure_fields": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "strongest_failure_reason": {
+      "type": "string"
+    },
+    "revision_instructions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "escalation_recommendation": {
+      "type": "string",
+      "enum": [
+        "continue",
+        "reroute",
+        "reject_job"
+      ]
+    },
+    "memory_tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "job_id",
+    "artifact_name",
+    "version",
+    "status",
+    "produced_by",
+    "timestamp",
+    "target_artifact",
+    "target_artifact_version",
+    "stage_name",
+    "failure_fields",
+    "strongest_failure_reason",
+    "revision_instructions",
+    "escalation_recommendation",
+    "memory_tags"
+  ],
+  "additionalProperties": false
+}

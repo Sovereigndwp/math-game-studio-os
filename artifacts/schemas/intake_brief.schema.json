@@ -1,0 +1,159 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "intake_brief",
+  "type": "object",
+  "properties": {
+    "job_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "artifact_name": {
+      "type": "string",
+      "const": "intake_brief"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "produced_by": {
+      "type": "string",
+      "const": "Intake and Framing Agent"
+    },
+    "timestamp": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pass",
+        "revise",
+        "blocked"
+      ]
+    },
+    "plain_english_concept": {
+      "type": "string",
+      "minLength": 1
+    },
+    "likely_age_band": {
+      "type": "string",
+      "minLength": 1
+    },
+    "likely_grade_band": {
+      "type": "string",
+      "minLength": 1
+    },
+    "likely_course_band": {
+      "type": "string",
+      "minLength": 1
+    },
+    "likely_math_domain": {
+      "type": "string",
+      "minLength": 1
+    },
+    "likely_target_skills": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "possible_profession_or_mission": {
+      "type": "string",
+      "minLength": 1
+    },
+    "possible_world_theme": {
+      "type": "string",
+      "minLength": 1
+    },
+    "possible_emotional_hook": {
+      "type": "string",
+      "minLength": 1
+    },
+    "likely_factory_type": {
+      "type": "string",
+      "enum": [
+        "universal_ladder",
+        "age_band_specialist",
+        "advanced_anchor",
+        "unknown"
+      ]
+    },
+    "possible_interaction_candidates": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "route_and_dispatch",
+          "combine_and_build",
+          "allocate_and_balance",
+          "transform_and_manipulate",
+          "navigate_and_position",
+          "sequence_and_predict"
+        ]
+      }
+    },
+    "one_sentence_promise_draft": {
+      "type": "string",
+      "minLength": 1
+    },
+    "ambiguities_detected": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "confidence_scores": {
+      "type": "object",
+      "properties": {
+        "age_fit": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "math_fit": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "theme_fit": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "required": [
+        "age_fit",
+        "math_fit",
+        "theme_fit"
+      ],
+      "additionalProperties": false
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "job_id",
+    "artifact_name",
+    "version",
+    "status",
+    "produced_by",
+    "timestamp",
+    "plain_english_concept",
+    "likely_age_band",
+    "likely_grade_band",
+    "likely_course_band",
+    "likely_math_domain",
+    "likely_target_skills",
+    "possible_profession_or_mission",
+    "possible_world_theme",
+    "possible_emotional_hook",
+    "likely_factory_type",
+    "possible_interaction_candidates",
+    "one_sentence_promise_draft",
+    "ambiguities_detected",
+    "confidence_scores",
+    "notes"
+  ],
+  "additionalProperties": false
+}

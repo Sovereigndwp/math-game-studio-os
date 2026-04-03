@@ -1,0 +1,183 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "stage_ledger",
+  "type": "object",
+  "properties": {
+    "job_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "current_stage": {
+      "type": "string",
+      "minLength": 1
+    },
+    "stage_states": {
+      "type": "object",
+      "properties": {
+        "request_brief": {
+          "type": "string",
+          "enum": [
+            "approved",
+            "waiting",
+            "not_started",
+            "revise",
+            "reject",
+            "active"
+          ]
+        },
+        "intake_brief": {
+          "type": "string",
+          "enum": [
+            "approved",
+            "waiting",
+            "not_started",
+            "revise",
+            "reject",
+            "active"
+          ]
+        },
+        "kill_report": {
+          "type": "string",
+          "enum": [
+            "approved",
+            "waiting",
+            "not_started",
+            "revise",
+            "reject",
+            "active"
+          ]
+        },
+        "interaction_decision_memo": {
+          "type": "string",
+          "enum": [
+            "approved",
+            "waiting",
+            "not_started",
+            "revise",
+            "reject",
+            "active"
+          ]
+        },
+        "family_architecture_brief": {
+          "type": "string",
+          "enum": [
+            "approved",
+            "waiting",
+            "not_started",
+            "revise",
+            "reject",
+            "active"
+          ]
+        },
+        "lowest_viable_loop_brief": {
+          "type": "string",
+          "enum": [
+            "approved",
+            "waiting",
+            "not_started",
+            "revise",
+            "reject",
+            "active"
+          ]
+        }
+      },
+      "required": [
+        "request_brief",
+        "intake_brief",
+        "kill_report",
+        "interaction_decision_memo",
+        "family_architecture_brief",
+        "lowest_viable_loop_brief"
+      ],
+      "additionalProperties": false
+    },
+    "revision_counts": {
+      "type": "object",
+      "properties": {
+        "intake_brief": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "kill_report": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "interaction_decision_memo": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "family_architecture_brief": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "lowest_viable_loop_brief": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "intake_brief",
+        "kill_report",
+        "interaction_decision_memo",
+        "family_architecture_brief",
+        "lowest_viable_loop_brief"
+      ],
+      "additionalProperties": false
+    },
+    "authoritative_versions": {
+      "type": "object",
+      "properties": {
+        "request_brief": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "intake_brief": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "kill_report": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "interaction_decision_memo": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "family_architecture_brief": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "lowest_viable_loop_brief": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "request_brief",
+        "intake_brief",
+        "kill_report",
+        "interaction_decision_memo",
+        "family_architecture_brief",
+        "lowest_viable_loop_brief"
+      ],
+      "additionalProperties": false
+    },
+    "last_gate_status": {
+      "type": "string"
+    },
+    "updated_at": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "required": [
+    "job_id",
+    "current_stage",
+    "stage_states",
+    "revision_counts",
+    "authoritative_versions",
+    "last_gate_status",
+    "updated_at"
+  ],
+  "additionalProperties": false
+}

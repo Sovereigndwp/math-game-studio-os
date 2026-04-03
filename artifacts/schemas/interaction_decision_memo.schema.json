@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "interaction_decision_memo",
+  "type": "object",
+  "properties": {
+    "job_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "artifact_name": {
+      "type": "string",
+      "const": "interaction_decision_memo"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "produced_by": {
+      "type": "string",
+      "const": "Interaction Mapper Agent"
+    },
+    "timestamp": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pass",
+        "revise",
+        "reject"
+      ]
+    },
+    "primary_interaction_type": {
+      "type": "string",
+      "enum": [
+        "route_and_dispatch",
+        "combine_and_build",
+        "allocate_and_balance",
+        "transform_and_manipulate",
+        "navigate_and_position",
+        "sequence_and_predict"
+      ]
+    },
+    "secondary_interaction_type": {
+      "type": "string"
+    },
+    "interaction_justification": {
+      "type": "string",
+      "minLength": 1
+    },
+    "rejected_alternatives": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "interaction_type": {
+            "type": "string"
+          },
+          "why_weaker": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "interaction_type",
+          "why_weaker"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "interaction_purity_score": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "is_action_itself_the_math": {
+      "type": "boolean"
+    },
+    "interaction_overload_warning": {
+      "type": "string"
+    },
+    "split_family_warning": {
+      "type": "boolean"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "job_id",
+    "artifact_name",
+    "version",
+    "status",
+    "produced_by",
+    "timestamp",
+    "primary_interaction_type",
+    "secondary_interaction_type",
+    "interaction_justification",
+    "rejected_alternatives",
+    "interaction_purity_score",
+    "is_action_itself_the_math",
+    "interaction_overload_warning",
+    "split_family_warning",
+    "notes"
+  ],
+  "additionalProperties": false
+}

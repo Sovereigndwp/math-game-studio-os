@@ -1,0 +1,137 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "lowest_viable_loop_brief",
+  "type": "object",
+  "properties": {
+    "job_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "artifact_name": {
+      "type": "string",
+      "const": "lowest_viable_loop_brief"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "produced_by": {
+      "type": "string",
+      "const": "Core Loop Agent"
+    },
+    "timestamp": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pass",
+        "revise",
+        "reject"
+      ]
+    },
+    "first_60_seconds_flow": {
+      "type": "string",
+      "minLength": 1
+    },
+    "lowest_viable_loop_description": {
+      "type": "string",
+      "minLength": 1
+    },
+    "core_loop_map": {
+      "type": "object",
+      "properties": {
+        "what_appears_first": {
+          "type": "string",
+          "minLength": 1
+        },
+        "what_the_learner_notices": {
+          "type": "string",
+          "minLength": 1
+        },
+        "what_the_learner_does_first": {
+          "type": "string",
+          "minLength": 1
+        },
+        "first_correct_action": {
+          "type": "string",
+          "minLength": 1
+        },
+        "immediate_feedback": {
+          "type": "string",
+          "minLength": 1
+        },
+        "what_repeats_next": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "what_appears_first",
+        "what_the_learner_notices",
+        "what_the_learner_does_first",
+        "first_correct_action",
+        "immediate_feedback",
+        "what_repeats_next"
+      ],
+      "additionalProperties": false
+    },
+    "signature_moment": {
+      "type": "string",
+      "minLength": 1
+    },
+    "fail_state_structure": {
+      "type": "string",
+      "minLength": 1
+    },
+    "max_steps_per_loop": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "max_simultaneous_elements": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "expected_time_to_first_correct_action_seconds": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "expected_confusion_risks": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "teacher_shortcut_version": {
+      "type": "string"
+    },
+    "micro_prototype_recommendation": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "job_id",
+    "artifact_name",
+    "version",
+    "status",
+    "produced_by",
+    "timestamp",
+    "first_60_seconds_flow",
+    "lowest_viable_loop_description",
+    "core_loop_map",
+    "signature_moment",
+    "fail_state_structure",
+    "max_steps_per_loop",
+    "max_simultaneous_elements",
+    "expected_time_to_first_correct_action_seconds",
+    "expected_confusion_risks",
+    "teacher_shortcut_version",
+    "micro_prototype_recommendation",
+    "notes"
+  ],
+  "additionalProperties": false
+}

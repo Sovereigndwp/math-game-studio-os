@@ -1,0 +1,13 @@
+agent_name: interaction_mapper_agent
+expected_output_artifact: interaction_decision_memo
+expected_produced_by: Interaction Mapper Agent
+allowed_reads:
+  - intake_brief
+  - kill_report
+allowed_writes:
+  - interaction_decision_memo
+max_revision_count: 2
+retry_policy: revise_once_then_escalate
+model_profile: high_reasoning
+requires_gate_pass_from:
+  - kill_report

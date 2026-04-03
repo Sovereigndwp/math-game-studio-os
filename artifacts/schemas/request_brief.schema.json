@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "request_brief",
+  "type": "object",
+  "properties": {
+    "job_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "artifact_name": {
+      "type": "string",
+      "const": "request_brief"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "produced_by": {
+      "type": "string",
+      "const": "Orchestrator"
+    },
+    "timestamp": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active"
+      ]
+    },
+    "raw_user_command": {
+      "type": "string",
+      "minLength": 1
+    },
+    "request_type": {
+      "type": "string",
+      "enum": [
+        "new_game",
+        "family_extension",
+        "prototype_only",
+        "production_upgrade",
+        "audit"
+      ]
+    },
+    "priority_level": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ]
+    },
+    "current_production_focus_conflict": {
+      "type": "boolean"
+    },
+    "notes_for_routing": {
+      "type": "string"
+    },
+    "existing_family_candidates": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "requested_constraints": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "requested_outputs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "job_id",
+    "artifact_name",
+    "version",
+    "status",
+    "produced_by",
+    "timestamp",
+    "raw_user_command",
+    "request_type",
+    "priority_level",
+    "current_production_focus_conflict",
+    "notes_for_routing",
+    "existing_family_candidates",
+    "requested_constraints",
+    "requested_outputs"
+  ],
+  "additionalProperties": false
+}

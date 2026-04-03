@@ -1,0 +1,13 @@
+agent_name: family_architect_agent
+expected_output_artifact: family_architecture_brief
+expected_produced_by: Family Architect Agent
+allowed_reads:
+  - intake_brief
+  - interaction_decision_memo
+allowed_writes:
+  - family_architecture_brief
+max_revision_count: 2
+retry_policy: revise_once_then_escalate
+model_profile: high_reasoning
+requires_gate_pass_from:
+  - interaction_decision_memo

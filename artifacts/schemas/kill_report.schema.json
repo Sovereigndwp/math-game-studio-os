@@ -1,0 +1,171 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "kill_report",
+  "type": "object",
+  "properties": {
+    "job_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "artifact_name": {
+      "type": "string",
+      "const": "kill_report"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "produced_by": {
+      "type": "string",
+      "const": "Kill Test Agent"
+    },
+    "timestamp": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pass",
+        "redesign",
+        "reject"
+      ]
+    },
+    "clarity_10_second_test": {
+      "type": "object",
+      "properties": {
+        "score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "score",
+        "reason"
+      ],
+      "additionalProperties": false
+    },
+    "interaction_fit_first_pass": {
+      "type": "object",
+      "properties": {
+        "score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "score",
+        "reason"
+      ],
+      "additionalProperties": false
+    },
+    "loop_obviousness": {
+      "type": "object",
+      "properties": {
+        "score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "score",
+        "reason"
+      ],
+      "additionalProperties": false
+    },
+    "teacher_value_immediacy": {
+      "type": "object",
+      "properties": {
+        "score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "score",
+        "reason"
+      ],
+      "additionalProperties": false
+    },
+    "replay_potential": {
+      "type": "object",
+      "properties": {
+        "score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "score",
+        "reason"
+      ],
+      "additionalProperties": false
+    },
+    "strongest_failure_reason": {
+      "type": "string"
+    },
+    "redesign_direction": {
+      "type": "string"
+    },
+    "comparison_to_known_failure_patterns": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "comparison_to_known_success_patterns": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "final_decision_note": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "required": [
+    "job_id",
+    "artifact_name",
+    "version",
+    "status",
+    "produced_by",
+    "timestamp",
+    "clarity_10_second_test",
+    "interaction_fit_first_pass",
+    "loop_obviousness",
+    "teacher_value_immediacy",
+    "replay_potential",
+    "strongest_failure_reason",
+    "redesign_direction",
+    "comparison_to_known_failure_patterns",
+    "comparison_to_known_success_patterns",
+    "final_decision_note"
+  ],
+  "additionalProperties": false
+}

@@ -1,0 +1,29 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Pipeline — Stub Mode",
+      "runtimeExecutable": ".venv/bin/python",
+      "runtimeArgs": ["pipeline.py"],
+      "port": null
+    },
+    {
+      "name": "Pipeline — LLM Mode",
+      "runtimeExecutable": ".venv/bin/python",
+      "runtimeArgs": ["pipeline.py", "--llm"],
+      "port": null
+    },
+    {
+      "name": "Benchmark Suite — Stub",
+      "runtimeExecutable": ".venv/bin/python",
+      "runtimeArgs": ["scripts/run_benchmarks.py", "--report"],
+      "port": null
+    },
+    {
+      "name": "Benchmark Suite — LLM",
+      "runtimeExecutable": ".venv/bin/python",
+      "runtimeArgs": ["scripts/run_benchmarks.py", "--llm", "--report"],
+      "port": null
+    }
+  ]
+}

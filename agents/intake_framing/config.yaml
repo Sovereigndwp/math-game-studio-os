@@ -1,0 +1,12 @@
+agent_name: intake_framing_agent
+expected_output_artifact: intake_brief
+expected_produced_by: Intake and Framing Agent
+allowed_reads:
+  - request_brief
+allowed_writes:
+  - intake_brief
+max_revision_count: 2
+retry_policy: revise_once_then_escalate
+model_profile: high_reasoning
+requires_gate_pass_from:
+  - request_brief

@@ -1,0 +1,12 @@
+agent_name: kill_test_agent
+expected_output_artifact: kill_report
+expected_produced_by: Kill Test Agent
+allowed_reads:
+  - intake_brief
+allowed_writes:
+  - kill_report
+max_revision_count: 2
+retry_policy: revise_once_then_escalate
+model_profile: high_reasoning
+requires_gate_pass_from:
+  - intake_brief

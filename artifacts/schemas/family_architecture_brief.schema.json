@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "family_architecture_brief",
+  "type": "object",
+  "properties": {
+    "job_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "artifact_name": {
+      "type": "string",
+      "const": "family_architecture_brief"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "produced_by": {
+      "type": "string",
+      "const": "Family Architect Agent"
+    },
+    "timestamp": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pass",
+        "revise",
+        "reject"
+      ]
+    },
+    "family_name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "factory_type": {
+      "type": "string",
+      "enum": [
+        "universal_ladder",
+        "age_band_specialist",
+        "advanced_anchor"
+      ]
+    },
+    "is_existing_family": {
+      "type": "boolean"
+    },
+    "existing_family_match_confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "reason_for_family_placement": {
+      "type": "string",
+      "minLength": 1
+    },
+    "family_growth_path": {
+      "type": "string",
+      "minLength": 1
+    },
+    "family_boundary_rule": {
+      "type": "string",
+      "minLength": 1
+    },
+    "boundary_break_example": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reuse_recommendation": {
+      "type": "string",
+      "enum": [
+        "extend_existing",
+        "create_new",
+        "merge_with_existing",
+        "reject"
+      ]
+    },
+    "family_overlap_warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "job_id",
+    "artifact_name",
+    "version",
+    "status",
+    "produced_by",
+    "timestamp",
+    "family_name",
+    "factory_type",
+    "is_existing_family",
+    "existing_family_match_confidence",
+    "reason_for_family_placement",
+    "family_growth_path",
+    "family_boundary_rule",
+    "boundary_break_example",
+    "reuse_recommendation",
+    "family_overlap_warnings",
+    "notes"
+  ],
+  "additionalProperties": false
+}

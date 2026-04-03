@@ -1,0 +1,14 @@
+agent_name: core_loop_agent
+expected_output_artifact: lowest_viable_loop_brief
+expected_produced_by: Core Loop Agent
+allowed_reads:
+  - intake_brief
+  - interaction_decision_memo
+  - family_architecture_brief
+allowed_writes:
+  - lowest_viable_loop_brief
+max_revision_count: 2
+retry_policy: revise_once_then_escalate
+model_profile: high_reasoning
+requires_gate_pass_from:
+  - family_architecture_brief
