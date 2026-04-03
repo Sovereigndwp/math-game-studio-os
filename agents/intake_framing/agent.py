@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict
 
@@ -22,22 +23,44 @@ def intake_framing_stub(context: Dict[str, Any]) -> Dict[str, Any]:
     interaction_candidates = []
 
     text = raw.lower()
-    if "grade 1" in text or "grade 2" in text or "grade 3" in text or "grade 4" in text or "grade 5" in text or "elementary" in text:
+
+    # --- Grade / age band detection ---
+    if "kindergarten" in text or "grade k" in text or "preschool" in text:
+        likely_age_band = "3_to_5"
+        likely_grade_band = "kindergarten"
+        likely_course_band = "kindergarten_math"
+        likely_factory_type = "age_band_specialist"
+    elif (
+        "grade 1" in text or "grade 2" in text or "grade 3" in text
+        or "grade 4" in text or "grade 5" in text or "elementary" in text
+    ):
         likely_age_band = "5_to_8"
         likely_grade_band = "elementary"
         likely_course_band = "elementary_arithmetic"
         likely_factory_type = "universal_ladder"
-    elif "grade 6" in text or "grade 7" in text or "grade 8" in text or "middle school" in text:
+    elif (
+        "grade 6" in text or "grade 7" in text or "grade 8" in text
+        or "middle school" in text
+    ):
         likely_age_band = "11_to_14"
         likely_grade_band = "middle_school"
         likely_course_band = "middle_school_math"
         likely_factory_type = "age_band_specialist"
-    elif "high school" in text:
+    elif "high school" in text or "grade 9" in text or "grade 10" in text or "grade 11" in text or "grade 12" in text:
         likely_age_band = "14_to_18"
         likely_grade_band = "high_school"
         likely_course_band = "high_school_math"
         likely_factory_type = "advanced_anchor"
 
+    # Override to advanced_anchor for college-prep / advanced courses
+    if "ap " in text or "calculus" in text or "statistics" in text or "honors" in text:
+        likely_factory_type = "advanced_anchor"
+        if "calculus" in text:
+            likely_course_band = "calculus"
+        elif "statistics" in text:
+            likely_course_band = "statistics"
+
+    # --- World theme detection ---
     if "bakery" in text or "pastry" in text:
         possible_profession = "bakery helper"
         possible_world_theme = "busy bakery counter"
@@ -53,17 +76,56 @@ def intake_framing_stub(context: Dict[str, Any]) -> Dict[str, Any]:
         possible_world_theme = "unit circle pizza lab"
         emotional_hook = "master angles and motion through slicing and rotation"
         interaction_candidates = ["navigate_and_position", "transform_and_manipulate"]
+    elif "hospital" in text or "doctor" in text or "medical" in text:
+        possible_profession = "hospital coordinator"
+        possible_world_theme = "busy hospital ward"
+        emotional_hook = "help patients get the right care in time"
+        interaction_candidates = ["allocate_and_balance", "route_and_dispatch"]
+    elif "farm" in text or "garden" in text or "crop" in text:
+        possible_profession = "farm manager"
+        possible_world_theme = "working farm"
+        emotional_hook = "grow and harvest by making the right math decisions"
+        interaction_candidates = ["allocate_and_balance"]
+    elif "space" in text or "rocket" in text or "planet" in text:
+        possible_profession = "space navigator"
+        possible_world_theme = "space mission control"
+        emotional_hook = "navigate space using precise calculations"
+        interaction_candidates = ["navigate_and_position", "sequence_and_predict"]
+    elif "store" in text or "shop" in text or "market" in text:
+        possible_profession = "shop keeper"
+        possible_world_theme = "busy market"
+        emotional_hook = "keep customers happy by solving math quickly"
+        interaction_candidates = ["combine_and_build", "allocate_and_balance"]
 
-    if "addition" in text or "arithmetic" in text:
-        likely_math_domain = "addition"
-    elif "ratio" in text or "rate" in text:
-        likely_math_domain = "ratios_and_rates"
-    elif "unit circle" in text or "radians" in text or "sine" in text or "cosine" in text:
+    # --- Math domain detection (checked in specificity order) ---
+    if "calculus" in text or "integral" in text or "derivative" in text or "limit" in text:
+        likely_math_domain = "calculus"
+    elif "statistic" in text or "probability" in text or "data" in text:
+        likely_math_domain = "statistics"
+    elif "unit circle" in text or "radian" in text or "sine" in text or "cosine" in text or "trigonometry" in text or "trig" in text:
         likely_math_domain = "trigonometry"
+    elif "algebra" in text or "equation" in text or "variable" in text or "expression" in text:
+        likely_math_domain = "algebra"
+    elif "geometry" in text or "angle" in text or "perimeter" in text or "area" in text or "volume" in text:
+        likely_math_domain = "geometry"
+    elif "fraction" in text or "decimal" in text or "percent" in text:
+        likely_math_domain = "fractions"
+    elif "ratio" in text or "rate" in text or "proportion" in text:
+        likely_math_domain = "ratios_and_rates"
+    elif "multiplication" in text or "multiply" in text or "times table" in text or "product" in text:
+        likely_math_domain = "multiplication"
+    elif "division" in text or "divide" in text or "quotient" in text:
+        likely_math_domain = "division"
+    elif "subtraction" in text or "subtract" in text or "difference" in text or "minus" in text:
+        likely_math_domain = "subtraction"
+    elif "addition" in text or "arithmetic" in text or "sum" in text or "add" in text:
+        likely_math_domain = "addition"
+
+    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     return {
         "status": "pass",
-        "timestamp": "2026-04-03T12:01:00Z",
+        "timestamp": timestamp,
         "plain_english_concept": concept,
         "likely_age_band": likely_age_band,
         "likely_grade_band": likely_grade_band,
@@ -82,7 +144,7 @@ def intake_framing_stub(context: Dict[str, Any]) -> Dict[str, Any]:
             "math_fit": 0.8 if likely_math_domain != "unknown" else 0.4,
             "theme_fit": 0.8 if possible_profession != "unknown mission" else 0.4,
         },
-        "notes": "Initial framing stub output.",
+        "notes": "Stub framing output. Keyword-matched from raw command.",
     }
 
 
