@@ -1,3 +1,8 @@
-anthropic==0.89.0
-jsonschema==4.26.0
-PyYAML==6.0.3
+# Direct runtime dependencies.
+# To regenerate after a venv upgrade:
+#   .venv/bin/pip freeze | grep -E "^(anthropic|jsonschema|PyYAML)==" > requirements.txt
+
+anthropic==0.89.0       # Claude API calls (utils/llm_caller.py)
+jsonschema==4.26.0      # Artifact schema validation (utils/validation.py)
+PyYAML==6.0.3           # Agent config.yaml files (loaded as text by shared_agent_runner.py;
+                        # PyYAML is a transitive dep of jsonschema and keeps the venv consistent)
