@@ -4,7 +4,7 @@ import argparse
 import json
 import sys
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -175,7 +175,7 @@ def _print_result(ev: BenchmarkEvaluation) -> None:
 def _build_report(
     results: list[BenchmarkEvaluation], use_llm: bool, model: Optional[str]
 ) -> str:
-    ts = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+    ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
     mode = "LLM" if use_llm else "stub"
     model_line = model if model else "n/a"
     passed = sum(1 for r in results if r.passed)
@@ -260,7 +260,7 @@ def run(
         reports_dir = repo_root / "reports"
         reports_dir.mkdir(parents=True, exist_ok=True)
         suffix = "llm" if use_llm else "stub"
-        ts = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
+        ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
         report_path = reports_dir / f"benchmark_regression_{suffix}_{ts}.md"
         report_path.write_text(report, encoding="utf-8")
         print(f"Report written: {report_path}")
