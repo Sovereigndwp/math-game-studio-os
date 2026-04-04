@@ -595,6 +595,1055 @@ _BAKERY_PATCH_PLAN: Dict[str, Any] = {
 }
 
 # ---------------------------------------------------------------------------
+# Fire Station Dispatch — route_and_dispatch interaction — Pass 1
+# ---------------------------------------------------------------------------
+
+_FIRE_DISPATCH_PATCH_PLAN: Dict[str, Any] = {
+    "patch_objective": (
+        "Create the initial playable Fire Station Dispatch prototype: mission config data, "
+        "four UI components (MissionCard, TruckYard, DispatchBoard, OutcomeOverlay), "
+        "styles, and the FireDispatchPrototype root container with full dispatch state and loop logic."
+    ),
+    "source_pass": {
+        "pass_number": 1,
+        "pass_label": "Core Dispatch Loop",
+        "features_added": [
+            "Level config data: 5 levels with incidentTypes, truckTypes, timeLimit, scoreThreshold",
+            "MissionCard component: shows incident name, location, and arithmetic demand value",
+            "TruckYard component: renders tap-to-toggle trucks with capacity labels",
+            "DispatchBoard component: shows dispatched trucks and running capacity total vs demand",
+            "OutcomeOverlay component: full-screen success, excess, timeout, and shift-end states",
+            "FireDispatchPrototype: root container with full dispatch state, timer, and loop orchestration",
+        ],
+    },
+    "target_files": [
+        {
+            "file_path": "preview/src/App.jsx",
+            "operation": "edit",
+            "current_state": "Mounts previous game component or placeholder",
+            "post_patch_state": "Mounts FireDispatchPrototype as the active game component",
+        },
+        {
+            "file_path": "preview/src/games/FireDispatchPrototype.jsx",
+            "operation": "create",
+            "current_state": "File does not exist",
+            "post_patch_state": "Root container with dispatch state, incident queue, timer, and child wiring",
+        },
+        {
+            "file_path": "preview/src/games/fire/missionConfig.js",
+            "operation": "create",
+            "current_state": "File does not exist",
+            "post_patch_state": "Exports LEVEL_CONFIGS array and TRUCK_TYPES constant",
+        },
+        {
+            "file_path": "preview/src/games/fire/components/MissionCard.jsx",
+            "operation": "create",
+            "current_state": "File does not exist",
+            "post_patch_state": "Presentational card showing incident type, location, and demand value",
+        },
+        {
+            "file_path": "preview/src/games/fire/components/TruckYard.jsx",
+            "operation": "create",
+            "current_state": "File does not exist",
+            "post_patch_state": "Tap-to-toggle truck grid with capacity labels and selection state",
+        },
+        {
+            "file_path": "preview/src/games/fire/components/DispatchBoard.jsx",
+            "operation": "create",
+            "current_state": "File does not exist",
+            "post_patch_state": "Running capacity total vs demand display with dispatched truck indicators",
+        },
+        {
+            "file_path": "preview/src/games/fire/components/OutcomeOverlay.jsx",
+            "operation": "create",
+            "current_state": "File does not exist",
+            "post_patch_state": "Full-screen overlay for SUCCESS, EXCESS, TIMEOUT, and SHIFT_END states",
+        },
+        {
+            "file_path": "preview/src/games/fire/styles.css",
+            "operation": "create",
+            "current_state": "File does not exist",
+            "post_patch_state": "All layout, motion, and readability styles scoped to .fire-dispatch class",
+        },
+    ],
+    "patch_sequence": [
+        {
+            "patch_id": "P1-01",
+            "file_path": "preview/src/games/fire/missionConfig.js",
+            "patch_type": "add_constant",
+            "change_description": (
+                "Export LEVEL_CONFIGS as the default export — array of 5 level objects. "
+                "Each level: incidentTypes (array of {name, emoji, location, demandValue}), "
+                "truckTypes (array of {id, emoji, label, capacity}), "
+                "timeLimit (integer seconds), scoreThreshold (integer), streakBonus (integer). "
+                "Level 1: timeLimit 25, demandValues 4–8, 2 truck types. "
+                "Level 2: timeLimit 20, demandValues 5–12, 3 truck types. "
+                "Level 3: timeLimit 18, demandValues 6–15, 3 truck types. "
+                "Level 4: timeLimit 15, demandValues 8–18, 4 truck types. "
+                "Level 5: timeLimit 12, demandValues 10–20, 4 truck types."
+            ),
+            "location_hint": "Top of file, default export",
+            "named_elements": ["constant:LEVEL_CONFIGS"],
+            "depends_on": [],
+            "rationale": "All incident and truck definitions must be data-driven and separate from component logic.",
+        },
+        {
+            "patch_id": "P1-02",
+            "file_path": "preview/src/games/fire/missionConfig.js",
+            "patch_type": "add_constant",
+            "change_description": (
+                "Export TRUCK_TYPES as a named const array of canonical truck definitions used across all levels. "
+                "Each entry: {id, emoji, label, capacity}. "
+                "Entries: hose_truck (🚒, capacity 5), ladder_truck (🪜, capacity 3), "
+                "ambulance (🚑, capacity 2), command_vehicle (🚐, capacity 4), water_tanker (🚛, capacity 6). "
+                "Levels reference these by id and override capacity for difficulty scaling."
+            ),
+            "location_hint": "After LEVEL_CONFIGS default export",
+            "named_elements": ["constant:TRUCK_TYPES"],
+            "depends_on": ["P1-01"],
+            "rationale": "Canonical truck types prevent duplication across level config entries.",
+        },
+        {
+            "patch_id": "P1-03",
+            "file_path": "preview/src/games/fire/styles.css",
+            "patch_type": "add_css_class",
+            "change_description": (
+                "Create the full stylesheet for Fire Dispatch. "
+                "Root: .fire-dispatch (flex column, 100vh, background #1a1a2e, color #fff, font-family sans-serif). "
+                "Mission card: .mission-card (background #16213e, border-radius 12px, padding 20px). "
+                ".mission-emoji (font-size 3rem, display block). "
+                ".mission-name (font-size 1.4rem, font-weight 700). "
+                ".mission-location (font-size 0.9rem, opacity 0.7). "
+                ".demand-label (font-size 0.75rem, uppercase, letter-spacing 0.08em, opacity 0.6). "
+                ".demand-value (font-size 4rem, font-weight 900, color #f59e0b). "
+                "Truck yard: .truck-yard (display flex, flex-wrap wrap, gap 12px, padding 16px). "
+                ".truck-card (flex column, align-items center, padding 12px 16px, background #16213e, "
+                "border 2px solid transparent, border-radius 12px, cursor pointer, transition 0.15s). "
+                ".truck-selected (border-color #22c55e, background #1a3a2a, animation truck-bounce 0.3s ease). "
+                ".truck-emoji (font-size 2.5rem). "
+                ".truck-capacity (font-size 0.85rem, font-weight 700, color #94a3b8). "
+                "Dispatch board: .dispatch-board (background #16213e, border-radius 12px, padding 16px). "
+                ".board-trucks (display flex, gap 8px, flex-wrap wrap). "
+                ".board-truck (font-size 1.8rem). "
+                ".board-total (font-size 3rem, font-weight 900, color #22c55e). "
+                ".board-demand (font-size 1rem, opacity 0.6). "
+                ".board-excess (.board-total color #ef4444). "
+                "Timer: .timer-bar (height 6px, background rgba(255,255,255,0.15), border-radius 3px). "
+                ".timer-fill (height 100%, background #f59e0b, border-radius 3px, transition width 0.3s linear). "
+                ".timer-urgent (.timer-fill background #ef4444, animation timer-pulse 0.5s ease infinite). "
+                "HUD: .dispatch-hud (display flex, align-items center, gap 16px, padding 12px 16px, "
+                "background rgba(0,0,0,0.3)). "
+                "Overlay: .outcome-overlay (position fixed, inset 0, z-index 50, display flex, align-items center, "
+                "justify-content center, animation overlay-enter 0.2s cubic-bezier(0.17,0.89,0.32,1.1) forwards). "
+                ".overlay-success (background rgba(22,163,74,0.93)). "
+                ".overlay-excess (background rgba(220,38,38,0.9)). "
+                ".overlay-timeout (background rgba(180,83,9,0.9)). "
+                ".overlay-end (background rgba(30,30,80,0.95)). "
+                ".overlay-inner (text-align center, color #fff). "
+                ".overlay-emoji (font-size 5rem, display block). "
+                ".overlay-title (font-size 2rem, font-weight 800, margin-top 12px). "
+                ".overlay-subtitle (font-size 1.1rem, margin-top 8px, opacity 0.9)."
+            ),
+            "location_hint": "Full file content — new file",
+            "named_elements": [
+                "css_class:fire-dispatch",
+                "css_class:mission-card", "css_class:mission-emoji", "css_class:mission-name",
+                "css_class:mission-location", "css_class:demand-label", "css_class:demand-value",
+                "css_class:truck-yard", "css_class:truck-card", "css_class:truck-selected",
+                "css_class:truck-emoji", "css_class:truck-capacity",
+                "css_class:dispatch-board", "css_class:board-trucks", "css_class:board-truck",
+                "css_class:board-total", "css_class:board-demand", "css_class:board-excess",
+                "css_class:timer-bar", "css_class:timer-fill", "css_class:timer-urgent",
+                "css_class:dispatch-hud",
+                "css_class:outcome-overlay", "css_class:overlay-success", "css_class:overlay-excess",
+                "css_class:overlay-timeout", "css_class:overlay-end",
+                "css_class:overlay-inner", "css_class:overlay-emoji",
+                "css_class:overlay-title", "css_class:overlay-subtitle",
+            ],
+            "depends_on": [],
+            "rationale": "All shared animation classes and layout primitives must exist before any component imports the stylesheet.",
+        },
+        {
+            "patch_id": "P1-04",
+            "file_path": "preview/src/games/fire/styles.css",
+            "patch_type": "add_keyframe",
+            "change_description": (
+                "Add four keyframes. "
+                "truck-bounce: 0% scale(1), 40% scale(1.2) translateY(-4px), 100% scale(1) — "
+                "snappy bounce when a truck is selected. "
+                "dispatch-shake: 0%/100% translateX(0), 20% translateX(-6px), 60% translateX(6px) — "
+                "horizontal rejection for excess dispatch. "
+                "overlay-enter: from (opacity 0, scale(0.9)) to (opacity 1, scale(1)) — "
+                "scale-in entry for outcome overlay. "
+                "timer-pulse: 0%/100% opacity 1, 50% opacity 0.4 — "
+                "urgent blink applied when timeLeft < 5."
+            ),
+            "location_hint": "After all CSS class rules, end of file",
+            "named_elements": [
+                "keyframe:truck-bounce", "keyframe:dispatch-shake",
+                "keyframe:overlay-enter", "keyframe:timer-pulse",
+            ],
+            "depends_on": ["P1-03"],
+            "rationale": "Keyframes must be in the same file as the classes that reference them.",
+        },
+        {
+            "patch_id": "P1-05",
+            "file_path": "preview/src/games/fire/components/MissionCard.jsx",
+            "patch_type": "add_component",
+            "change_description": (
+                "Create MissionCard as a default export function. "
+                "Props: incidentName (string), incidentEmoji (string), locationName (string), "
+                "demandValue (number), urgency (string: 'low'|'medium'|'high'). "
+                "Render: outer div class mission-card. "
+                "Header: mission-emoji span, mission-name h2. "
+                "Location: mission-location p ('📍 ' + locationName). "
+                "Demand display: demand-label div ('Trucks needed:'), demand-value div (demandValue as large number). "
+                "Urgency indicator: a span with text matching urgency level."
+            ),
+            "location_hint": "Full file content — new file",
+            "named_elements": [
+                "component:MissionCard",
+                "prop:incidentName", "prop:incidentEmoji", "prop:locationName",
+                "prop:demandValue", "prop:urgency",
+            ],
+            "depends_on": ["P1-03"],
+            "rationale": "MissionCard is purely presentational — all incident data flows in as props.",
+        },
+        {
+            "patch_id": "P1-06",
+            "file_path": "preview/src/games/fire/components/TruckYard.jsx",
+            "patch_type": "add_component",
+            "change_description": (
+                "Create TruckYard as a default export function. "
+                "Props: trucks (array of {id, emoji, label, capacity}), "
+                "selectedIds (Set of selected truck ids), "
+                "dispatchEnabled (boolean), onTruckToggle (function(truckId) => void). "
+                "Render: outer div class truck-yard. "
+                "Map trucks to truck-card divs. "
+                "Apply truck-selected class when truck.id is in selectedIds. "
+                "Each card: truck-emoji span, label p, truck-capacity span ('+' + truck.capacity). "
+                "On click: call onTruckToggle(truck.id) only when dispatchEnabled is true. "
+                "Add role='button', tabIndex=0 for keyboard access."
+            ),
+            "location_hint": "Full file content — new file",
+            "named_elements": [
+                "component:TruckYard",
+                "prop:trucks", "prop:selectedIds", "prop:dispatchEnabled", "prop:onTruckToggle",
+            ],
+            "depends_on": ["P1-03"],
+            "rationale": "TruckYard is a stateless multi-select surface — selection state lives in the root container.",
+        },
+        {
+            "patch_id": "P1-07",
+            "file_path": "preview/src/games/fire/components/DispatchBoard.jsx",
+            "patch_type": "add_component",
+            "change_description": (
+                "Create DispatchBoard as a default export function. "
+                "Props: selectedTrucks (array of dispatched truck objects), "
+                "totalCapacity (number), demandValue (number), feedbackMode (string|null). "
+                "Render: outer div class dispatch-board. "
+                "Dispatched trucks row: board-trucks div mapping selectedTrucks to board-truck spans (emoji only). "
+                "Total display: board-total div (totalCapacity as large number). "
+                "Apply board-excess modifier when feedbackMode === 'excess'. "
+                "Demand context: board-demand div ('of ' + demandValue + ' needed'). "
+                "Apply dispatch-shake animation (via CSS class excess-shake) when feedbackMode is 'excess'."
+            ),
+            "location_hint": "Full file content — new file",
+            "named_elements": [
+                "component:DispatchBoard",
+                "prop:selectedTrucks", "prop:totalCapacity", "prop:demandValue", "prop:feedbackMode",
+            ],
+            "depends_on": ["P1-03"],
+            "rationale": "DispatchBoard makes the arithmetic visible — running total vs demand at all times.",
+        },
+        {
+            "patch_id": "P1-08",
+            "file_path": "preview/src/games/fire/components/OutcomeOverlay.jsx",
+            "patch_type": "add_component",
+            "change_description": (
+                "Create OutcomeOverlay as a default export function. "
+                "Props: feedbackMode (string|null: 'success'|'excess'|'timeout'|'shift_end'|null), "
+                "summaryStats ({score, incidentsResolved, streakBest}). "
+                "Returns null when feedbackMode is null. "
+                "Render: outer div class outcome-overlay plus variant class (overlay-success, overlay-excess, "
+                "overlay-timeout, overlay-end based on feedbackMode). "
+                "Inner: overlay-inner div with overlay-emoji (appropriate emoji), "
+                "overlay-title (state label), overlay-subtitle (contextual message). "
+                "When feedbackMode is 'shift_end': also render overlay-stats div with score, "
+                "incidentsResolved, and streakBest from summaryStats."
+            ),
+            "location_hint": "Full file content — new file",
+            "named_elements": [
+                "component:OutcomeOverlay",
+                "prop:feedbackMode", "prop:summaryStats",
+            ],
+            "depends_on": ["P1-03"],
+            "rationale": "OutcomeOverlay is a stateless conditional renderer — feedbackMode is the single switch.",
+        },
+        {
+            "patch_id": "P1-09",
+            "file_path": "preview/src/games/FireDispatchPrototype.jsx",
+            "patch_type": "add_component",
+            "change_description": (
+                "Create FireDispatchPrototype as a default export function. "
+                "Imports: LEVEL_CONFIGS, TRUCK_TYPES from './fire/missionConfig'. "
+                "Imports: MissionCard, TruckYard, DispatchBoard, OutcomeOverlay from './fire/components/'. "
+                "Imports: './fire/styles.css'. "
+                "Module constants: SUCCESS_MS = 1400, EXCESS_MS = 800, TIMEOUT_MS = 1200. "
+                "State (all via useState): levelIndex (0), score (0), lives (3), "
+                "incidents (generated from LEVEL_CONFIGS[0].incidentTypes), "
+                "incidentIndex (0), dispatched ([] array of selected trucks), "
+                "totalCapacity (0), feedbackMode (null), timeLeft (LEVEL_CONFIGS[0].timeLimit), "
+                "streak (0), sessionComplete (false). "
+                "Derived: currentLevel = LEVEL_CONFIGS[levelIndex], "
+                "currentIncident = incidents[incidentIndex], "
+                "availableTrucks = currentLevel.truckTypes, "
+                "timePercent = timeLeft / currentLevel.timeLimit. "
+                "Timer useEffect: decrements timeLeft by 1 each second when feedbackMode is null. "
+                "On timeLeft reaching 0: decrement lives, set feedbackMode 'timeout'. "
+                "After TIMEOUT_MS: advance incident, reset dispatch state. "
+                "On lives reaching 0: set sessionComplete true, feedbackMode 'shift_end'. "
+                "handleTruckToggle(truckId): toggle truckId in dispatched array; "
+                "recompute totalCapacity as sum of dispatched truck capacities. "
+                "handleDispatch(): if feedbackMode non-null return. "
+                "If totalCapacity === currentIncident.demandValue: award score, increment streak, "
+                "set feedbackMode 'success'. After SUCCESS_MS: advance incident, reset dispatch. "
+                "If totalCapacity > currentIncident.demandValue: set feedbackMode 'excess'. "
+                "After EXCESS_MS: clear feedbackMode only (keep dispatch state for correction). "
+                "Level advance: when score >= currentLevel.scoreThreshold and levelIndex < 4: increment levelIndex. "
+                "Render: root div class fire-dispatch. "
+                "Always: OutcomeOverlay (feedbackMode, summaryStats). "
+                "When not sessionComplete: timer-bar with timer-fill (width = timePercent * 100%), "
+                "MissionCard (currentIncident props), TruckYard (availableTrucks, dispatched ids, dispatch enabled when feedbackMode null, handleTruckToggle), "
+                "DispatchBoard (dispatched trucks, totalCapacity, currentIncident.demandValue, feedbackMode), "
+                "Dispatch button that calls handleDispatch."
+            ),
+            "location_hint": "Full file content — new file",
+            "named_elements": [
+                "component:FireDispatchPrototype",
+                "state_variable:levelIndex", "state_variable:score", "state_variable:lives",
+                "state_variable:incidents", "state_variable:incidentIndex",
+                "state_variable:dispatched", "state_variable:totalCapacity",
+                "state_variable:feedbackMode", "state_variable:timeLeft",
+                "state_variable:streak", "state_variable:sessionComplete",
+                "constant:SUCCESS_MS", "constant:EXCESS_MS", "constant:TIMEOUT_MS",
+                "callback:handleTruckToggle", "callback:handleDispatch",
+            ],
+            "depends_on": ["P1-01", "P1-02", "P1-03", "P1-04", "P1-05", "P1-06", "P1-07", "P1-08"],
+            "rationale": "Root container must be built last — it depends on all child components and the level config data.",
+        },
+        {
+            "patch_id": "P1-10",
+            "file_path": "preview/src/App.jsx",
+            "patch_type": "edit_render_output",
+            "change_description": (
+                "Add import for FireDispatchPrototype: import FireDispatchPrototype from './games/FireDispatchPrototype'. "
+                "Replace the current active game component in App's return statement with <FireDispatchPrototype />. "
+                "Remove import for any previous game component no longer referenced."
+            ),
+            "location_hint": "Import block at top of file and App function return statement",
+            "named_elements": ["component:FireDispatchPrototype"],
+            "depends_on": ["P1-09"],
+            "rationale": "App.jsx is the preview entry mount. FireDispatchPrototype must be mounted here for the preview to render.",
+        },
+    ],
+    "naming_registry": [
+        {"name": "LEVEL_CONFIGS",          "name_type": "constant",        "file_path": "preview/src/games/fire/missionConfig.js",                    "purpose": "Array of 5 level configs: incident types, truck types, time limit, score threshold"},
+        {"name": "TRUCK_TYPES",            "name_type": "constant",        "file_path": "preview/src/games/fire/missionConfig.js",                    "purpose": "Canonical truck definitions with emoji, label, and capacity"},
+        {"name": "SUCCESS_MS",             "name_type": "constant",        "file_path": "preview/src/games/FireDispatchPrototype.jsx",                 "purpose": "Duration in ms to show success overlay before advancing"},
+        {"name": "EXCESS_MS",              "name_type": "constant",        "file_path": "preview/src/games/FireDispatchPrototype.jsx",                 "purpose": "Duration in ms to show excess feedback before allowing correction"},
+        {"name": "TIMEOUT_MS",             "name_type": "constant",        "file_path": "preview/src/games/FireDispatchPrototype.jsx",                 "purpose": "Duration in ms to show timeout overlay before advancing"},
+        {"name": "FireDispatchPrototype",  "name_type": "component",       "file_path": "preview/src/games/FireDispatchPrototype.jsx",                 "purpose": "Root game container — owns all dispatch state and loop orchestration"},
+        {"name": "MissionCard",            "name_type": "component",       "file_path": "preview/src/games/fire/components/MissionCard.jsx",          "purpose": "Shows active incident type, location, and arithmetic demand value"},
+        {"name": "TruckYard",              "name_type": "component",       "file_path": "preview/src/games/fire/components/TruckYard.jsx",            "purpose": "Tap-to-toggle truck selection grid with capacity labels"},
+        {"name": "DispatchBoard",          "name_type": "component",       "file_path": "preview/src/games/fire/components/DispatchBoard.jsx",        "purpose": "Running capacity total vs demand with dispatched truck display"},
+        {"name": "OutcomeOverlay",         "name_type": "component",       "file_path": "preview/src/games/fire/components/OutcomeOverlay.jsx",       "purpose": "Full-screen outcome feedback for success, excess, timeout, shift-end"},
+        {"name": "levelIndex",             "name_type": "state_variable",  "file_path": "preview/src/games/FireDispatchPrototype.jsx",                 "purpose": "0-based index into LEVEL_CONFIGS"},
+        {"name": "score",                  "name_type": "state_variable",  "file_path": "preview/src/games/FireDispatchPrototype.jsx",                 "purpose": "Cumulative session score"},
+        {"name": "lives",                  "name_type": "state_variable",  "file_path": "preview/src/games/FireDispatchPrototype.jsx",                 "purpose": "Remaining lives; decrements on timeout"},
+        {"name": "incidents",              "name_type": "state_variable",  "file_path": "preview/src/games/FireDispatchPrototype.jsx",                 "purpose": "Array of incident objects for current level"},
+        {"name": "incidentIndex",          "name_type": "state_variable",  "file_path": "preview/src/games/FireDispatchPrototype.jsx",                 "purpose": "Index of the current active incident"},
+        {"name": "dispatched",             "name_type": "state_variable",  "file_path": "preview/src/games/FireDispatchPrototype.jsx",                 "purpose": "Array of selected truck objects for the current dispatch"},
+        {"name": "totalCapacity",          "name_type": "state_variable",  "file_path": "preview/src/games/FireDispatchPrototype.jsx",                 "purpose": "Sum of dispatched truck capacities — the running arithmetic total"},
+        {"name": "feedbackMode",           "name_type": "state_variable",  "file_path": "preview/src/games/FireDispatchPrototype.jsx",                 "purpose": "Active feedback state: success, excess, timeout, shift_end, or null"},
+        {"name": "timeLeft",               "name_type": "state_variable",  "file_path": "preview/src/games/FireDispatchPrototype.jsx",                 "purpose": "Seconds remaining for the current incident"},
+        {"name": "streak",                 "name_type": "state_variable",  "file_path": "preview/src/games/FireDispatchPrototype.jsx",                 "purpose": "Consecutive first-try correct dispatches"},
+        {"name": "sessionComplete",        "name_type": "state_variable",  "file_path": "preview/src/games/FireDispatchPrototype.jsx",                 "purpose": "True when lives reach 0, triggering end-of-shift summary"},
+        {"name": "handleTruckToggle",      "name_type": "callback",        "file_path": "preview/src/games/FireDispatchPrototype.jsx",                 "purpose": "Toggles a truck in the dispatched array and updates totalCapacity"},
+        {"name": "handleDispatch",         "name_type": "callback",        "file_path": "preview/src/games/FireDispatchPrototype.jsx",                 "purpose": "Evaluates totalCapacity vs demandValue and triggers success or excess"},
+        {"name": "incidentName",           "name_type": "prop",            "file_path": "preview/src/games/fire/components/MissionCard.jsx",          "purpose": "Incident name string displayed in mission card title"},
+        {"name": "incidentEmoji",          "name_type": "prop",            "file_path": "preview/src/games/fire/components/MissionCard.jsx",          "purpose": "Incident type emoji displayed large in mission card"},
+        {"name": "locationName",           "name_type": "prop",            "file_path": "preview/src/games/fire/components/MissionCard.jsx",          "purpose": "Location string shown with pin emoji below incident name"},
+        {"name": "demandValue",            "name_type": "prop",            "file_path": "preview/src/games/fire/components/MissionCard.jsx",          "purpose": "Arithmetic target — total truck capacity required to resolve the incident"},
+        {"name": "urgency",                "name_type": "prop",            "file_path": "preview/src/games/fire/components/MissionCard.jsx",          "purpose": "Urgency level string driving visual cue (low/medium/high)"},
+        {"name": "trucks",                 "name_type": "prop",            "file_path": "preview/src/games/fire/components/TruckYard.jsx",            "purpose": "Available truck objects array to display in the yard"},
+        {"name": "selectedIds",            "name_type": "prop",            "file_path": "preview/src/games/fire/components/TruckYard.jsx",            "purpose": "Set of currently selected truck ids for visual state"},
+        {"name": "dispatchEnabled",        "name_type": "prop",            "file_path": "preview/src/games/fire/components/TruckYard.jsx",            "purpose": "False during feedback windows to prevent input"},
+        {"name": "onTruckToggle",          "name_type": "prop",            "file_path": "preview/src/games/fire/components/TruckYard.jsx",            "purpose": "Callback to toggle truck selection in root state"},
+        {"name": "selectedTrucks",         "name_type": "prop",            "file_path": "preview/src/games/fire/components/DispatchBoard.jsx",        "purpose": "Array of selected truck objects to display as dispatched"},
+        {"name": "summaryStats",           "name_type": "prop",            "file_path": "preview/src/games/fire/components/OutcomeOverlay.jsx",       "purpose": "Session summary data displayed in shift-end state"},
+        {"name": "fire-dispatch",          "name_type": "css_class",       "file_path": "preview/src/games/fire/styles.css",                          "purpose": "Root game wrapper: dark theme flex column"},
+        {"name": "mission-card",           "name_type": "css_class",       "file_path": "preview/src/games/fire/styles.css",                          "purpose": "Incident display card container"},
+        {"name": "mission-emoji",          "name_type": "css_class",       "file_path": "preview/src/games/fire/styles.css",                          "purpose": "Large incident type emoji"},
+        {"name": "mission-name",           "name_type": "css_class",       "file_path": "preview/src/games/fire/styles.css",                          "purpose": "Incident name heading"},
+        {"name": "mission-location",       "name_type": "css_class",       "file_path": "preview/src/games/fire/styles.css",                          "purpose": "Location line below mission name"},
+        {"name": "demand-label",           "name_type": "css_class",       "file_path": "preview/src/games/fire/styles.css",                          "purpose": "Small label above demand number"},
+        {"name": "demand-value",           "name_type": "css_class",       "file_path": "preview/src/games/fire/styles.css",                          "purpose": "Large bold arithmetic target number"},
+        {"name": "truck-yard",             "name_type": "css_class",       "file_path": "preview/src/games/fire/styles.css",                          "purpose": "Wrapping flex container for truck cards"},
+        {"name": "truck-card",             "name_type": "css_class",       "file_path": "preview/src/games/fire/styles.css",                          "purpose": "Individual tappable truck unit"},
+        {"name": "truck-selected",         "name_type": "css_class",       "file_path": "preview/src/games/fire/styles.css",                          "purpose": "Applied when truck is in dispatched array"},
+        {"name": "truck-emoji",            "name_type": "css_class",       "file_path": "preview/src/games/fire/styles.css",                          "purpose": "Truck emoji display within card"},
+        {"name": "truck-capacity",         "name_type": "css_class",       "file_path": "preview/src/games/fire/styles.css",                          "purpose": "Capacity label below truck emoji"},
+        {"name": "dispatch-board",         "name_type": "css_class",       "file_path": "preview/src/games/fire/styles.css",                          "purpose": "Running total and dispatched truck display container"},
+        {"name": "board-trucks",           "name_type": "css_class",       "file_path": "preview/src/games/fire/styles.css",                          "purpose": "Row of dispatched truck emojis"},
+        {"name": "board-truck",            "name_type": "css_class",       "file_path": "preview/src/games/fire/styles.css",                          "purpose": "Single dispatched truck emoji"},
+        {"name": "board-total",            "name_type": "css_class",       "file_path": "preview/src/games/fire/styles.css",                          "purpose": "Large running capacity total number"},
+        {"name": "board-demand",           "name_type": "css_class",       "file_path": "preview/src/games/fire/styles.css",                          "purpose": "'of N needed' label below total"},
+        {"name": "board-excess",           "name_type": "css_class",       "file_path": "preview/src/games/fire/styles.css",                          "purpose": "Applied to board-total when excess — turns red"},
+        {"name": "timer-bar",              "name_type": "css_class",       "file_path": "preview/src/games/fire/styles.css",                          "purpose": "Track div for countdown timer fill"},
+        {"name": "timer-fill",             "name_type": "css_class",       "file_path": "preview/src/games/fire/styles.css",                          "purpose": "Fill div, width driven by timePercent"},
+        {"name": "timer-urgent",           "name_type": "css_class",       "file_path": "preview/src/games/fire/styles.css",                          "purpose": "Applied when timeLeft < 5 to trigger pulse animation"},
+        {"name": "dispatch-hud",           "name_type": "css_class",       "file_path": "preview/src/games/fire/styles.css",                          "purpose": "Persistent HUD strip: score, lives, level"},
+        {"name": "outcome-overlay",        "name_type": "css_class",       "file_path": "preview/src/games/fire/styles.css",                          "purpose": "Fixed inset-0 base overlay class"},
+        {"name": "overlay-success",        "name_type": "css_class",       "file_path": "preview/src/games/fire/styles.css",                          "purpose": "Green background for successful dispatch"},
+        {"name": "overlay-excess",         "name_type": "css_class",       "file_path": "preview/src/games/fire/styles.css",                          "purpose": "Red background for excess capacity"},
+        {"name": "overlay-timeout",        "name_type": "css_class",       "file_path": "preview/src/games/fire/styles.css",                          "purpose": "Orange background for timeout"},
+        {"name": "overlay-end",            "name_type": "css_class",       "file_path": "preview/src/games/fire/styles.css",                          "purpose": "Dark blue background for shift-end summary"},
+        {"name": "overlay-inner",          "name_type": "css_class",       "file_path": "preview/src/games/fire/styles.css",                          "purpose": "Centered content wrapper inside overlay"},
+        {"name": "overlay-emoji",          "name_type": "css_class",       "file_path": "preview/src/games/fire/styles.css",                          "purpose": "Large reaction emoji inside overlay"},
+        {"name": "overlay-title",          "name_type": "css_class",       "file_path": "preview/src/games/fire/styles.css",                          "purpose": "Bold outcome title inside overlay"},
+        {"name": "overlay-subtitle",       "name_type": "css_class",       "file_path": "preview/src/games/fire/styles.css",                          "purpose": "Secondary message inside overlay"},
+        {"name": "truck-bounce",           "name_type": "keyframe",        "file_path": "preview/src/games/fire/styles.css",                          "purpose": "Snappy scale-up bounce when truck is selected"},
+        {"name": "dispatch-shake",         "name_type": "keyframe",        "file_path": "preview/src/games/fire/styles.css",                          "purpose": "Horizontal rejection shake on excess dispatch"},
+        {"name": "overlay-enter",          "name_type": "keyframe",        "file_path": "preview/src/games/fire/styles.css",                          "purpose": "Scale-in entry for outcome overlay"},
+        {"name": "timer-pulse",            "name_type": "keyframe",        "file_path": "preview/src/games/fire/styles.css",                          "purpose": "Opacity pulse for urgent timer fill"},
+    ],
+    "animation_contracts": [
+        {
+            "animation_id": "truck-bounce",
+            "trigger": "truck-selected class applied on truck toggle",
+            "duration_ms": 300,
+            "easing": "ease",
+            "css_custom_properties": [],
+            "keyframe_name": "truck-bounce",
+            "owner_file": "preview/src/games/fire/styles.css",
+            "element_selector": ".truck-card.truck-selected",
+            "dom_measurement_required": False,
+        },
+        {
+            "animation_id": "dispatch-shake",
+            "trigger": "excess-shake class applied on totalCapacity > demandValue",
+            "duration_ms": 350,
+            "easing": "ease",
+            "css_custom_properties": [],
+            "keyframe_name": "dispatch-shake",
+            "owner_file": "preview/src/games/fire/styles.css",
+            "element_selector": ".dispatch-board",
+            "dom_measurement_required": False,
+        },
+        {
+            "animation_id": "overlay-enter",
+            "trigger": "OutcomeOverlay renders (feedbackMode non-null)",
+            "duration_ms": 200,
+            "easing": "cubic-bezier(0.17, 0.89, 0.32, 1.1)",
+            "css_custom_properties": [],
+            "keyframe_name": "overlay-enter",
+            "owner_file": "preview/src/games/fire/styles.css",
+            "element_selector": ".outcome-overlay",
+            "dom_measurement_required": False,
+        },
+        {
+            "animation_id": "timer-pulse",
+            "trigger": "timer-urgent class applied when timeLeft < 5",
+            "duration_ms": 500,
+            "easing": "ease",
+            "css_custom_properties": [],
+            "keyframe_name": "timer-pulse",
+            "owner_file": "preview/src/games/fire/styles.css",
+            "element_selector": ".timer-fill.timer-urgent",
+            "dom_measurement_required": False,
+        },
+    ],
+    "acceptance_signals": [
+        {
+            "signal_id": "AS1-01",
+            "description": "Mission card shows incident with readable demand value",
+            "observable_in_browser": "Large amber number indicates how much truck capacity is needed; incident emoji and location visible",
+            "related_patches": ["P1-05", "P1-09"],
+        },
+        {
+            "signal_id": "AS1-02",
+            "description": "Tapping a truck selects it and updates running total",
+            "observable_in_browser": "Truck card gets green border; dispatch board total increments by truck capacity",
+            "related_patches": ["P1-06", "P1-07", "P1-09"],
+        },
+        {
+            "signal_id": "AS1-03",
+            "description": "Correct dispatch triggers success overlay",
+            "observable_in_browser": "When totalCapacity === demandValue and dispatch is submitted, green overlay appears",
+            "related_patches": ["P1-08", "P1-09"],
+        },
+        {
+            "signal_id": "AS1-04",
+            "description": "Excess triggers board shake and red total",
+            "observable_in_browser": "When totalCapacity > demandValue, board shakes and total turns red",
+            "related_patches": ["P1-04", "P1-07", "P1-09"],
+        },
+        {
+            "signal_id": "AS1-05",
+            "description": "Timer depletes and causes a timeout miss",
+            "observable_in_browser": "Timer fill bar empties in real time; at zero, orange overlay appears and lives decrement",
+            "related_patches": ["P1-03", "P1-09"],
+        },
+        {
+            "signal_id": "AS1-06",
+            "description": "Timer turns urgent at low time",
+            "observable_in_browser": "Fill bar pulses when timeLeft < 5 — visible urgency signal without text",
+            "related_patches": ["P1-03", "P1-04"],
+        },
+    ],
+    "patch_notes": (
+        "Pass 1 creates the full file structure from implementation_plan.file_plan. "
+        "The dispatch mechanic is multi-select (multiple trucks), unlike Bakery's single-tap. "
+        "totalCapacity is recomputed as a simple sum on every truck toggle — no separate addReducer needed. "
+        "EXCESS feedback keeps the current dispatch visible so the player can correct it by deselecting a truck. "
+        "This is distinct from Bakery's bounce-back, which removes the item automatically. "
+        "Timer must pause (clearInterval) whenever feedbackMode is non-null, "
+        "and restart fresh for the new incident when it loads."
+    ),
+}
+
+
+# ---------------------------------------------------------------------------
+# Unit Circle Pizza Lab — navigate_and_position interaction — Pass 1
+# ---------------------------------------------------------------------------
+
+_UNIT_CIRCLE_PATCH_PLAN: Dict[str, Any] = {
+    "patch_objective": (
+        "Create the initial playable Unit Circle Pizza Lab prototype: lab config data, "
+        "five UI components (OrderPanel, PizzaWheel, AngleReadout, CoordinateDisplay, FeedbackPanel), "
+        "styles, and the UnitCirclePrototype root container with angle evaluation and round loop logic."
+    ),
+    "source_pass": {
+        "pass_number": 1,
+        "pass_label": "Core Angle Placement Loop",
+        "features_added": [
+            "Lab config data: round configs with target angles, tolerances, and difficulty levels",
+            "Common angles lookup table (0°, 30°, 45°, 60°, 90°, etc.) with exact trig values",
+            "OrderPanel component: shows target angle specification for the current round",
+            "PizzaWheel component: clickable SVG unit circle with topping placement marker",
+            "AngleReadout component: live display of player's angle in degrees and radians",
+            "CoordinateDisplay component: live (cos θ, sin θ) values computed from player's angle",
+            "FeedbackPanel component: inline result with correctness, delta, and correct-answer reveal",
+            "UnitCirclePrototype: root container with full round state, evaluation logic, and progression",
+        ],
+    },
+    "target_files": [
+        {
+            "file_path": "preview/src/App.jsx",
+            "operation": "edit",
+            "current_state": "Mounts previous game component or placeholder",
+            "post_patch_state": "Mounts UnitCirclePrototype as the active game component",
+        },
+        {
+            "file_path": "preview/src/games/UnitCirclePrototype.jsx",
+            "operation": "create",
+            "current_state": "File does not exist",
+            "post_patch_state": "Root container with full round state, angle evaluation, and session progression",
+        },
+        {
+            "file_path": "preview/src/games/unitcircle/labConfig.js",
+            "operation": "create",
+            "current_state": "File does not exist",
+            "post_patch_state": "Exports ROUND_CONFIGS array and COMMON_ANGLES lookup table",
+        },
+        {
+            "file_path": "preview/src/games/unitcircle/components/OrderPanel.jsx",
+            "operation": "create",
+            "current_state": "File does not exist",
+            "post_patch_state": "Presentational component showing the target angle specification for the current round",
+        },
+        {
+            "file_path": "preview/src/games/unitcircle/components/PizzaWheel.jsx",
+            "operation": "create",
+            "current_state": "File does not exist",
+            "post_patch_state": "SVG unit circle with clickable surface, player topping marker, and optional correct-position ghost",
+        },
+        {
+            "file_path": "preview/src/games/unitcircle/components/AngleReadout.jsx",
+            "operation": "create",
+            "current_state": "File does not exist",
+            "post_patch_state": "Live display of current angle in degrees and radians",
+        },
+        {
+            "file_path": "preview/src/games/unitcircle/components/CoordinateDisplay.jsx",
+            "operation": "create",
+            "current_state": "File does not exist",
+            "post_patch_state": "Live (cos θ, sin θ) values computed from current angle, updating on every change",
+        },
+        {
+            "file_path": "preview/src/games/unitcircle/components/FeedbackPanel.jsx",
+            "operation": "create",
+            "current_state": "File does not exist",
+            "post_patch_state": "Inline result panel showing correct/close/miss verdict, delta, and correct answer reveal",
+        },
+        {
+            "file_path": "preview/src/games/unitcircle/styles.css",
+            "operation": "create",
+            "current_state": "File does not exist",
+            "post_patch_state": "All layout, SVG, and animation styles scoped to .pizza-lab class",
+        },
+    ],
+    "patch_sequence": [
+        {
+            "patch_id": "P1-01",
+            "file_path": "preview/src/games/unitcircle/labConfig.js",
+            "patch_type": "add_constant",
+            "change_description": (
+                "Export ROUND_CONFIGS as the default export — array of round objects grouped into 3 difficulty tiers. "
+                "Tier 1 (rounds 1–5): quadrant angles (0°, 90°, 180°, 270°) with toleranceDeg 15. "
+                "Tier 2 (rounds 6–10): common angles (30°, 45°, 60°, 120°, 135°, 150°, 210°, 225°, 240°) with toleranceDeg 10. "
+                "Tier 3 (rounds 11–15): all standard angles including 315°, 300°, 330° with toleranceDeg 5. "
+                "Each round object: {targetAngleDeg, toleranceDeg, label (e.g. '30°'), "
+                "specType ('angle'|'coords'|'radians'), displaySpec (the string shown to player)}."
+            ),
+            "location_hint": "Top of file, default export",
+            "named_elements": ["constant:ROUND_CONFIGS"],
+            "depends_on": [],
+            "rationale": "Round config is the authoritative source for difficulty progression and target angles.",
+        },
+        {
+            "patch_id": "P1-02",
+            "file_path": "preview/src/games/unitcircle/labConfig.js",
+            "patch_type": "add_constant",
+            "change_description": (
+                "Export COMMON_ANGLES as a named const object mapping angle in degrees to exact trig values. "
+                "Keys: 0, 30, 45, 60, 90, 120, 135, 150, 180, 210, 225, 240, 270, 300, 315, 330, 360. "
+                "Each value: {cos: exact fraction string, sin: exact fraction string, "
+                "rad: radian string (e.g. 'π/6'), cosDecimal: number, sinDecimal: number}. "
+                "Example: 30 → {cos: '√3/2', sin: '1/2', rad: 'π/6', cosDecimal: 0.866, sinDecimal: 0.5}. "
+                "Used by CoordinateDisplay and FeedbackPanel to show exact values for common angles."
+            ),
+            "location_hint": "After ROUND_CONFIGS default export",
+            "named_elements": ["constant:COMMON_ANGLES"],
+            "depends_on": ["P1-01"],
+            "rationale": "Exact trig values at common angles must be looked up, not computed — floating point shows non-exact representations.",
+        },
+        {
+            "patch_id": "P1-03",
+            "file_path": "preview/src/games/unitcircle/styles.css",
+            "patch_type": "add_css_class",
+            "change_description": (
+                "Create the full stylesheet for the Pizza Lab. "
+                "Root: .pizza-lab (flex column, 100vh, background #fdf6ec, font-family sans-serif, overflow hidden). "
+                "Wheel container: .pizza-wheel-container (display flex, justify-content center, position relative). "
+                ".unit-circle-svg (cursor crosshair, max-width 340px, width 100%). "
+                "SVG elements (referenced via className on SVG child elements): "
+                ".circle-outline (fill none, stroke #d1d5db, stroke-width 2). "
+                ".axis-line (stroke #9ca3af, stroke-width 1, stroke-dasharray 4 4). "
+                ".player-topping (fill #f97316, stroke #fff, stroke-width 2, "
+                "animation topping-pop 0.25s cubic-bezier(0.17,0.89,0.32,1.4) forwards when first placed). "
+                ".correct-ghost (fill none, stroke #22c55e, stroke-width 2, stroke-dasharray 5 3, opacity 0.8). "
+                "Angle readout: .angle-readout (display flex, gap 16px, justify-content center, font-size 1.1rem). "
+                ".angle-deg (font-weight 700, font-size 1.4rem). "
+                ".angle-rad (color #6b7280, font-size 1rem). "
+                "Coordinate display: .coord-display (display flex, gap 24px, justify-content center). "
+                ".coord-label (font-size 0.75rem, uppercase, letter-spacing 0.06em, color #9ca3af). "
+                ".coord-value (font-size 1.3rem, font-weight 700). "
+                ".coord-exact (font-size 0.8rem, color #6b7280). "
+                "Order panel: .order-panel (background #fff, border 2px solid #e5e7eb, border-radius 12px, padding 16px). "
+                ".order-label (font-size 0.75rem, uppercase, letter-spacing 0.08em, color #9ca3af). "
+                ".order-spec (font-size 2rem, font-weight 800). "
+                "Submit button: .submit-btn (background #6366f1, color #fff, border none, border-radius 999px, "
+                "padding 12px 32px, font-size 1rem, font-weight 700, cursor pointer, transition 0.15s). "
+                ".submit-btn:disabled (opacity 0.4, cursor not-allowed). "
+                "Feedback panel: .feedback-panel (border-radius 12px, padding 16px, text-align center). "
+                ".feedback-correct (background #dcfce7, border 2px solid #22c55e). "
+                ".feedback-close (background #fef3c7, border 2px solid #f59e0b). "
+                ".feedback-miss (background #fee2e2, border 2px solid #ef4444). "
+                ".feedback-verdict (font-size 1.2rem, font-weight 700). "
+                ".feedback-delta (font-size 0.9rem, color #6b7280, margin-top 4px). "
+                ".feedback-answer (font-size 0.85rem, margin-top 8px, color #374151). "
+                "Session HUD: .session-hud (display flex, align-items center, gap 16px, padding 12px 16px). "
+                ".round-counter (font-size 0.9rem, color #6b7280). "
+                ".session-score (font-size 1rem, font-weight 700)."
+            ),
+            "location_hint": "Full file content — new file",
+            "named_elements": [
+                "css_class:pizza-lab",
+                "css_class:pizza-wheel-container", "css_class:unit-circle-svg",
+                "css_class:circle-outline", "css_class:axis-line",
+                "css_class:player-topping", "css_class:correct-ghost",
+                "css_class:angle-readout", "css_class:angle-deg", "css_class:angle-rad",
+                "css_class:coord-display", "css_class:coord-label",
+                "css_class:coord-value", "css_class:coord-exact",
+                "css_class:order-panel", "css_class:order-label", "css_class:order-spec",
+                "css_class:submit-btn",
+                "css_class:feedback-panel", "css_class:feedback-correct",
+                "css_class:feedback-close", "css_class:feedback-miss",
+                "css_class:feedback-verdict", "css_class:feedback-delta", "css_class:feedback-answer",
+                "css_class:session-hud", "css_class:round-counter", "css_class:session-score",
+            ],
+            "depends_on": [],
+            "rationale": "All layout primitives and SVG class styles must exist before PizzaWheel renders SVG content.",
+        },
+        {
+            "patch_id": "P1-04",
+            "file_path": "preview/src/games/unitcircle/styles.css",
+            "patch_type": "add_keyframe",
+            "change_description": (
+                "Add three keyframes. "
+                "topping-pop: from scale(0.3) opacity(0) to scale(1) opacity(1) with cubic-bezier(0.17,0.89,0.32,1.4) — "
+                "snappy pop when the player topping is first placed after submit. "
+                "correct-flash: 0%/100% background-color transparent, 50% background-color rgba(34,197,94,0.2) — "
+                "brief green flash on the entire feedback-panel when answer is correct. "
+                "miss-arc: 0% stroke-dashoffset 100, 100% stroke-dashoffset 0 — "
+                "arc draw animation for the correct-ghost marker revealing the correct position."
+            ),
+            "location_hint": "After all CSS class rules, end of file",
+            "named_elements": ["keyframe:topping-pop", "keyframe:correct-flash", "keyframe:miss-arc"],
+            "depends_on": ["P1-03"],
+            "rationale": "Keyframes must be in the same file as the classes that reference them.",
+        },
+        {
+            "patch_id": "P1-05",
+            "file_path": "preview/src/games/unitcircle/components/OrderPanel.jsx",
+            "patch_type": "add_component",
+            "change_description": (
+                "Create OrderPanel as a default export function. "
+                "Props: targetSpec (string — the text shown to the player, e.g. '45°' or 'cos 60°, sin 60°' or 'π/4'). "
+                "Render: outer div class order-panel. "
+                "order-label div ('Place your topping at:'). "
+                "order-spec div (targetSpec rendered as a large, bold display). "
+                "If targetSpec contains 'cos' or 'sin', render as two lines for readability."
+            ),
+            "location_hint": "Full file content — new file",
+            "named_elements": [
+                "component:OrderPanel",
+                "prop:targetSpec",
+            ],
+            "depends_on": ["P1-03"],
+            "rationale": "OrderPanel is purely presentational — it receives the pre-formatted spec string from the root container.",
+        },
+        {
+            "patch_id": "P1-06",
+            "file_path": "preview/src/games/unitcircle/components/PizzaWheel.jsx",
+            "patch_type": "add_component",
+            "change_description": (
+                "Create PizzaWheel as a default export function. "
+                "Props: currentAngleDeg (number 0–360), toppingPlaced (boolean), "
+                "correctAngleDeg (number|null), showCorrectPosition (boolean), "
+                "onAngleChange (function(angleDeg: number) => void). "
+                "Render: div class pizza-wheel-container containing an SVG element class unit-circle-svg, "
+                "viewBox '-1.3 -1.3 2.6 2.6', preserveAspectRatio xMidYMid meet. "
+                "SVG contents: "
+                "(1) circle class circle-outline cx=0 cy=0 r=1 — the unit circle. "
+                "(2) Two axis lines (horizontal and vertical) class axis-line. "
+                "(3) Player topping: when toppingPlaced is true, render a circle class player-topping "
+                "at cx=cos(currentAngleDeg * π/180) cy=-sin(currentAngleDeg * π/180) r=0.08. "
+                "(Note: SVG y-axis is inverted, so use -sin to place correctly.) "
+                "(4) Correct ghost: when showCorrectPosition is true and correctAngleDeg is non-null, "
+                "render a circle class correct-ghost at cx=cos(correctAngleDeg * π/180) cy=-sin(correctAngleDeg * π/180) r=0.1. "
+                "Click handler on the SVG: convert click coordinates to unit circle angle using "
+                "Math.atan2(-dy, dx) * 180/π (adjusting for inverted y), normalize to 0–360, call onAngleChange."
+            ),
+            "location_hint": "Full file content — new file",
+            "named_elements": [
+                "component:PizzaWheel",
+                "prop:currentAngleDeg", "prop:toppingPlaced", "prop:correctAngleDeg",
+                "prop:showCorrectPosition", "prop:onAngleChange",
+            ],
+            "depends_on": ["P1-03"],
+            "rationale": "PizzaWheel owns the SVG coordinate mapping and angle input — all math is in the click handler, not the root container.",
+        },
+        {
+            "patch_id": "P1-07",
+            "file_path": "preview/src/games/unitcircle/components/AngleReadout.jsx",
+            "patch_type": "add_component",
+            "change_description": (
+                "Create AngleReadout as a default export function. "
+                "Props: angleDeg (number). "
+                "Render: div class angle-readout. "
+                "angle-deg span: Math.round(angleDeg) + '°'. "
+                "angle-rad span: compute radian value = (angleDeg * π/180).toFixed(3) + ' rad'. "
+                "If angleDeg matches a COMMON_ANGLES key within 0.5°, show the exact radian string "
+                "(e.g. 'π/6') instead of the decimal."
+            ),
+            "location_hint": "Full file content — new file",
+            "named_elements": [
+                "component:AngleReadout",
+                "prop:angleDeg",
+            ],
+            "depends_on": ["P1-03"],
+            "rationale": "AngleReadout gives immediate feedback as the player explores the wheel — it updates live on every click.",
+        },
+        {
+            "patch_id": "P1-08",
+            "file_path": "preview/src/games/unitcircle/components/CoordinateDisplay.jsx",
+            "patch_type": "add_component",
+            "change_description": (
+                "Create CoordinateDisplay as a default export function. "
+                "Props: angleDeg (number). "
+                "Compute cosVal = Math.cos(angleDeg * π/180), sinVal = Math.sin(angleDeg * π/180). "
+                "Render: div class coord-display. "
+                "Two blocks side by side: "
+                "Block 1: coord-label div ('cos θ'), coord-value div (cosVal.toFixed(3)), "
+                "coord-exact div showing exact fraction from COMMON_ANGLES if angleDeg is a common angle. "
+                "Block 2: coord-label div ('sin θ'), coord-value div (sinVal.toFixed(3)), "
+                "coord-exact div showing exact fraction from COMMON_ANGLES if applicable."
+            ),
+            "location_hint": "Full file content — new file",
+            "named_elements": [
+                "component:CoordinateDisplay",
+                "prop:angleDeg",
+            ],
+            "depends_on": ["P1-03"],
+            "rationale": "CoordinateDisplay teaches the (cos θ, sin θ) mapping by showing live values as the player moves — the learning is in the motion.",
+        },
+        {
+            "patch_id": "P1-09",
+            "file_path": "preview/src/games/unitcircle/components/FeedbackPanel.jsx",
+            "patch_type": "add_component",
+            "change_description": (
+                "Create FeedbackPanel as a default export function. "
+                "Props: feedbackMode (string|null: 'correct'|'close'|'miss'|null), "
+                "deltaAngle (number — absolute difference from target), "
+                "correctAngleDeg (number), playerAngleDeg (number). "
+                "Returns null when feedbackMode is null. "
+                "Render: div class feedback-panel plus feedback-correct/feedback-close/feedback-miss variant. "
+                "feedback-verdict div: 'Perfect!' (correct) / 'Close!' (close) / 'Not quite.' (miss). "
+                "feedback-delta div: 'You were ' + deltaAngle.toFixed(1) + '° off'. Hidden when correct. "
+                "feedback-answer div (visible on close and miss): "
+                "'Correct position: ' + correctAngleDeg + '° → (' + cosStr + ', ' + sinStr + ')' "
+                "using COMMON_ANGLES lookup or decimal fallback."
+            ),
+            "location_hint": "Full file content — new file",
+            "named_elements": [
+                "component:FeedbackPanel",
+                "prop:feedbackMode", "prop:deltaAngle", "prop:correctAngleDeg", "prop:playerAngleDeg",
+            ],
+            "depends_on": ["P1-03"],
+            "rationale": "FeedbackPanel teaches on miss — showing the exact correct position with coordinates is the primary learning moment.",
+        },
+        {
+            "patch_id": "P1-10",
+            "file_path": "preview/src/games/UnitCirclePrototype.jsx",
+            "patch_type": "add_component",
+            "change_description": (
+                "Create UnitCirclePrototype as a default export function. "
+                "Imports: ROUND_CONFIGS, COMMON_ANGLES from './unitcircle/labConfig'. "
+                "Imports: OrderPanel, PizzaWheel, AngleReadout, CoordinateDisplay, FeedbackPanel from './unitcircle/components/'. "
+                "Imports: './unitcircle/styles.css'. "
+                "Module constants: ROUNDS_PER_SESSION = ROUND_CONFIGS.length, "
+                "ADVANCE_MS = 1800 (time before advancing after feedback). "
+                "State: roundIndex (0), currentAngleDeg (0), toppingPlaced (false), "
+                "submitted (false), feedbackMode (null), score (0), streak (0), sessionComplete (false). "
+                "Derived: currentRound = ROUND_CONFIGS[roundIndex], "
+                "targetAngleDeg = currentRound.targetAngleDeg, "
+                "toleranceDeg = currentRound.toleranceDeg, "
+                "deltaAngle = Math.abs(currentAngleDeg - targetAngleDeg) normalized to 0–180 "
+                "(use min(delta, 360 - delta) to handle wrap-around). "
+                "showCorrectPosition = submitted and feedbackMode !== 'correct'. "
+                "handleAngleChange(deg): set currentAngleDeg = deg, set toppingPlaced = true "
+                "(only before submit — ignore if submitted). "
+                "handleSubmit(): if not toppingPlaced or submitted, return. "
+                "Set submitted = true. "
+                "If deltaAngle <= toleranceDeg: set feedbackMode 'correct', increment score, increment streak. "
+                "Else if deltaAngle <= toleranceDeg * 2.5: set feedbackMode 'close', reset streak. "
+                "Else: set feedbackMode 'miss', reset streak. "
+                "After ADVANCE_MS: if roundIndex < ROUNDS_PER_SESSION - 1: increment roundIndex, reset round state. "
+                "Else: set sessionComplete true. "
+                "Render: root div class pizza-lab. "
+                "session-hud: round-counter ('Round ' + (roundIndex+1) + '/' + ROUNDS_PER_SESSION), "
+                "session-score (score). "
+                "OrderPanel (targetSpec = currentRound.displaySpec). "
+                "PizzaWheel (currentAngleDeg, toppingPlaced, correctAngleDeg = targetAngleDeg if showCorrectPosition, "
+                "showCorrectPosition, onAngleChange = handleAngleChange). "
+                "AngleReadout (angleDeg = currentAngleDeg). "
+                "CoordinateDisplay (angleDeg = currentAngleDeg). "
+                "Submit button class submit-btn, disabled when submitted or not toppingPlaced, onClick = handleSubmit. "
+                "FeedbackPanel (feedbackMode, deltaAngle, correctAngleDeg = targetAngleDeg, playerAngleDeg = currentAngleDeg)."
+            ),
+            "location_hint": "Full file content — new file",
+            "named_elements": [
+                "component:UnitCirclePrototype",
+                "state_variable:roundIndex", "state_variable:currentAngleDeg",
+                "state_variable:toppingPlaced", "state_variable:submitted",
+                "state_variable:feedbackMode", "state_variable:score",
+                "state_variable:streak", "state_variable:sessionComplete",
+                "constant:ROUNDS_PER_SESSION", "constant:ADVANCE_MS",
+                "callback:handleAngleChange", "callback:handleSubmit",
+            ],
+            "depends_on": ["P1-01", "P1-02", "P1-03", "P1-04", "P1-05", "P1-06", "P1-07", "P1-08", "P1-09"],
+            "rationale": "Root container must be built last — it owns all state and depends on every child component and the lab config.",
+        },
+        {
+            "patch_id": "P1-11",
+            "file_path": "preview/src/App.jsx",
+            "patch_type": "edit_render_output",
+            "change_description": (
+                "Add import for UnitCirclePrototype: import UnitCirclePrototype from './games/UnitCirclePrototype'. "
+                "Replace the current active game component in App's return statement with <UnitCirclePrototype />. "
+                "Remove import for any previous game component no longer referenced."
+            ),
+            "location_hint": "Import block at top of file and App function return statement",
+            "named_elements": ["component:UnitCirclePrototype"],
+            "depends_on": ["P1-10"],
+            "rationale": "App.jsx is the preview entry mount. UnitCirclePrototype must be mounted here for the preview to render.",
+        },
+    ],
+    "naming_registry": [
+        {"name": "ROUND_CONFIGS",          "name_type": "constant",        "file_path": "preview/src/games/unitcircle/labConfig.js",                      "purpose": "Array of round configs with targetAngleDeg, toleranceDeg, and displaySpec"},
+        {"name": "COMMON_ANGLES",          "name_type": "constant",        "file_path": "preview/src/games/unitcircle/labConfig.js",                      "purpose": "Lookup table of exact trig values at standard angles"},
+        {"name": "ROUNDS_PER_SESSION",     "name_type": "constant",        "file_path": "preview/src/games/UnitCirclePrototype.jsx",                      "purpose": "Total rounds in one session, derived from ROUND_CONFIGS.length"},
+        {"name": "ADVANCE_MS",             "name_type": "constant",        "file_path": "preview/src/games/UnitCirclePrototype.jsx",                      "purpose": "Duration in ms after feedback before advancing to next round"},
+        {"name": "UnitCirclePrototype",    "name_type": "component",       "file_path": "preview/src/games/UnitCirclePrototype.jsx",                      "purpose": "Root container — owns all round state, angle evaluation, and session progression"},
+        {"name": "OrderPanel",             "name_type": "component",       "file_path": "preview/src/games/unitcircle/components/OrderPanel.jsx",         "purpose": "Shows the target angle specification for the current round"},
+        {"name": "PizzaWheel",             "name_type": "component",       "file_path": "preview/src/games/unitcircle/components/PizzaWheel.jsx",         "purpose": "Clickable SVG unit circle that emits angle changes"},
+        {"name": "AngleReadout",           "name_type": "component",       "file_path": "preview/src/games/unitcircle/components/AngleReadout.jsx",       "purpose": "Live display of current angle in degrees and radians"},
+        {"name": "CoordinateDisplay",      "name_type": "component",       "file_path": "preview/src/games/unitcircle/components/CoordinateDisplay.jsx",  "purpose": "Live (cos θ, sin θ) values computed from current angle"},
+        {"name": "FeedbackPanel",          "name_type": "component",       "file_path": "preview/src/games/unitcircle/components/FeedbackPanel.jsx",      "purpose": "Inline result with verdict, delta, and correct-answer reveal"},
+        {"name": "roundIndex",             "name_type": "state_variable",  "file_path": "preview/src/games/UnitCirclePrototype.jsx",                      "purpose": "0-based index into ROUND_CONFIGS"},
+        {"name": "currentAngleDeg",        "name_type": "state_variable",  "file_path": "preview/src/games/UnitCirclePrototype.jsx",                      "purpose": "Player's currently selected angle in degrees (0–360)"},
+        {"name": "toppingPlaced",          "name_type": "state_variable",  "file_path": "preview/src/games/UnitCirclePrototype.jsx",                      "purpose": "True after the player clicks the wheel for the first time in a round"},
+        {"name": "submitted",              "name_type": "state_variable",  "file_path": "preview/src/games/UnitCirclePrototype.jsx",                      "purpose": "True after the player confirms their angle with the submit button"},
+        {"name": "feedbackMode",           "name_type": "state_variable",  "file_path": "preview/src/games/UnitCirclePrototype.jsx",                      "purpose": "Result of evaluation: correct, close, miss, or null"},
+        {"name": "score",                  "name_type": "state_variable",  "file_path": "preview/src/games/UnitCirclePrototype.jsx",                      "purpose": "Session score — increments only on correct answers"},
+        {"name": "streak",                 "name_type": "state_variable",  "file_path": "preview/src/games/UnitCirclePrototype.jsx",                      "purpose": "Consecutive correct answers — resets on close or miss"},
+        {"name": "sessionComplete",        "name_type": "state_variable",  "file_path": "preview/src/games/UnitCirclePrototype.jsx",                      "purpose": "True when all rounds are complete"},
+        {"name": "handleAngleChange",      "name_type": "callback",        "file_path": "preview/src/games/UnitCirclePrototype.jsx",                      "purpose": "Receives angle from PizzaWheel click and updates currentAngleDeg"},
+        {"name": "handleSubmit",           "name_type": "callback",        "file_path": "preview/src/games/UnitCirclePrototype.jsx",                      "purpose": "Evaluates currentAngleDeg against target and sets feedbackMode"},
+        {"name": "targetSpec",             "name_type": "prop",            "file_path": "preview/src/games/unitcircle/components/OrderPanel.jsx",         "purpose": "Pre-formatted spec string shown to the player (angle, coords, or radians)"},
+        {"name": "toppingPlaced",          "name_type": "prop",            "file_path": "preview/src/games/unitcircle/components/PizzaWheel.jsx",         "purpose": "Controls whether the player topping SVG element is rendered"},
+        {"name": "correctAngleDeg",        "name_type": "prop",            "file_path": "preview/src/games/unitcircle/components/PizzaWheel.jsx",         "purpose": "Angle of the correct-ghost marker, passed when showCorrectPosition is true"},
+        {"name": "showCorrectPosition",    "name_type": "prop",            "file_path": "preview/src/games/unitcircle/components/PizzaWheel.jsx",         "purpose": "When true, renders the correct-ghost marker at correctAngleDeg"},
+        {"name": "onAngleChange",          "name_type": "prop",            "file_path": "preview/src/games/unitcircle/components/PizzaWheel.jsx",         "purpose": "Callback invoked with the computed angle when the user clicks the SVG"},
+        {"name": "angleDeg",               "name_type": "prop",            "file_path": "preview/src/games/unitcircle/components/AngleReadout.jsx",       "purpose": "Current angle in degrees to display"},
+        {"name": "deltaAngle",             "name_type": "prop",            "file_path": "preview/src/games/unitcircle/components/FeedbackPanel.jsx",      "purpose": "Absolute angular difference between player and target — shown on close and miss"},
+        {"name": "playerAngleDeg",         "name_type": "prop",            "file_path": "preview/src/games/unitcircle/components/FeedbackPanel.jsx",      "purpose": "Player's submitted angle, used in comparison display"},
+        {"name": "pizza-lab",              "name_type": "css_class",       "file_path": "preview/src/games/unitcircle/styles.css",                        "purpose": "Root game wrapper: light background flex column"},
+        {"name": "pizza-wheel-container",  "name_type": "css_class",       "file_path": "preview/src/games/unitcircle/styles.css",                        "purpose": "Centering wrapper for the SVG unit circle"},
+        {"name": "unit-circle-svg",        "name_type": "css_class",       "file_path": "preview/src/games/unitcircle/styles.css",                        "purpose": "The SVG element: crosshair cursor, max-width 340px"},
+        {"name": "circle-outline",         "name_type": "css_class",       "file_path": "preview/src/games/unitcircle/styles.css",                        "purpose": "The unit circle ring stroke — no fill"},
+        {"name": "axis-line",              "name_type": "css_class",       "file_path": "preview/src/games/unitcircle/styles.css",                        "purpose": "Horizontal and vertical dashed axis lines"},
+        {"name": "player-topping",         "name_type": "css_class",       "file_path": "preview/src/games/unitcircle/styles.css",                        "purpose": "Orange filled circle marking the player's selected position"},
+        {"name": "correct-ghost",          "name_type": "css_class",       "file_path": "preview/src/games/unitcircle/styles.css",                        "purpose": "Dashed green circle marking the correct position after miss"},
+        {"name": "angle-readout",          "name_type": "css_class",       "file_path": "preview/src/games/unitcircle/styles.css",                        "purpose": "Row showing degrees and radians side by side"},
+        {"name": "angle-deg",              "name_type": "css_class",       "file_path": "preview/src/games/unitcircle/styles.css",                        "purpose": "Large bold degree value"},
+        {"name": "angle-rad",              "name_type": "css_class",       "file_path": "preview/src/games/unitcircle/styles.css",                        "purpose": "Smaller radian value beside degrees"},
+        {"name": "coord-display",          "name_type": "css_class",       "file_path": "preview/src/games/unitcircle/styles.css",                        "purpose": "Row showing cos and sin values side by side"},
+        {"name": "coord-label",            "name_type": "css_class",       "file_path": "preview/src/games/unitcircle/styles.css",                        "purpose": "Small uppercase label above coordinate value"},
+        {"name": "coord-value",            "name_type": "css_class",       "file_path": "preview/src/games/unitcircle/styles.css",                        "purpose": "Bold decimal value for cos or sin"},
+        {"name": "coord-exact",            "name_type": "css_class",       "file_path": "preview/src/games/unitcircle/styles.css",                        "purpose": "Exact fraction display below decimal (shown at common angles)"},
+        {"name": "order-panel",            "name_type": "css_class",       "file_path": "preview/src/games/unitcircle/styles.css",                        "purpose": "Card container for the target specification"},
+        {"name": "order-label",            "name_type": "css_class",       "file_path": "preview/src/games/unitcircle/styles.css",                        "purpose": "Small prompt text above the spec"},
+        {"name": "order-spec",             "name_type": "css_class",       "file_path": "preview/src/games/unitcircle/styles.css",                        "purpose": "Large bold target specification display"},
+        {"name": "submit-btn",             "name_type": "css_class",       "file_path": "preview/src/games/unitcircle/styles.css",                        "purpose": "Confirm button; disabled before topping is placed and after submit"},
+        {"name": "feedback-panel",         "name_type": "css_class",       "file_path": "preview/src/games/unitcircle/styles.css",                        "purpose": "Inline result card base class"},
+        {"name": "feedback-correct",       "name_type": "css_class",       "file_path": "preview/src/games/unitcircle/styles.css",                        "purpose": "Green border and background for correct answer"},
+        {"name": "feedback-close",         "name_type": "css_class",       "file_path": "preview/src/games/unitcircle/styles.css",                        "purpose": "Amber border and background for near-miss"},
+        {"name": "feedback-miss",          "name_type": "css_class",       "file_path": "preview/src/games/unitcircle/styles.css",                        "purpose": "Red border and background for incorrect answer"},
+        {"name": "feedback-verdict",       "name_type": "css_class",       "file_path": "preview/src/games/unitcircle/styles.css",                        "purpose": "Bold verdict text (Perfect!/Close!/Not quite.)"},
+        {"name": "feedback-delta",         "name_type": "css_class",       "file_path": "preview/src/games/unitcircle/styles.css",                        "purpose": "Angular offset displayed on close and miss"},
+        {"name": "feedback-answer",        "name_type": "css_class",       "file_path": "preview/src/games/unitcircle/styles.css",                        "purpose": "Correct position reveal with coordinates on miss and close"},
+        {"name": "session-hud",            "name_type": "css_class",       "file_path": "preview/src/games/unitcircle/styles.css",                        "purpose": "Persistent session status bar"},
+        {"name": "round-counter",          "name_type": "css_class",       "file_path": "preview/src/games/unitcircle/styles.css",                        "purpose": "Round N of M display"},
+        {"name": "session-score",          "name_type": "css_class",       "file_path": "preview/src/games/unitcircle/styles.css",                        "purpose": "Running session score in HUD"},
+        {"name": "topping-pop",            "name_type": "keyframe",        "file_path": "preview/src/games/unitcircle/styles.css",                        "purpose": "Scale-in pop when player topping is placed on submit"},
+        {"name": "correct-flash",          "name_type": "keyframe",        "file_path": "preview/src/games/unitcircle/styles.css",                        "purpose": "Brief green flash on feedback panel for correct answers"},
+        {"name": "miss-arc",               "name_type": "keyframe",        "file_path": "preview/src/games/unitcircle/styles.css",                        "purpose": "Stroke draw animation for the correct-ghost reveal arc"},
+        # Props with shared names — registry entry for PizzaWheel's currentAngleDeg and CoordinateDisplay's angleDeg
+        {"name": "currentAngleDeg",        "name_type": "prop",            "file_path": "preview/src/games/unitcircle/components/PizzaWheel.jsx",         "purpose": "Player's current angle — used to position the player topping on the wheel"},
+        {"name": "feedbackMode",           "name_type": "prop",            "file_path": "preview/src/games/unitcircle/components/FeedbackPanel.jsx",      "purpose": "Drives variant class and conditional rendering of delta and answer"},
+    ],
+    "animation_contracts": [
+        {
+            "animation_id": "topping-pop",
+            "trigger": "toppingPlaced becomes true after handleSubmit is called",
+            "duration_ms": 250,
+            "easing": "cubic-bezier(0.17, 0.89, 0.32, 1.4)",
+            "css_custom_properties": [],
+            "keyframe_name": "topping-pop",
+            "owner_file": "preview/src/games/unitcircle/styles.css",
+            "element_selector": ".player-topping",
+            "dom_measurement_required": False,
+        },
+        {
+            "animation_id": "correct-flash",
+            "trigger": "feedback-correct class applied on correct answer",
+            "duration_ms": 400,
+            "easing": "ease",
+            "css_custom_properties": [],
+            "keyframe_name": "correct-flash",
+            "owner_file": "preview/src/games/unitcircle/styles.css",
+            "element_selector": ".feedback-panel.feedback-correct",
+            "dom_measurement_required": False,
+        },
+        {
+            "animation_id": "miss-arc",
+            "trigger": "correct-ghost renders when showCorrectPosition is true",
+            "duration_ms": 500,
+            "easing": "ease",
+            "css_custom_properties": [],
+            "keyframe_name": "miss-arc",
+            "owner_file": "preview/src/games/unitcircle/styles.css",
+            "element_selector": ".correct-ghost",
+            "dom_measurement_required": False,
+        },
+    ],
+    "acceptance_signals": [
+        {
+            "signal_id": "AS1-01",
+            "description": "Clicking the pizza wheel moves the topping marker",
+            "observable_in_browser": "Orange dot appears at the clicked position on the unit circle; angle readout updates live",
+            "related_patches": ["P1-06", "P1-07", "P1-10"],
+        },
+        {
+            "signal_id": "AS1-02",
+            "description": "cos θ and sin θ values update as player explores the wheel",
+            "observable_in_browser": "Decimal values in CoordinateDisplay change as player clicks different positions",
+            "related_patches": ["P1-08", "P1-10"],
+        },
+        {
+            "signal_id": "AS1-03",
+            "description": "Correct answer shows green feedback",
+            "observable_in_browser": "When submitted angle is within tolerance, feedback panel turns green with 'Perfect!'",
+            "related_patches": ["P1-09", "P1-10"],
+        },
+        {
+            "signal_id": "AS1-04",
+            "description": "Miss reveals correct position on the wheel",
+            "observable_in_browser": "When angle is outside tolerance, dashed green ghost appears at the correct position with coordinate reveal",
+            "related_patches": ["P1-03", "P1-04", "P1-06", "P1-09", "P1-10"],
+        },
+        {
+            "signal_id": "AS1-05",
+            "description": "Exact fraction values shown at common angles",
+            "observable_in_browser": "At 30°, CoordinateDisplay shows '√3/2' and '1/2' instead of only decimals",
+            "related_patches": ["P1-02", "P1-08"],
+        },
+        {
+            "signal_id": "AS1-06",
+            "description": "Round counter advances after feedback",
+            "observable_in_browser": "'Round 2/15' appears in HUD after first round completes",
+            "related_patches": ["P1-10"],
+        },
+    ],
+    "patch_notes": (
+        "Pass 1 creates the full file structure from implementation_plan.file_plan. "
+        "The unit circle interaction is fundamentally different from Bakery and Fire Dispatch: "
+        "there is no running total — the player positions once per round, then confirms. "
+        "The close/miss threshold uses toleranceDeg * 2.5 as a grace zone so the game teaches "
+        "without being punishing at the start. "
+        "SVG y-axis inversion (using -sin instead of sin) is critical — must not be omitted. "
+        "COMMON_ANGLES lookup for exact values is the key teaching mechanism for this game. "
+        "showCorrectPosition should only be true after submit, never during active positioning. "
+        "ADVANCE_MS should be long enough to read the feedback (1800ms) but short enough not to break the session rhythm."
+    ),
+}
+
+
+# ---------------------------------------------------------------------------
 # Generic fallback
 # ---------------------------------------------------------------------------
 
@@ -648,7 +1697,9 @@ _GENERIC_PATCH_PLAN: Dict[str, Any] = {
 }
 
 CONCEPT_OVERRIDES: Dict[str, Dict[str, Any]] = {
-    "bakery": _BAKERY_PATCH_PLAN,
+    "bakery":     _BAKERY_PATCH_PLAN,
+    "fire":       _FIRE_DISPATCH_PATCH_PLAN,
+    "unitcircle": _UNIT_CIRCLE_PATCH_PLAN,
 }
 
 # ---------------------------------------------------------------------------
