@@ -90,6 +90,17 @@
             "reject",
             "active"
           ]
+        },
+        "prototype_build_spec": {
+          "type": "string",
+          "enum": [
+            "approved",
+            "waiting",
+            "not_started",
+            "revise",
+            "reject",
+            "active"
+          ]
         }
       },
       "required": [
@@ -99,7 +110,8 @@
         "interaction_decision_memo",
         "family_architecture_brief",
         "lowest_viable_loop_brief",
-        "prototype_spec"
+        "prototype_spec",
+        "prototype_build_spec"
       ],
       "additionalProperties": false
     },
@@ -129,6 +141,10 @@
         "prototype_spec": {
           "type": "integer",
           "minimum": 0
+        },
+        "prototype_build_spec": {
+          "type": "integer",
+          "minimum": 0
         }
       },
       "required": [
@@ -137,7 +153,8 @@
         "interaction_decision_memo",
         "family_architecture_brief",
         "lowest_viable_loop_brief",
-        "prototype_spec"
+        "prototype_spec",
+        "prototype_build_spec"
       ],
       "additionalProperties": false
     },
@@ -171,6 +188,10 @@
         "prototype_spec": {
           "type": "integer",
           "minimum": 0
+        },
+        "prototype_build_spec": {
+          "type": "integer",
+          "minimum": 0
         }
       },
       "required": [
@@ -180,7 +201,8 @@
         "interaction_decision_memo",
         "family_architecture_brief",
         "lowest_viable_loop_brief",
-        "prototype_spec"
+        "prototype_spec",
+        "prototype_build_spec"
       ],
       "additionalProperties": false
     },

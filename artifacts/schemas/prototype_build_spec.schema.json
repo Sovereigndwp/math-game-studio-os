@@ -1,0 +1,264 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "prototype_build_spec",
+  "type": "object",
+  "properties": {
+    "job_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "artifact_name": {
+      "type": "string",
+      "const": "prototype_build_spec"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "produced_by": {
+      "type": "string",
+      "const": "Prototype Build Spec Agent"
+    },
+    "timestamp": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": ["pass", "revise", "reject"]
+    },
+    "build_objective": {
+      "type": "string",
+      "minLength": 1
+    },
+    "build_scope": {
+      "type": "object",
+      "properties": {
+        "must_exist_in_v1_build": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1
+        },
+        "not_included_in_v1_build": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1
+        },
+        "deferred_from_prototype": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      },
+      "required": ["must_exist_in_v1_build", "not_included_in_v1_build", "deferred_from_prototype"],
+      "additionalProperties": false
+    },
+    "screen_state_map": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "state_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "state_name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "visible_elements": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 },
+            "minItems": 1
+          },
+          "allowed_player_actions": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 }
+          },
+          "transition_rules": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 },
+            "minItems": 1
+          }
+        },
+        "required": ["state_id", "state_name", "visible_elements", "allowed_player_actions", "transition_rules"],
+        "additionalProperties": false
+      },
+      "minItems": 1
+    },
+    "component_specs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "component_name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "purpose": {
+            "type": "string",
+            "minLength": 1
+          },
+          "inputs": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 },
+            "minItems": 1
+          },
+          "outputs": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 },
+            "minItems": 1
+          },
+          "state_dependencies": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 }
+          },
+          "behavior_rules": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 },
+            "minItems": 1
+          }
+        },
+        "required": ["component_name", "purpose", "inputs", "outputs", "state_dependencies", "behavior_rules"],
+        "additionalProperties": false
+      },
+      "minItems": 1
+    },
+    "interaction_event_flow": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "step_number": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "trigger": {
+            "type": "string",
+            "minLength": 1
+          },
+          "system_response": {
+            "type": "string",
+            "minLength": 1
+          },
+          "state_change": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": ["step_number", "trigger", "system_response", "state_change"],
+        "additionalProperties": false
+      },
+      "minItems": 1
+    },
+    "state_model": {
+      "type": "object",
+      "properties": {
+        "tracked_variables": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1
+        },
+        "derived_values": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "reset_rules": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1
+        }
+      },
+      "required": ["tracked_variables", "derived_values", "reset_rules"],
+      "additionalProperties": false
+    },
+    "edge_cases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "case_name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "expected_behavior": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": ["case_name", "expected_behavior"],
+        "additionalProperties": false
+      },
+      "minItems": 3
+    },
+    "asset_plan": {
+      "type": "object",
+      "properties": {
+        "required_now": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1
+        },
+        "placeholder_allowed": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "not_needed_yet": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      },
+      "required": ["required_now", "placeholder_allowed", "not_needed_yet"],
+      "additionalProperties": false
+    },
+    "build_sequence": {
+      "type": "object",
+      "properties": {
+        "phase_1_order": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1
+        },
+        "phase_1_done_definition": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1
+        }
+      },
+      "required": ["phase_1_order", "phase_1_done_definition"],
+      "additionalProperties": false
+    },
+    "acceptance_checklist": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "minItems": 1
+    },
+    "open_build_questions": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "job_id",
+    "artifact_name",
+    "version",
+    "status",
+    "produced_by",
+    "timestamp",
+    "build_objective",
+    "build_scope",
+    "screen_state_map",
+    "component_specs",
+    "interaction_event_flow",
+    "state_model",
+    "edge_cases",
+    "asset_plan",
+    "build_sequence",
+    "acceptance_checklist",
+    "open_build_questions",
+    "notes"
+  ],
+  "additionalProperties": false
+}

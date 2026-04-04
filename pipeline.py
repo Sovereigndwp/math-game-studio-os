@@ -1,7 +1,7 @@
 """
 pipeline.py — Math Game Studio OS V1 end-to-end runner.
 
-Chains all six V1 agents in order, enforces gate pre-conditions between each stage,
+Chains all eight agents (stages 0-7) in order, enforces gate pre-conditions between each stage,
 and returns a PipelineResult with the final outcome.
 
 Modes:
@@ -44,6 +44,7 @@ from agents.interaction_mapper.agent import run as run_interaction_mapper
 from agents.family_architect.agent import run as run_family_architect
 from agents.core_loop.agent import run as run_core_loop
 from agents.prototype_spec.agent import run as run_prototype_spec
+from agents.prototype_build_spec.agent import run as run_prototype_build_spec
 from utils.shared_agent_runner import AgentRunResult
 
 
@@ -285,14 +286,36 @@ def run_v1_pipeline(
     if gate_ps["status"] != "pass":
         return _rejected_result(job_id, "prototype_spec", proto_result, gate_ps, stage_records)
 
+    proto_spec_path = Path(proto_result.artifact_path)
+
     # ------------------------------------------------------------------
-    # Pipeline success: approved prototype_spec
+    # Stage 7: Prototype Build Spec Agent → prototype_build_spec
+    # ------------------------------------------------------------------
+    build_result, gate_pbs = _run_agent_with_gate(
+        stage_name="prototype_build_spec",
+        agent_runner=lambda artifact_paths: run_prototype_build_spec(repo_root, job_id, artifact_paths, model_callable=mc),
+        gate_fn=gate_engine.gate_prototype_build_spec,
+        artifact_paths={
+            "prototype_spec": proto_spec_path,
+            "interaction_decision_memo": mapper_path,
+            "lowest_viable_loop_brief": loop_path,
+        },
+        stage_records=stage_records,
+        workspace=workspace,
+        ledger_path=ledger_path,
+        max_revisions=max_revisions_per_stage,
+    )
+    if gate_pbs["status"] != "pass":
+        return _rejected_result(job_id, "prototype_build_spec", build_result, gate_pbs, stage_records)
+
+    # ------------------------------------------------------------------
+    # Pipeline success: approved prototype_build_spec
     # ------------------------------------------------------------------
     return PipelineResult(
         job_id=job_id,
         outcome="approved",
-        final_artifact_name="prototype_spec",
-        final_artifact_path=proto_result.artifact_path,
+        final_artifact_name="prototype_build_spec",
+        final_artifact_path=build_result.artifact_path,
         stage_records=stage_records,
     )
 

@@ -710,6 +710,154 @@ class GateEngine:
         )
 
 
+    def gate_prototype_build_spec(self, artifact: Dict[str, Any]) -> Dict[str, Any]:
+        """Gate for prototype_build_spec — Stage 7.
+
+        Six dimensions:
+          Reject-level (identity compromise):
+            Dim 2 — Prototype fidelity: build spec must implement the approved prototype
+          Revise-level (fixable gaps):
+            Dim 1 — Build concreteness
+            Dim 3 — State clarity
+            Dim 4 — Edge-case coverage
+            Dim 5 — Scope discipline
+            Dim 6 — Acceptance clarity
+        """
+
+        # ---- Dim 2: Prototype fidelity (reject-level) ----
+        # The build spec must reference the same interaction and loop from prototype_spec.
+        # In stub mode, this is guaranteed by template selection. In LLM mode, the gate
+        # catches drift by checking structural presence.
+        event_flow = artifact.get("interaction_event_flow", [])
+        state_model = artifact.get("state_model", {})
+        if not event_flow:
+            return self._finalize_gate(
+                artifact,
+                _new_gate_decision(
+                    job_id=artifact["job_id"],
+                    target_artifact="prototype_build_spec",
+                    target_artifact_version=artifact["version"],
+                    stage_name="prototype_build_spec",
+                    status="reject",
+                    failure_fields=["interaction_event_flow"],
+                    strongest_failure_reason="Build spec has no interaction event flow — cannot verify prototype fidelity",
+                    revision_instructions=["interaction_event_flow must define the step-by-step event sequence for the approved loop."],
+                    escalation_recommendation="reject_job",
+                    memory_tags=["missing_event_flow"],
+                ),
+            )
+
+        # ---- Dim 1: Build concreteness (revise-level) ----
+        failure_fields = []
+        revision_instructions = []
+
+        # Event flow must have at least 3 steps (action, success path, failure path)
+        if len(event_flow) < 3:
+            failure_fields.append("interaction_event_flow")
+            revision_instructions.append("Event flow must cover at minimum: player action, success path, and failure path (at least 3 steps).")
+
+        for i, step in enumerate(event_flow):
+            if not str(step.get("trigger", "")).strip():
+                failure_fields.append(f"interaction_event_flow[{i}].trigger")
+            if not str(step.get("system_response", "")).strip():
+                failure_fields.append(f"interaction_event_flow[{i}].system_response")
+            if not str(step.get("state_change", "")).strip():
+                failure_fields.append(f"interaction_event_flow[{i}].state_change")
+
+        # Component specs must exist and have behavior rules
+        components = artifact.get("component_specs", [])
+        if not components:
+            failure_fields.append("component_specs")
+            revision_instructions.append("At least one component spec with behavior rules is required.")
+        for i, comp in enumerate(components):
+            if not comp.get("behavior_rules"):
+                failure_fields.append(f"component_specs[{i}].behavior_rules")
+                revision_instructions.append(f"Component '{comp.get('component_name', i)}' must have concrete behavior rules.")
+
+        # Screen state map must exist with transitions
+        screen_states = artifact.get("screen_state_map", [])
+        if not screen_states:
+            failure_fields.append("screen_state_map")
+            revision_instructions.append("At least one screen/state with transition rules is required.")
+        for i, state in enumerate(screen_states):
+            if not state.get("transition_rules"):
+                failure_fields.append(f"screen_state_map[{i}].transition_rules")
+                revision_instructions.append(f"State '{state.get('state_id', i)}' must have transition rules.")
+
+        # Build sequence must have ordered steps and done definition
+        build_seq = artifact.get("build_sequence", {})
+        if not build_seq.get("phase_1_order"):
+            failure_fields.append("build_sequence.phase_1_order")
+            revision_instructions.append("Build sequence must list phase 1 tasks in dependency order.")
+        if not build_seq.get("phase_1_done_definition"):
+            failure_fields.append("build_sequence.phase_1_done_definition")
+            revision_instructions.append("Define testable conditions for phase 1 completion.")
+
+        if failure_fields:
+            revision_instructions.append("Every event flow step must have trigger, system_response, and state_change.")
+
+        # ---- Dim 3: State clarity (revise-level) ----
+        tracked = state_model.get("tracked_variables", [])
+        if not tracked:
+            failure_fields.append("state_model.tracked_variables")
+            revision_instructions.append("State model must list all tracked variables the prototype needs.")
+        if not state_model.get("reset_rules"):
+            failure_fields.append("state_model.reset_rules")
+            revision_instructions.append("State model must define what resets between rounds.")
+
+        # ---- Dim 4: Edge-case coverage (revise-level) ----
+        edge_cases = artifact.get("edge_cases", [])
+        if len(edge_cases) < 3:
+            failure_fields.append("edge_cases")
+            revision_instructions.append("At least 3 edge cases with explicit expected behavior are required.")
+
+        # ---- Dim 5: Scope discipline (revise-level) ----
+        scope = artifact.get("build_scope", {})
+        if not scope.get("must_exist_in_v1_build"):
+            failure_fields.append("build_scope.must_exist_in_v1_build")
+            revision_instructions.append("Build scope must list what must exist in the first build.")
+        if not scope.get("not_included_in_v1_build"):
+            failure_fields.append("build_scope.not_included_in_v1_build")
+            revision_instructions.append("Build scope must list what is explicitly not included.")
+
+        # ---- Dim 6: Acceptance clarity (revise-level) ----
+        checklist = artifact.get("acceptance_checklist", [])
+        if not checklist:
+            failure_fields.append("acceptance_checklist")
+            revision_instructions.append("Acceptance checklist must list testable conditions for build completion.")
+
+        # Deduplicate
+        failure_fields = list(dict.fromkeys(failure_fields))
+
+        if failure_fields:
+            return self._finalize_gate(
+                artifact,
+                _new_gate_decision(
+                    job_id=artifact["job_id"],
+                    target_artifact="prototype_build_spec",
+                    target_artifact_version=artifact["version"],
+                    stage_name="prototype_build_spec",
+                    status="revise",
+                    failure_fields=failure_fields,
+                    strongest_failure_reason="Build spec is not yet developer-ready — gaps in concreteness, state clarity, or acceptance criteria",
+                    revision_instructions=revision_instructions,
+                    escalation_recommendation="reroute",
+                    memory_tags=["build_concreteness", "build_spec_gaps"],
+                ),
+            )
+
+        return self._finalize_gate(
+            artifact,
+            _new_gate_decision(
+                job_id=artifact["job_id"],
+                target_artifact="prototype_build_spec",
+                target_artifact_version=artifact["version"],
+                stage_name="prototype_build_spec",
+                status="pass",
+            ),
+        )
+
+
 if __name__ == "__main__":
     import json
     from pathlib import Path
