@@ -207,6 +207,16 @@
       font-weight: 700;
       color: #22c55e;
     }
+    .board-truck-removable {
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.15s, border-color 0.15s;
+    }
+    .board-truck-removable:hover {
+      opacity: 0.7;
+      border-color: #ef4444;
+      transform: scale(0.9);
+    }
+    .board-truck-removable:active { transform: scale(0.82); }
     .board-empty {
       font-size: 12px;
       color: #334155;
@@ -569,12 +579,34 @@
     const randInt = (a, b) => Math.floor(Math.random() * (b - a + 1)) + a;
     const randPick = arr => arr[Math.floor(Math.random() * arr.length)];
 
-    function generateIncident(levelConfig) {
+    /**
+     * Returns every demand value in levelConfig.demandRange that can be
+     * reached by exactly choosing a non-empty subset of availableTrucks.
+     * n ≤ 5 so brute-force over 2^n masks is trivial.
+     */
+    function getSolvableDemands(levelConfig) {
+      const trucks = TRUCK_TYPES.filter(t => levelConfig.trucksAvailable.includes(t.id));
+      const caps   = trucks.map(t => t.capacity);
+      const n      = caps.length;
+      const reachable = new Set();
+      for (let mask = 1; mask < (1 << n); mask++) {
+        let sum = 0;
+        for (let i = 0; i < n; i++) { if (mask & (1 << i)) sum += caps[i]; }
+        reachable.add(sum);
+      }
       const [lo, hi] = levelConfig.demandRange;
+      return [...reachable].filter(s => s >= lo && s <= hi);
+    }
+
+    function generateIncident(levelConfig) {
+      const solvable = getSolvableDemands(levelConfig);
+      const demand   = solvable.length > 0
+        ? solvable[Math.floor(Math.random() * solvable.length)]
+        : levelConfig.demandRange[0]; // fallback — should never be needed
       const base = randPick(INCIDENTS);
       return {
         ...base,
-        demandValue: randInt(lo, hi),
+        demandValue: demand,
         urgency: Math.random() < 0.33 ? 'high' : Math.random() < 0.5 ? 'medium' : 'low',
       };
     }
@@ -601,17 +633,22 @@
     }
 
     /* ─────────────────── DispatchBoard ─────────────────── */
-    function DispatchBoard({ selectedTrucks, totalCapacity, demandValue, feedbackMode, boardShaking }) {
+    function DispatchBoard({ selectedTrucks, totalCapacity, demandValue, feedbackMode, boardShaking, onTruckReturn }) {
       const match = totalCapacity === demandValue;
       const totalClass = `board-total ${match ? 'total-match' : 'total-under'}`;
       return (
         <div className={`dispatch-board${boardShaking ? ' board-shaking' : ''}`}>
-          <span className="board-label">Queued</span>
+          <span className="board-label">Queued — tap to return</span>
           <div className="board-trucks">
             {selectedTrucks.length === 0
-              ? <span className="board-empty">no trucks selected</span>
+              ? <span className="board-empty">tap trucks below to add</span>
               : selectedTrucks.map((t, i) => (
-                  <span key={i} className="board-truck">
+                  <span
+                    key={i}
+                    className="board-truck board-truck-removable"
+                    onClick={() => onTruckReturn && onTruckReturn(t.id)}
+                    title={`Return ${t.label} to yard`}
+                  >
                     {t.emoji}<span className="board-truck-cap">{t.capacity}</span>
                   </span>
                 ))
@@ -626,34 +663,32 @@
     }
 
     /* ─────────────────── TruckYard ─────────────────── */
-    function TruckYard({ trucks, selectedIds, dispatchEnabled, onTruckToggle, onDispatch, shakingId }) {
+    function TruckYard({ trucks, onTruckToggle, shakingId }) {
       return (
         <div className="truck-yard">
-          <div className="yard-heading">Available Units — tap to select</div>
+          <div className="yard-heading">Available Units — tap to dispatch</div>
           <div className="truck-grid">
-            {trucks.map(truck => {
-              const selected  = selectedIds.has(truck.id);
-              const shaking   = shakingId === truck.id;
-              let cardClass = 'truck-card';
-              if (selected) cardClass += ' truck-selected';
-              if (shaking)  cardClass += ' truck-blocked';
-              return (
-                <div
-                  key={truck.id}
-                  className={cardClass}
-                  onClick={() => onTruckToggle(truck.id)}
-                  role="button"
-                  aria-pressed={selected}
-                  tabIndex={0}
-                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') onTruckToggle(truck.id); }}
-                >
-                  <span className="truck-checkmark">✓</span>
-                  <span className="truck-emoji">{truck.emoji}</span>
-                  <div className="truck-label">{truck.label}</div>
-                  <span className="truck-capacity">{truck.capacity}</span>
-                </div>
-              );
-            })}
+            {trucks.length === 0
+              ? <span style={{ color: '#64748b', fontSize: 13, fontStyle: 'italic' }}>All units queued ↑</span>
+              : trucks.map(truck => {
+                  const shaking  = shakingId === truck.id;
+                  const cardClass = `truck-card${shaking ? ' truck-blocked' : ''}`;
+                  return (
+                    <div
+                      key={truck.id}
+                      className={cardClass}
+                      onClick={() => onTruckToggle(truck.id)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') onTruckToggle(truck.id); }}
+                    >
+                      <span className="truck-emoji">{truck.emoji}</span>
+                      <div className="truck-label">{truck.label}</div>
+                      <span className="truck-capacity">{truck.capacity}</span>
+                    </div>
+                  );
+                })
+            }
           </div>
         </div>
       );
@@ -740,12 +775,13 @@
       const [lastPoints,      setLastPoints]       = useState(0);
 
       // derived
-      const currentLevel   = LEVEL_CONFIGS[levelIndex];
+      const currentLevel    = LEVEL_CONFIGS[levelIndex];
       const availableTrucks = TRUCK_TYPES.filter(t => currentLevel.trucksAvailable.includes(t.id));
+      // trucks visible in the yard = available minus those already queued on the board
+      const yardTrucks      = availableTrucks.filter(t => !dispatched.includes(t.id));
       const timePercent     = (timeLeft / currentLevel.timeLimit) * 100;
-      const selectedIds     = new Set(dispatched);
       const selectedTrucks  = dispatched.map(id => truckById(id));
-      const dispatchEnabled = dispatched.length > 0 && totalCapacity === totalCapacity && !feedbackMode;
+      const dispatchEnabled = dispatched.length > 0 && !feedbackMode;
 
       // refs for stable callbacks
       const feedbackRef    = useRef(feedbackMode);
@@ -889,8 +925,9 @@
               <div style={{ fontSize: 72 }}>🚒</div>
               <h1>Fire Station<br/>Dispatch</h1>
               <p>
-                Incidents are incoming! Select the right combination of trucks so their total capacity
-                matches the demand exactly. No overshooting allowed — plan carefully and dispatch fast!
+                Incidents are incoming! Tap trucks to send them to the dispatch queue — they leave the
+                yard and stack up above. Tap a queued truck to return it. Hit DISPATCH when the total
+                matches the demand exactly. Every target is solvable — find the right combination!
               </p>
               <div style={{ fontSize: 13, color: '#64748b', lineHeight: 1.7 }}>
                 <strong style={{ color: '#f59e0b' }}>🚒 Hose</strong> = 5 &nbsp;
@@ -946,22 +983,20 @@
             />
           )}
 
-          {/* Dispatch board */}
+          {/* Dispatch board — tap a truck chip here to return it to the yard */}
           <DispatchBoard
             selectedTrucks={selectedTrucks}
             totalCapacity={totalCapacity}
             demandValue={currentIncident ? currentIncident.demandValue : 0}
             feedbackMode={feedbackMode}
             boardShaking={boardShaking}
+            onTruckReturn={handleTruckToggle}
           />
 
-          {/* Truck yard */}
+          {/* Truck yard — only shows trucks NOT yet queued */}
           <TruckYard
-            trucks={availableTrucks}
-            selectedIds={selectedIds}
-            dispatchEnabled={dispatchEnabled}
+            trucks={yardTrucks}
             onTruckToggle={handleTruckToggle}
-            onDispatch={handleDispatch}
             shakingId={shakingId}
           />
 
