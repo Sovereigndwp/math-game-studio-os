@@ -820,6 +820,17 @@ class GateEngine:
             failure_fields.append("build_scope.not_included_in_v1_build")
             revision_instructions.append("Build scope must list what is explicitly not included.")
 
+        # Deferred and not-included must not overlap
+        deferred_set = set(scope.get("deferred_from_prototype", []))
+        not_included_set = set(scope.get("not_included_in_v1_build", []))
+        overlap = deferred_set & not_included_set
+        if overlap:
+            failure_fields.append("build_scope.deferred_from_prototype")
+            revision_instructions.append(
+                f"Items appear in both deferred_from_prototype and not_included_in_v1_build: {sorted(overlap)}. "
+                "Each item must be in exactly one list."
+            )
+
         # ---- Dim 6: Acceptance clarity (revise-level) ----
         checklist = artifact.get("acceptance_checklist", [])
         if not checklist:

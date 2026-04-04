@@ -39,14 +39,10 @@ CONCEPT_OVERRIDES: Dict[str, Dict[str, Any]] = {
             "5-round session with varied targets",
         ],
         "not_included": [
-            "Timer or urgency pressure",
             "Score display or scoring system",
             "Lives or retry limits",
-            "Hint system",
-            "Difficulty progression beyond target variation",
             "Account system or persistent state",
             "Analytics or telemetry",
-            "Sound design (visual-only feedback sufficient for first build)",
         ],
         "deferred_from_prototype": [
             "Timer pressure",

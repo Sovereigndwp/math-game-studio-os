@@ -104,6 +104,8 @@ prototype, list it in `open_build_questions`. Do not fake certainty.
 - No production architecture, backend services, or deployment infrastructure
 - `deferred_from_prototype` must reference items from `prototype_spec.prototype_scope.deferred`,
   not invent new deferrals
+- `not_included_in_v1_build` lists build-specific exclusions not already covered
+  by deferred. An item must appear in exactly one of these two lists, not both.
 - Phase 1 build order must be achievable by one developer in days, not weeks
 
 # Screen/state rules

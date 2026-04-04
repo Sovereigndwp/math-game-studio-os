@@ -148,7 +148,7 @@
         "required": ["step_number", "trigger", "system_response", "state_change"],
         "additionalProperties": false
       },
-      "minItems": 1
+      "minItems": 3
     },
     "state_model": {
       "type": "object",
