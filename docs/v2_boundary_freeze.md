@@ -21,17 +21,20 @@ through `83a4b1b`):
 
 **Core V2 artifact:**
 - `prototype_spec` as the first V2 artifact and schema
+- `prototype_build_spec` as the second V2 artifact and schema
 - Prototype Spec Agent (prompt, config, stub with concept-specific overrides)
+- Prototype Build Spec Agent (prompt, config, stub with concept-specific overrides)
 - `prototype_spec` gate logic (6 dimensions, reject/revise severity mapping)
 - Bakery as the first V2 example (Fire Dispatch and Unit Circle Pizza Lab
   also covered by concept overrides)
 
 **Pipeline integration:**
 - Stage 6 wired into `pipeline.py` after Core Loop (Stage 5)
-- Stage ledger updated to track `prototype_spec` versions, revision counts,
+- Stage 7 wired into `pipeline.py` after Prototype Spec (Stage 6)
+- Stage ledger updated to track `prototype_spec` and `prototype_build_spec` versions, revision counts,
   and gate states
 - Benchmarks 1–3 updated: `expected_stop` changed from `lowest_viable_loop_brief`
-  to `prototype_spec`
+  to `prototype_build_spec`
 
 **Gate hardening (post-initial implementation):**
 - `fidelity_notes` non-empty check added to gate (revise on empty notes)
@@ -58,13 +61,17 @@ The following are considered stable at this checkpoint:
 - V1 benchmark stability: 5/5 passing in stub mode, 5/5 in LLM mode
 - V2 boundary definition (`docs/v2_boundary.md`)
 - `prototype_spec` artifact schema (`artifacts/schemas/prototype_spec.schema.json`)
+- `prototype_build_spec` artifact schema (`artifacts/schemas/prototype_build_spec.schema.json`)
 - Prototype Spec Agent contract (`agents/prototype_spec/prompt.md`, `config.yaml`)
+- Prototype Build Spec Agent contract (`agents/prototype_build_spec/prompt.md`, `config.yaml`)
 - Prototype Spec Agent stub logic (`agents/prototype_spec/agent.py`)
+- Prototype Build Spec Agent stub logic (`agents/prototype_build_spec/agent.py`)
 - `prototype_spec` gate logic (`engine/gate_engine.py :: gate_prototype_spec`)
-- Pipeline integration: Stage 6 runs after Stage 5, gate enforces all 6 dimensions
-- Stage ledger tracks `prototype_spec` alongside all V1 artifacts
+- `prototype_build_spec` gate logic (`engine/gate_engine.py :: gate_prototype_build_spec`)
+- Pipeline integration: Stage 6 runs after Stage 5, Stage 7 runs after Stage 6, gate enforces all dimensions
+- Stage ledger tracks `prototype_spec` and `prototype_build_spec` alongside all V1 artifacts
 - Bakery, Fire Dispatch, and Unit Circle Pizza Lab all produce approved
-  `prototype_spec` artifacts in stub mode
+  `prototype_spec` and `prototype_build_spec` artifacts in stub mode
 
 ---
 
@@ -117,14 +124,18 @@ in code comments, but intentionally not solved in this phase:
 | File | Role |
 |---|---|
 | `artifacts/schemas/prototype_spec.schema.json` | Artifact schema (24 required fields, constrained enums) |
+| `artifacts/schemas/prototype_build_spec.schema.json` | Artifact schema for the implementation handoff |
 | `agents/prototype_spec/prompt.md` | Agent contract (reasoning rules, fidelity rules, forbidden behaviors) |
+| `agents/prototype_build_spec/prompt.md` | Agent contract for implementation planning (reasoning and forbidden behaviors) |
 | `agents/prototype_spec/config.yaml` | Agent config (allowed reads/writes, revision limit, model profile) |
+| `agents/prototype_build_spec/config.yaml` | Agent config for implementation handoff |
 | `agents/prototype_spec/agent.py` | Agent implementation (concept overrides, generic templates, stub/LLM) |
-| `engine/gate_engine.py` | Gate logic (`gate_prototype_spec` — 6 dimensions) |
-| `pipeline.py` | Pipeline integration (Stage 6 after Stage 5) |
-| `orchestrator/stage_ledger.py` | Ledger constants updated for `prototype_spec` |
-| `artifacts/schemas/stage_ledger.schema.json` | Ledger schema updated for `prototype_spec` |
-| `scripts/run_benchmarks.py` | Benchmarks 1–3: `expected_stop` set to `prototype_spec` |
+| `agents/prototype_build_spec/agent.py` | Agent implementation for build spec handoff |
+| `engine/gate_engine.py` | Gate logic (`gate_prototype_spec` — 6 dimensions; `gate_prototype_build_spec` — implementation handoff) |
+| `pipeline.py` | Pipeline integration (Stage 6 after Stage 5; Stage 7 after Stage 6) |
+| `orchestrator/stage_ledger.py` | Ledger constants updated for `prototype_spec` and `prototype_build_spec` |
+| `artifacts/schemas/stage_ledger.schema.json` | Ledger schema updated for `prototype_spec` and `prototype_build_spec` |
+| `scripts/run_benchmarks.py` | Benchmarks 1–3: `expected_stop` set to `prototype_build_spec` |
 | `docs/v2_boundary.md` | V2 scope, gate criteria, known limitations |
 | `docs/v1_handoff.md` | V1 freeze reference |
 | `README.md` | Top-level orientation |

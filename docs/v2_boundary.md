@@ -31,7 +31,9 @@ belongs to, and what the smallest strong loop is. It does not yet tell a builder
 what appears on screen, what the player can do, what counts as success or failure,
 what state changes happen, what must be built first, or what can be deferred.
 
-`prototype_spec` solves that gap. It contains:
+`prototype_spec` solves that gap. It is the first V2 artifact, followed by
+`prototype_build_spec`, which translates the approved prototype plan into a
+first-build implementation handoff. It contains:
 
 ### 1. Prototype Goal
 What this prototype is trying to prove. Examples: Can children understand the loop
@@ -94,13 +96,15 @@ testability, and deferral discipline gaps produce `revise` (fixable).
 ## Stop Condition
 
 V2 is complete when an approved concept has a prototype-ready specification
-detailed enough for implementation, but not yet implemented as a product.
+and a first-build handoff detailed enough for implementation planning, but not
+yet delivered as a product.
 
 In practical terms, V2 ends when:
 - The Prototype Spec Agent is implemented in both stub and LLM modes.
 - The `prototype_spec` schema is defined in `artifacts/schemas/`.
-- The gate is integrated into the pipeline as Stage 6.
-- `prototype_spec` passes its gate for at least one approved concept.
+- The `prototype_build_spec` schema is defined in `artifacts/schemas/`.
+- The gates are integrated into the pipeline as Stage 6 and Stage 7.
+- `prototype_spec` and `prototype_build_spec` each pass their gates for at least one approved concept.
 - The core loop is fully specified for building.
 - Test goals are explicit.
 - Build scope is constrained.
