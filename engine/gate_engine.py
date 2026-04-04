@@ -476,6 +476,205 @@ class GateEngine:
             ),
         )
 
+    def gate_prototype_spec(self, artifact: Dict[str, Any]) -> Dict[str, Any]:
+        valid, errors = self._validate_structure(
+            artifact, "prototype_spec", expected_produced_by="Prototype Spec Agent"
+        )
+        if not valid:
+            return self._finalize_gate(
+                artifact,
+                _new_gate_decision(
+                    job_id=artifact.get("job_id", "unknown"),
+                    target_artifact="prototype_spec",
+                    target_artifact_version=artifact.get("version", 0),
+                    stage_name="prototype_spec",
+                    status="revise",
+                    failure_fields=["schema_validation"],
+                    strongest_failure_reason="prototype_spec failed schema validation",
+                    revision_instructions=errors,
+                    escalation_recommendation="reroute",
+                ),
+            )
+
+        # Gate dimensions (6 total):
+        #   Reject-level (identity compromise):
+        #     Dim 2 — Concept fidelity: interaction, family, loop structure
+        #   Revise-level (fixable gaps):
+        #     Dim 1 — Build clarity
+        #     Dim 3 — Scope discipline
+        #     Dim 4 — Loop integrity (field completeness)
+        #     Dim 5 — Testability
+        #     Dim 6 — Deferral quality
+
+        # ---- Dim 2: Concept fidelity (reject-level) ----
+        fidelity = artifact.get("concept_fidelity_check", {})
+        if not fidelity.get("v1_interaction_type_preserved", False):
+            return self._finalize_gate(
+                artifact,
+                _new_gate_decision(
+                    job_id=artifact["job_id"],
+                    target_artifact="prototype_spec",
+                    target_artifact_version=artifact["version"],
+                    stage_name="prototype_spec",
+                    status="reject",
+                    failure_fields=["concept_fidelity_check.v1_interaction_type_preserved"],
+                    strongest_failure_reason="Prototype drifts from V1-approved interaction type",
+                    revision_instructions=["Restore the approved primary_interaction_type from the interaction_decision_memo."],
+                    escalation_recommendation="reject_job",
+                    memory_tags=["mechanic_drift"],
+                ),
+            )
+
+        # ---- Dim 2 continued: Loop structure fidelity (reject-level) ----
+        if not fidelity.get("v1_loop_structure_preserved", False):
+            return self._finalize_gate(
+                artifact,
+                _new_gate_decision(
+                    job_id=artifact["job_id"],
+                    target_artifact="prototype_spec",
+                    target_artifact_version=artifact["version"],
+                    stage_name="prototype_spec",
+                    status="reject",
+                    failure_fields=["concept_fidelity_check.v1_loop_structure_preserved"],
+                    strongest_failure_reason="Prototype does not preserve the approved loop structure",
+                    revision_instructions=["core_loop_translation must be a direct translation of lowest_viable_loop_brief, not a redesign."],
+                    escalation_recommendation="reject_job",
+                    memory_tags=["loop_integrity"],
+                ),
+            )
+
+        # ---- Dim 2 continued: Family boundary fidelity (reject-level) ----
+        if not fidelity.get("v1_family_boundary_respected", False):
+            return self._finalize_gate(
+                artifact,
+                _new_gate_decision(
+                    job_id=artifact["job_id"],
+                    target_artifact="prototype_spec",
+                    target_artifact_version=artifact["version"],
+                    stage_name="prototype_spec",
+                    status="reject",
+                    failure_fields=["concept_fidelity_check.v1_family_boundary_respected"],
+                    strongest_failure_reason="Prototype violates V1-approved family boundary",
+                    revision_instructions=["Restore family placement from family_architecture_brief."],
+                    escalation_recommendation="reject_job",
+                    memory_tags=["family_violation"],
+                ),
+            )
+
+        # ---- Dim 1: Build clarity (revise-level) ----
+        failure_fields = []
+        revision_instructions = []
+
+        loop_trans = artifact.get("core_loop_translation", {})
+        for field in [
+            "player_goal_each_round",
+            "first_visible_state",
+            "first_player_action",
+            "success_condition",
+            "fail_condition",
+            "signature_moment_delivery",
+        ]:
+            if not str(loop_trans.get(field, "")).strip():
+                failure_fields.append(f"core_loop_translation.{field}")
+
+        # Screen flow must be concrete
+        screen_flow = artifact.get("screen_flow", [])
+        if not screen_flow:
+            failure_fields.append("screen_flow")
+            revision_instructions.append("Define at least one screen with elements, actions, and exit condition.")
+
+        # UI components must exist
+        if not artifact.get("ui_components_required"):
+            failure_fields.append("ui_components_required")
+            revision_instructions.append("List the required UI components for the prototype.")
+
+        # Build notes must have at least one must_build_first item
+        build_notes = artifact.get("technical_build_notes", {})
+        if not build_notes.get("must_build_first"):
+            failure_fields.append("technical_build_notes.must_build_first")
+            revision_instructions.append("Specify what must be built first vs. what can be faked.")
+
+        if failure_fields:
+            revision_instructions.insert(0, "Fill all core_loop_translation fields with concrete build language.")
+
+        # ---- Dim 4: Loop integrity — field completeness (revise-level) ----
+        if not str(loop_trans.get("signature_moment_delivery", "")).strip():
+            if "core_loop_translation.signature_moment_delivery" not in failure_fields:
+                failure_fields.append("core_loop_translation.signature_moment_delivery")
+                revision_instructions.append("Preserve the signature moment from the approved loop.")
+        if not str(loop_trans.get("reset_or_retry_behavior", "")).strip():
+            failure_fields.append("core_loop_translation.reset_or_retry_behavior")
+            revision_instructions.append("Define what happens on failure — retry/reset behavior must be explicit.")
+
+        # ---- Dim 5: Testability (revise-level) ----
+        playtest = artifact.get("playtest_plan", {})
+        if not playtest.get("what_this_prototype_must_prove"):
+            failure_fields.append("playtest_plan.what_this_prototype_must_prove")
+            revision_instructions.append("Add at least one explicit thing the prototype must prove.")
+        if not playtest.get("success_signals"):
+            failure_fields.append("playtest_plan.success_signals")
+            revision_instructions.append("Add observable success signals, not vague impressions.")
+        if not playtest.get("failure_signals"):
+            failure_fields.append("playtest_plan.failure_signals")
+            revision_instructions.append("Add observable failure signals.")
+        if not artifact.get("prototype_question", "").strip():
+            failure_fields.append("prototype_question")
+            revision_instructions.append("State the single most important question this prototype should answer.")
+        if not artifact.get("prototype_goal", "").strip():
+            failure_fields.append("prototype_goal")
+            revision_instructions.append("State what this prototype is trying to accomplish.")
+
+        # ---- Dim 3: Scope discipline (revise-level) ----
+        scope = artifact.get("prototype_scope", {})
+        if not scope.get("excluded"):
+            failure_fields.append("prototype_scope.excluded")
+            revision_instructions.append("List what is explicitly excluded from the prototype.")
+        if not scope.get("included"):
+            failure_fields.append("prototype_scope.included")
+            revision_instructions.append("List what is included in the prototype scope.")
+
+        # ---- Dim 6: Deferral quality (revise-level) ----
+        if "deferred" not in scope:
+            failure_fields.append("prototype_scope.deferred")
+            revision_instructions.append("Separate deferred items from excluded items explicitly.")
+
+        # ---- Readiness score sanity ----
+        readiness = artifact.get("prototype_readiness_score", 0)
+        if readiness < 0.5:
+            failure_fields.append("prototype_readiness_score")
+            revision_instructions.append("Readiness score below 0.5 indicates the spec is too underspecified to build.")
+
+        # Deduplicate failure_fields
+        failure_fields = list(dict.fromkeys(failure_fields))
+
+        if failure_fields:
+            return self._finalize_gate(
+                artifact,
+                _new_gate_decision(
+                    job_id=artifact["job_id"],
+                    target_artifact="prototype_spec",
+                    target_artifact_version=artifact["version"],
+                    stage_name="prototype_spec",
+                    status="revise",
+                    failure_fields=failure_fields,
+                    strongest_failure_reason="Prototype spec is not yet build-ready — gaps in build clarity, testability, or scope discipline",
+                    revision_instructions=revision_instructions,
+                    escalation_recommendation="reroute",
+                    memory_tags=["build_clarity", "prototype_gaps"],
+                ),
+            )
+
+        return self._finalize_gate(
+            artifact,
+            _new_gate_decision(
+                job_id=artifact["job_id"],
+                target_artifact="prototype_spec",
+                target_artifact_version=artifact["version"],
+                stage_name="prototype_spec",
+                status="pass",
+            ),
+        )
+
 
 if __name__ == "__main__":
     import json

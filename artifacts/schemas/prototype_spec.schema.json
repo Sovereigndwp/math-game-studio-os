@@ -1,0 +1,408 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "prototype_spec",
+  "type": "object",
+  "properties": {
+    "job_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "artifact_name": {
+      "type": "string",
+      "const": "prototype_spec"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "produced_by": {
+      "type": "string",
+      "const": "Prototype Spec Agent"
+    },
+    "timestamp": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": ["pass", "revise", "reject"]
+    },
+    "prototype_goal": {
+      "type": "string",
+      "minLength": 1
+    },
+    "prototype_question": {
+      "type": "string",
+      "minLength": 1
+    },
+    "target_player": {
+      "type": "object",
+      "properties": {
+        "age_band": {
+          "type": "string",
+          "minLength": 1
+        },
+        "grade_band": {
+          "type": "string",
+          "minLength": 1
+        },
+        "math_domain": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target_skills": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1
+        }
+      },
+      "required": ["age_band", "grade_band", "math_domain", "target_skills"],
+      "additionalProperties": false
+    },
+    "concept_anchor": {
+      "type": "object",
+      "properties": {
+        "world_theme": {
+          "type": "string",
+          "minLength": 1
+        },
+        "profession_or_mission": {
+          "type": "string",
+          "minLength": 1
+        },
+        "primary_interaction_type": {
+          "type": "string",
+          "enum": [
+            "route_and_dispatch",
+            "combine_and_build",
+            "allocate_and_balance",
+            "transform_and_manipulate",
+            "navigate_and_position",
+            "sequence_and_predict"
+          ]
+        },
+        "family_name": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": ["world_theme", "profession_or_mission", "primary_interaction_type", "family_name"],
+      "additionalProperties": false
+    },
+    "concept_fidelity_check": {
+      "type": "object",
+      "properties": {
+        "v1_interaction_type_preserved": {
+          "type": "boolean"
+        },
+        "v1_family_boundary_respected": {
+          "type": "boolean"
+        },
+        "v1_loop_structure_preserved": {
+          "type": "boolean"
+        },
+        "fidelity_notes": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "v1_interaction_type_preserved",
+        "v1_family_boundary_respected",
+        "v1_loop_structure_preserved",
+        "fidelity_notes"
+      ],
+      "additionalProperties": false
+    },
+    "prototype_scope": {
+      "type": "object",
+      "properties": {
+        "included": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1
+        },
+        "excluded": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1
+        },
+        "deferred": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      },
+      "required": ["included", "excluded", "deferred"],
+      "additionalProperties": false
+    },
+    "core_loop_translation": {
+      "type": "object",
+      "properties": {
+        "player_goal_each_round": {
+          "type": "string",
+          "minLength": 1
+        },
+        "first_visible_state": {
+          "type": "string",
+          "minLength": 1
+        },
+        "first_player_action": {
+          "type": "string",
+          "minLength": 1
+        },
+        "success_condition": {
+          "type": "string",
+          "minLength": 1
+        },
+        "fail_condition": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reset_or_retry_behavior": {
+          "type": "string",
+          "minLength": 1
+        },
+        "signature_moment_delivery": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "player_goal_each_round",
+        "first_visible_state",
+        "first_player_action",
+        "success_condition",
+        "fail_condition",
+        "reset_or_retry_behavior",
+        "signature_moment_delivery"
+      ],
+      "additionalProperties": false
+    },
+    "screen_flow": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "screen_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "screen_name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "purpose": {
+            "type": "string",
+            "minLength": 1
+          },
+          "elements_present": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 },
+            "minItems": 1
+          },
+          "player_actions": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 }
+          },
+          "exit_condition": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": ["screen_id", "screen_name", "purpose", "elements_present", "player_actions", "exit_condition"],
+        "additionalProperties": false
+      },
+      "minItems": 1
+    },
+    "interaction_model": {
+      "type": "object",
+      "properties": {
+        "input_types": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["tap", "drag", "drop", "type", "select", "confirm"]
+          },
+          "minItems": 1
+        },
+        "math_action_mapping": {
+          "type": "string",
+          "minLength": 1
+        },
+        "feedback_timing": {
+          "type": "string",
+          "enum": ["immediate", "delayed", "mixed"]
+        },
+        "error_handling": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": ["input_types", "math_action_mapping", "feedback_timing", "error_handling"],
+      "additionalProperties": false
+    },
+    "ui_components_required": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "component_name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "purpose": {
+            "type": "string",
+            "minLength": 1
+          },
+          "required_now": {
+            "type": "boolean"
+          }
+        },
+        "required": ["component_name", "purpose", "required_now"],
+        "additionalProperties": false
+      },
+      "minItems": 1
+    },
+    "content_requirements": {
+      "type": "object",
+      "properties": {
+        "minimum_round_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "sample_prompts_or_targets": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1
+        },
+        "content_variation_needed": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      },
+      "required": ["minimum_round_count", "sample_prompts_or_targets", "content_variation_needed"],
+      "additionalProperties": false
+    },
+    "prototype_rules": {
+      "type": "object",
+      "properties": {
+        "score_used": { "type": "boolean" },
+        "timer_used": { "type": "boolean" },
+        "lives_used": { "type": "boolean" },
+        "hinting_used": { "type": "boolean" },
+        "difficulty_scaling_used": {
+          "type": "string",
+          "enum": ["none", "fixed", "light"]
+        },
+        "session_end_rule": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": ["score_used", "timer_used", "lives_used", "hinting_used", "difficulty_scaling_used", "session_end_rule"],
+      "additionalProperties": false
+    },
+    "asset_requirements": {
+      "type": "object",
+      "properties": {
+        "visual_assets_needed": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "audio_assets_needed": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "placeholder_allowed": { "type": "boolean" }
+      },
+      "required": ["visual_assets_needed", "audio_assets_needed", "placeholder_allowed"],
+      "additionalProperties": false
+    },
+    "technical_build_notes": {
+      "type": "object",
+      "properties": {
+        "must_build_first": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1
+        },
+        "can_fake_or_stub": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "known_risks": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      },
+      "required": ["must_build_first", "can_fake_or_stub", "known_risks"],
+      "additionalProperties": false
+    },
+    "playtest_plan": {
+      "type": "object",
+      "properties": {
+        "what_this_prototype_must_prove": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1
+        },
+        "success_signals": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1
+        },
+        "failure_signals": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1
+        },
+        "recommended_test_users": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1
+        }
+      },
+      "required": ["what_this_prototype_must_prove", "success_signals", "failure_signals", "recommended_test_users"],
+      "additionalProperties": false
+    },
+    "prototype_readiness_score": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "open_questions": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "job_id",
+    "artifact_name",
+    "version",
+    "status",
+    "produced_by",
+    "timestamp",
+    "prototype_goal",
+    "prototype_question",
+    "target_player",
+    "concept_anchor",
+    "concept_fidelity_check",
+    "prototype_scope",
+    "core_loop_translation",
+    "screen_flow",
+    "interaction_model",
+    "ui_components_required",
+    "content_requirements",
+    "prototype_rules",
+    "asset_requirements",
+    "technical_build_notes",
+    "playtest_plan",
+    "prototype_readiness_score",
+    "open_questions",
+    "notes"
+  ],
+  "additionalProperties": false
+}

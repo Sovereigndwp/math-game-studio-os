@@ -1,0 +1,15 @@
+agent_name: prototype_spec_agent
+expected_output_artifact: prototype_spec
+expected_produced_by: Prototype Spec Agent
+allowed_reads:
+  - intake_brief
+  - interaction_decision_memo
+  - family_architecture_brief
+  - lowest_viable_loop_brief
+allowed_writes:
+  - prototype_spec
+max_revision_count: 2
+retry_policy: revise_once_then_escalate
+model_profile: high_reasoning
+requires_gate_pass_from:
+  - lowest_viable_loop_brief

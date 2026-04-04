@@ -13,6 +13,7 @@ ARTIFACT_ORDER = [
     "interaction_decision_memo",
     "family_architecture_brief",
     "lowest_viable_loop_brief",
+    "prototype_spec",
 ]
 
 REVISION_TRACKED = [
@@ -21,6 +22,7 @@ REVISION_TRACKED = [
     "interaction_decision_memo",
     "family_architecture_brief",
     "lowest_viable_loop_brief",
+    "prototype_spec",
 ]
 
 DEFAULT_STAGE_STATE = {
@@ -30,6 +32,7 @@ DEFAULT_STAGE_STATE = {
     "interaction_decision_memo": "not_started",
     "family_architecture_brief": "not_started",
     "lowest_viable_loop_brief": "not_started",
+    "prototype_spec": "not_started",
 }
 
 DEFAULT_AUTHORITATIVE_VERSIONS = {
@@ -39,6 +42,7 @@ DEFAULT_AUTHORITATIVE_VERSIONS = {
     "interaction_decision_memo": 0,
     "family_architecture_brief": 0,
     "lowest_viable_loop_brief": 0,
+    "prototype_spec": 0,
 }
 
 DEFAULT_REVISION_COUNTS = {
@@ -47,6 +51,7 @@ DEFAULT_REVISION_COUNTS = {
     "interaction_decision_memo": 0,
     "family_architecture_brief": 0,
     "lowest_viable_loop_brief": 0,
+    "prototype_spec": 0,
 }
 
 

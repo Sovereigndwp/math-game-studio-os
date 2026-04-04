@@ -43,6 +43,7 @@ from agents.kill_test.agent import run as run_kill
 from agents.interaction_mapper.agent import run as run_interaction_mapper
 from agents.family_architect.agent import run as run_family_architect
 from agents.core_loop.agent import run as run_core_loop
+from agents.prototype_spec.agent import run as run_prototype_spec
 from utils.shared_agent_runner import AgentRunResult
 
 
@@ -117,15 +118,16 @@ def run_v1_pipeline(
     model_callable: Optional[Callable] = None,
 ) -> PipelineResult:
     """
-    Run the full V1 first-six-agent pipeline.
+    Run the full pipeline (V1 + V2 stages).
 
     Stages:
-        0. Orchestrator  → request_brief   → gate_request_brief
-        1. IntakeFraming → intake_brief    → gate_intake_brief
-        2. KillTest      → kill_report     → gate_kill_report
-        3. InteractionMapper → interaction_decision_memo → gate_interaction_decision_memo
-        4. FamilyArchitect   → family_architecture_brief → gate_family_architecture_brief
-        5. CoreLoop      → lowest_viable_loop_brief → gate_lowest_viable_loop_brief
+        0. Orchestrator      → request_brief              → gate_request_brief
+        1. IntakeFraming     → intake_brief               → gate_intake_brief
+        2. KillTest          → kill_report                → gate_kill_report
+        3. InteractionMapper → interaction_decision_memo   → gate_interaction_decision_memo
+        4. FamilyArchitect   → family_architecture_brief   → gate_family_architecture_brief
+        5. CoreLoop          → lowest_viable_loop_brief    → gate_lowest_viable_loop_brief
+        6. PrototypeSpec     → prototype_spec              → gate_prototype_spec
 
     Gate pre-conditions are enforced: no agent runs unless the previous gate returned 'pass'.
     Revision limits are enforced: if a stage exceeds max_revisions, the job is rejected.
@@ -260,14 +262,37 @@ def run_v1_pipeline(
     if gate_lvlb["status"] != "pass":
         return _rejected_result(job_id, "lowest_viable_loop_brief", loop_result, gate_lvlb, stage_records)
 
+    loop_path = Path(loop_result.artifact_path)
+
     # ------------------------------------------------------------------
-    # V1 success: approved lowest_viable_loop_brief
+    # Stage 6: Prototype Spec Agent → prototype_spec
+    # ------------------------------------------------------------------
+    proto_result, gate_ps = _run_agent_with_gate(
+        stage_name="prototype_spec",
+        agent_runner=lambda artifact_paths: run_prototype_spec(repo_root, job_id, artifact_paths, model_callable=mc),
+        gate_fn=gate_engine.gate_prototype_spec,
+        artifact_paths={
+            "intake_brief": intake_path,
+            "interaction_decision_memo": mapper_path,
+            "family_architecture_brief": family_path,
+            "lowest_viable_loop_brief": loop_path,
+        },
+        stage_records=stage_records,
+        workspace=workspace,
+        ledger_path=ledger_path,
+        max_revisions=max_revisions_per_stage,
+    )
+    if gate_ps["status"] != "pass":
+        return _rejected_result(job_id, "prototype_spec", proto_result, gate_ps, stage_records)
+
+    # ------------------------------------------------------------------
+    # Pipeline success: approved prototype_spec
     # ------------------------------------------------------------------
     return PipelineResult(
         job_id=job_id,
         outcome="approved",
-        final_artifact_name="lowest_viable_loop_brief",
-        final_artifact_path=loop_result.artifact_path,
+        final_artifact_name="prototype_spec",
+        final_artifact_path=proto_result.artifact_path,
         stage_records=stage_records,
     )
 
@@ -393,4 +418,4 @@ if __name__ == "__main__":
         print(f"  {symbol} {record.stage_name} v{record.version} → gate: {record.gate_status}")
 
     if result.outcome == "approved":
-        print("\nV1 COMPLETE — lowest_viable_loop_brief approved.")
+        print(f"\nPIPELINE COMPLETE — {result.final_artifact_name} approved.")
