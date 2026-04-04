@@ -19,409 +19,578 @@ from typing import Any, Dict
 from utils.shared_agent_runner import AgentSpec, SharedAgentRunner
 
 # ---------------------------------------------------------------------------
-# Bakery concept override — Pass 3: feel and UI layer
+# Bakery concept override — Pass 1: Core Playable Loop
+# Creates all files declared in implementation_plan.file_plan
 # ---------------------------------------------------------------------------
 
 _BAKERY_PATCH_PLAN: Dict[str, Any] = {
     "patch_objective": (
-        "Add the customer character with bounce reaction, full-screen feedback overlay "
-        "with scale-in animation, flying pastry arc animation using getBoundingClientRect "
-        "and CSS custom properties, and strengthened reward rhythm to the Bakery prototype."
+        "Create the initial playable Bakery Rush prototype: level config data, "
+        "all five UI components (OrderTicket, ConveyorBelt, PastryBox, ShiftHUD, FeedbackOverlay), "
+        "styles, and the BakeryRushPrototype root container wired with full game state and loop logic."
     ),
     "source_pass": {
-        "pass_number": 3,
-        "pass_label": "Feel and UI Layer",
+        "pass_number": 1,
+        "pass_label": "Core Playable Loop",
         "features_added": [
-            "Customer character (👩‍🍳 neutral, 😊 on success) with bounce animation on success",
-            "Full-screen feedback overlay (position: fixed, green/red, scale-in entry animation)",
-            "Flying pastry arc animation using --dx/--dy CSS custom properties and getBoundingClientRect",
-            "Stronger reward rhythm: larger success emoji, text-shadow on feedback text, delayed round advance",
+            "Level config data: 5 levels with conveyorSpeed, targetPool, pastryWeights, patience, scoreThreshold",
+            "OrderTicket component: displays current customer, target value, and patience bar",
+            "ConveyorBelt component: renders moving pastry items with tap-to-select interaction",
+            "PastryBox component: renders box contents, running total, and overshoot/success visual response",
+            "ShiftHUD component: renders score, lives, patience bar, queue preview, and level indicator",
+            "FeedbackOverlay component: renders full-screen success, overshoot, and end-of-shift states",
+            "BakeryRushPrototype: root game container with full session state, timers, and loop orchestration",
         ],
     },
     "target_files": [
         {
-            "file_path": "preview/src/BakeryGame.jsx",
+            "file_path": "preview/src/App.jsx",
             "operation": "edit",
-            "current_state": "Monolithic component — no customer character, basic feedback, no flying animation",
-            "post_patch_state": "CustomerTicket with character, FeedbackOverlay full-screen, FlyingPastry wired via trayRef/boxRef",
+            "current_state": "Mounts previous game component or placeholder",
+            "post_patch_state": "Mounts BakeryRushPrototype as the active game component",
         },
         {
-            "file_path": "preview/src/BakeryGame.css",
-            "operation": "edit",
-            "current_state": "No customer-character styles, no full-screen overlay, no flying pastry keyframe",
-            "post_patch_state": "All Pass 3 visual classes and keyframes added",
+            "file_path": "preview/src/games/BakeryRushPrototype.jsx",
+            "operation": "create",
+            "current_state": "File does not exist",
+            "post_patch_state": "Root container with full game state, timers, queue management, and child component wiring",
+        },
+        {
+            "file_path": "preview/src/games/bakery/levelConfig.js",
+            "operation": "create",
+            "current_state": "File does not exist",
+            "post_patch_state": "Exports levelConfigs array and PASTRY_VALUES constant",
+        },
+        {
+            "file_path": "preview/src/games/bakery/components/OrderTicket.jsx",
+            "operation": "create",
+            "current_state": "File does not exist",
+            "post_patch_state": "Presentational component showing customer identity, target value, and patience bar",
+        },
+        {
+            "file_path": "preview/src/games/bakery/components/ConveyorBelt.jsx",
+            "operation": "create",
+            "current_state": "File does not exist",
+            "post_patch_state": "Animated horizontal conveyor with tap-to-select pastry items",
+        },
+        {
+            "file_path": "preview/src/games/bakery/components/PastryBox.jsx",
+            "operation": "create",
+            "current_state": "File does not exist",
+            "post_patch_state": "Box contents grid with running total and feedback (overshoot shake, success glow)",
+        },
+        {
+            "file_path": "preview/src/games/bakery/components/ShiftHUD.jsx",
+            "operation": "create",
+            "current_state": "File does not exist",
+            "post_patch_state": "Persistent HUD strip: score, lives, patience bar, queue preview, level badge",
+        },
+        {
+            "file_path": "preview/src/games/bakery/components/FeedbackOverlay.jsx",
+            "operation": "create",
+            "current_state": "File does not exist",
+            "post_patch_state": "Full-screen overlay for SUCCESS, OVERSHOOT, and END_OF_SHIFT feedback states",
+        },
+        {
+            "file_path": "preview/src/games/bakery/styles.css",
+            "operation": "create",
+            "current_state": "File does not exist",
+            "post_patch_state": "All layout, motion, and readability styles scoped to .bakery-rush class",
         },
     ],
     "patch_sequence": [
         {
-            "patch_id": "P3-01",
-            "file_path": "preview/src/BakeryGame.jsx",
+            "patch_id": "P1-01",
+            "file_path": "preview/src/games/bakery/levelConfig.js",
             "patch_type": "add_constant",
             "change_description": (
-                "Add FLY_MS = 380 for flying pastry animation duration. "
-                "Confirm SUCCESS_MS = 1500 and OVERSHOOT_MS = 700 are present as named constants."
+                "Export levelConfigs as the default export — an array of 5 objects. "
+                "Each object: conveyorSpeed (number, pixels/sec), targetPool (array of integers), "
+                "pastryWeights (object mapping emoji to relative frequency weight), "
+                "patience (integer seconds), scoreThreshold (integer), streakBonus (integer). "
+                "Level 1: speed 80, targets [4,5,6,7,8], patience 20. "
+                "Level 2: speed 110, targets [5,6,7,8,10,12], patience 18. "
+                "Level 3: speed 140, targets [5,7,9,12,15], patience 15. "
+                "Level 4: speed 180, targets [6,8,10,14,18], patience 12. "
+                "Level 5: speed 220, targets [8,10,12,16,20], patience 10."
             ),
-            "location_hint": "Top of file, after TARGET_SEQUENCE constant",
-            "named_elements": ["constant:FLY_MS", "constant:SUCCESS_MS", "constant:OVERSHOOT_MS"],
+            "location_hint": "Top of file, default export",
+            "named_elements": ["constant:levelConfigs"],
             "depends_on": [],
-            "rationale": "Animation durations must come from constants so they can be adjusted in one place and referenced in setTimeout calls.",
+            "rationale": "Level config must be defined before any component imports it.",
         },
         {
-            "patch_id": "P3-02",
-            "file_path": "preview/src/BakeryGame.css",
-            "patch_type": "add_css_custom_property",
+            "patch_id": "P1-02",
+            "file_path": "preview/src/games/bakery/levelConfig.js",
+            "patch_type": "add_constant",
             "change_description": (
-                "Declare --dx and --dy as CSS custom properties inside the .flying-pastry rule. "
-                "No default value needed — they are always set inline by the component before the animation runs."
+                "Export PASTRY_VALUES as a named const object mapping pastry emoji keys to numeric values. "
+                "Entries: '🥐': 1, '🍩': 2, '🧁': 3, '🍰': 4, '🎂': 5. "
+                "This is the authoritative source for pastry math values used by BakeryRushPrototype."
             ),
-            "location_hint": "Inside .flying-pastry rule block, before the animation declaration",
-            "named_elements": ["css_custom_property:--dx", "css_custom_property:--dy"],
-            "depends_on": [],
-            "rationale": "The flying arc keyframe reads --dx and --dy to compute the translation vector. Declaring them in the rule makes the dependency explicit.",
+            "location_hint": "After levelConfigs default export",
+            "named_elements": ["constant:PASTRY_VALUES"],
+            "depends_on": ["P1-01"],
+            "rationale": "Centralizing pastry math values prevents magic numbers in component logic.",
         },
         {
-            "patch_id": "P3-03",
-            "file_path": "preview/src/BakeryGame.css",
-            "patch_type": "add_keyframe",
-            "change_description": (
-                "Add fly-to-box keyframe. "
-                "0%: translate(-50%, -50%) scale(1), opacity 1. "
-                "50%: translate(calc(-50% + var(--dx)*0.5 - 30px), calc(-50% + var(--dy)*0.5 - 60px)) scale(1.15), opacity 1 — arc peak shifted left and above midpoint for a natural lob. "
-                "100%: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(0.6), opacity 0."
-            ),
-            "location_hint": "After .flying-pastry rule block",
-            "named_elements": ["keyframe:fly-to-box"],
-            "depends_on": ["P3-02"],
-            "rationale": "The arc is defined entirely in CSS using the custom properties set by the component at mount time.",
-        },
-        {
-            "patch_id": "P3-04",
-            "file_path": "preview/src/BakeryGame.css",
+            "patch_id": "P1-03",
+            "file_path": "preview/src/games/bakery/styles.css",
             "patch_type": "add_css_class",
             "change_description": (
-                "Add .flying-pastry rule: position fixed, font-size 1.8rem, pointer-events none, "
-                "z-index 200, transform translate(-50%,-50%) at rest, animation fly-to-box linear forwards "
-                "with duration from inline animationDuration style, will-change transform opacity."
+                "Create the full stylesheet. "
+                "Root: .bakery-rush (flex column, 100vh, font-family sans-serif, overflow hidden, background #fdf6ec). "
+                "Conveyor: .conveyor-belt (overflow hidden, position relative, height 120px). "
+                ".belt-track (display flex, gap 16px, animation belt-scroll linear infinite, "
+                "animation-duration var(--belt-duration, 4s), will-change transform). "
+                "Belt item: .belt-item (flex column, align-items center, cursor pointer, padding 8px, "
+                "border-radius 12px, transition background 0.15s). "
+                ".belt-item:hover (background rgba(0,0,0,0.06)). "
+                ".belt-item-disabled (opacity 0.4, pointer-events none). "
+                "Patience bar: .patience-bar (height 6px, background #e5e7eb, border-radius 3px). "
+                ".patience-fill (height 100%, background #f59e0b, border-radius 3px, transition width 0.3s linear). "
+                "Same for .hud-patience-bar and .hud-patience-fill. "
+                "Pastry box: .pastry-box (border 3px solid #d1d5db, border-radius 16px, padding 16px, "
+                "transition box-shadow 0.2s). "
+                ".box-success (box-shadow 0 0 24px rgba(40,160,80,0.6), border-color #22c55e). "
+                ".box-overshoot (animation box-shake 0.35s ease). "
+                "Overlay: .feedback-overlay (position fixed, inset 0, z-index 50, display flex, "
+                "align-items center, justify-content center, "
+                "animation overlay-enter 0.18s cubic-bezier(0.17,0.89,0.32,1.1) forwards). "
+                ".overlay-success (background rgba(30,120,50,0.93)). "
+                ".overlay-overshoot (background rgba(180,40,30,0.9)). "
+                ".overlay-end (background rgba(20,60,140,0.92)). "
+                ".overlay-inner (text-align center, color #fff). "
+                ".overlay-emoji (font-size 5rem, display block). "
+                ".overlay-title (font-size 2rem, font-weight 800, margin-top 12px). "
+                ".overlay-subtitle (font-size 1.1rem, margin-top 8px, opacity 0.9). "
+                ".overlay-stats (margin-top 16px, font-size 1rem, opacity 0.85). "
+                "HUD: .shift-hud (display flex, align-items center, gap 16px, padding 12px 16px, "
+                "background #fff, border-bottom 1px solid #e5e7eb). "
+                ".hud-level-badge (background #6366f1, color #fff, border-radius 999px, "
+                "padding 2px 10px, font-size 0.8rem, font-weight 700). "
+                ".hud-queue (display flex, gap 8px). "
+                ".hud-queue-item (font-size 0.75rem, background #f3f4f6, border-radius 8px, padding 4px 8px). "
             ),
-            "location_hint": "Before fly-to-box keyframe block",
-            "named_elements": ["css_class:flying-pastry"],
-            "depends_on": ["P3-03"],
-            "rationale": "position fixed places the element in viewport coordinates matching getBoundingClientRect output. pointer-events none ensures the element never intercepts tray taps.",
-        },
-        {
-            "patch_id": "P3-05",
-            "file_path": "preview/src/BakeryGame.jsx",
-            "patch_type": "add_ref",
-            "change_description": (
-                "Add trayRef = useRef(null) and boxRef = useRef(null) inside BakeryGame. "
-                "trayRef attaches to the game-footer div (wrapping PastryTray). "
-                "boxRef attaches to the div wrapping PastryBox."
-            ),
-            "location_hint": "Inside BakeryGame function body, after state declarations",
-            "named_elements": ["ref:trayRef", "ref:boxRef"],
-            "depends_on": [],
-            "rationale": "FlyingPastry needs the bounding rectangles of tray and box to compute --dx and --dy at mount time.",
-        },
-        {
-            "patch_id": "P3-06",
-            "file_path": "preview/src/BakeryGame.jsx",
-            "patch_type": "add_state_variable",
-            "change_description": (
-                "Add flyingItems = useState([]) as array of {id: number} objects. "
-                "Add nextFlyId = useRef(0) as a monotonic counter for stable React keys."
-            ),
-            "location_hint": "Inside BakeryGame, after trayRef/boxRef (P3-05)",
-            "named_elements": ["state_variable:flyingItems", "ref:nextFlyId"],
-            "depends_on": ["P3-05"],
-            "rationale": "flyingItems drives the conditional render of FlyingPastry elements. nextFlyId prevents React key collisions across rapid taps.",
-        },
-        {
-            "patch_id": "P3-07",
-            "file_path": "preview/src/BakeryGame.jsx",
-            "patch_type": "add_component",
-            "change_description": (
-                "Add FlyingPastry component. Props: id, trayRef, boxRef, onDone. "
-                "On mount reads getBoundingClientRect from both refs, computes dx = box center x - tray center x, "
-                "dy = box center y - tray center y, sets --dx and --dy as inline CSS custom properties, "
-                "sets left and top to tray center coordinates, sets animationDuration to FLY_MS ms. "
-                "Calls onDone on onAnimationEnd."
-            ),
-            "location_hint": "Before BakeryGame root function definition",
-            "named_elements": ["component:FlyingPastry", "prop:id", "prop:trayRef", "prop:boxRef", "prop:onDone"],
-            "depends_on": ["P3-04", "P3-06"],
-            "rationale": "FlyingPastry is a single-use ephemeral component that mounts for one animation cycle then its parent removes it.",
-        },
-        {
-            "patch_id": "P3-08",
-            "file_path": "preview/src/BakeryGame.jsx",
-            "patch_type": "add_component",
-            "change_description": (
-                "Add CustomerTicket component. Props: target, roundIndex, totalRounds, roundState. "
-                "Outer wrapper: class ticket-row. "
-                "Customer character block: class customer-character, adds customer-happy when roundState === SUCCESS. "
-                "Emoji element: class customer-emoji, content 👩‍🍳 neutral or 😊 on success. "
-                "Label span: class customer-label, text 'Customer'. "
-                "Ticket card: class customer-ticket with ticket-label 'Order', ticket-number showing target, ticket-sub showing round progress."
-            ),
-            "location_hint": "Before FlyingPastry definition",
+            "location_hint": "Full file content — new file",
             "named_elements": [
-                "component:CustomerTicket",
-                "prop:target", "prop:roundIndex", "prop:totalRounds", "prop:roundState",
-                "css_class:ticket-row", "css_class:customer-character", "css_class:customer-happy",
-                "css_class:customer-emoji", "css_class:customer-label",
-                "css_class:customer-ticket", "css_class:ticket-label", "css_class:ticket-number", "css_class:ticket-sub",
+                "css_class:bakery-rush",
+                "css_class:conveyor-belt", "css_class:belt-track",
+                "css_class:belt-item", "css_class:belt-item-disabled",
+                "css_class:pastry-emoji", "css_class:pastry-value",
+                "css_class:patience-bar", "css_class:patience-fill",
+                "css_class:hud-patience-bar", "css_class:hud-patience-fill",
+                "css_class:pastry-box", "css_class:box-success", "css_class:box-overshoot",
+                "css_class:box-items-grid", "css_class:box-item",
+                "css_class:box-total-row", "css_class:box-total-label", "css_class:box-total-value",
+                "css_class:box-target-label",
+                "css_class:feedback-overlay", "css_class:overlay-success",
+                "css_class:overlay-overshoot", "css_class:overlay-end",
+                "css_class:overlay-inner", "css_class:overlay-emoji",
+                "css_class:overlay-title", "css_class:overlay-subtitle", "css_class:overlay-stats",
+                "css_class:shift-hud", "css_class:hud-score-label", "css_class:hud-score-value",
+                "css_class:hud-lives", "css_class:hud-level-badge",
+                "css_class:hud-queue", "css_class:hud-queue-item",
+                "css_class:order-ticket", "css_class:order-target-label", "css_class:order-target-value",
+                "css_class:order-message",
+                "css_custom_property:--belt-duration",
+                "keyframe:belt-scroll", "keyframe:box-shake", "keyframe:overlay-enter",
             ],
             "depends_on": [],
-            "rationale": "The customer character is the primary emotional anchor for the success state.",
+            "rationale": "All shared keyframes and layout primitives must exist before any component imports the stylesheet.",
         },
         {
-            "patch_id": "P3-09",
-            "file_path": "preview/src/BakeryGame.css",
-            "patch_type": "add_css_class",
-            "change_description": (
-                "Add all customer character CSS rules: "
-                ".ticket-row (flex row, align-items center, gap 16px), "
-                ".customer-character (flex column, align-items center, gap 4px, transition transform 0.2s), "
-                ".customer-character.customer-happy (animation character-bounce 0.4s cubic-bezier(0.17,0.89,0.32,1.28)), "
-                ".customer-emoji (font-size 3rem, line-height 1, display block), "
-                ".customer-label (font-size 0.65rem, uppercase, letter-spacing 0.06em). "
-                "Add customer ticket rules: .customer-ticket (white bg, 3px solid border, border-radius, padding, min-width 140px), "
-                ".ticket-label (0.75rem uppercase), .ticket-number (3.5rem font-weight 900), .ticket-sub (0.75rem color #999)."
-            ),
-            "location_hint": "After .game-footer rule, before .pastry-box section",
-            "named_elements": [
-                "css_class:ticket-row", "css_class:customer-character", "css_class:customer-happy",
-                "css_class:customer-emoji", "css_class:customer-label",
-                "css_class:customer-ticket", "css_class:ticket-label", "css_class:ticket-number", "css_class:ticket-sub",
-            ],
-            "depends_on": ["P3-08"],
-            "rationale": "CSS must exist before the component that uses it is rendered.",
-        },
-        {
-            "patch_id": "P3-10",
-            "file_path": "preview/src/BakeryGame.css",
+            "patch_id": "P1-04",
+            "file_path": "preview/src/games/bakery/styles.css",
             "patch_type": "add_keyframe",
             "change_description": (
-                "Add character-bounce keyframe: "
-                "0% scale(1), 50% scale(1.25) translateY(-6px), 100% scale(1). "
-                "Applied to .customer-character.customer-happy at 0.4s with cubic-bezier(0.17,0.89,0.32,1.28)."
+                "Add three keyframes. "
+                "belt-scroll: from translateX(0) to translateX(-50%) — "
+                "the track renders items twice so the scroll loops seamlessly. "
+                "box-shake: 0% translateX(0), 20% translateX(-8px), 40% translateX(8px), "
+                "60% translateX(-6px), 80% translateX(6px), 100% translateX(0) — "
+                "a horizontal rejection shake for overshoot. "
+                "overlay-enter: from (opacity 0, scale(0.88)) to (opacity 1, scale(1)) — "
+                "snappy scale-in entry for the full-screen overlay."
             ),
-            "location_hint": "After .customer-character.customer-happy rule",
-            "named_elements": ["keyframe:character-bounce"],
-            "depends_on": ["P3-09"],
-            "rationale": "The overshoot cubic-bezier produces a physical bounce feeling, not just a scale switch.",
+            "location_hint": "After all CSS class rules, at end of file",
+            "named_elements": ["keyframe:belt-scroll", "keyframe:box-shake", "keyframe:overlay-enter"],
+            "depends_on": ["P1-03"],
+            "rationale": "Keyframes must be defined in the same file as the classes that reference them.",
         },
         {
-            "patch_id": "P3-11",
-            "file_path": "preview/src/BakeryGame.jsx",
+            "patch_id": "P1-05",
+            "file_path": "preview/src/games/bakery/components/OrderTicket.jsx",
             "patch_type": "add_component",
             "change_description": (
-                "Add FeedbackOverlay component. Props: roundState. "
-                "Returns null when roundState is neither SUCCESS nor OVERSHOOT. "
-                "When visible: div class feedback-fullscreen plus feedback-success (success) or feedback-overshoot (overshoot). "
-                "Inside: feedback-inner div containing feedback-emoji (😊/↩️) and feedback-text ('Perfect order!' / 'Too many! One bounced back.')."
+                "Create OrderTicket as a default export function. "
+                "Props: currentTarget (number), customerName (string), customerEmoji (string), "
+                "patiencePercent (number 0–1), message (string|null). "
+                "Render: outer div class order-ticket. "
+                "Customer row: customerEmoji in a large span, customerName in a smaller span below. "
+                "Target block: order-target-label div ('Order'), order-target-value div (currentTarget as bold number). "
+                "Patience bar: patience-bar div wrapping patience-fill div with inline width = patiencePercent * 100 + '%'. "
+                "Message area: order-message p, rendered only when message is non-null."
             ),
-            "location_hint": "Before CustomerTicket definition",
+            "location_hint": "Full file content — new file",
+            "named_elements": [
+                "component:OrderTicket",
+                "prop:currentTarget", "prop:customerName", "prop:customerEmoji",
+                "prop:patiencePercent", "prop:message",
+            ],
+            "depends_on": ["P1-03"],
+            "rationale": "OrderTicket is purely presentational. All data comes from props; no internal state.",
+        },
+        {
+            "patch_id": "P1-06",
+            "file_path": "preview/src/games/bakery/components/ConveyorBelt.jsx",
+            "patch_type": "add_component",
+            "change_description": (
+                "Create ConveyorBelt as a default export function. "
+                "Props: items (array of {id, emoji, value}), beltDuration (number, seconds), "
+                "interactionEnabled (boolean), onPastrySelect (function(item) => void). "
+                "Render: outer div class conveyor-belt. "
+                "Inner div class belt-track with inline style --belt-duration set to beltDuration + 's'. "
+                "Render items twice (items.concat(items)) so the loop is seamless. "
+                "Each item renders as a belt-item div with pastry-emoji span (item.emoji) and pastry-value span ('+' + item.value). "
+                "Apply belt-item-disabled class when interactionEnabled is false. "
+                "On click: call onPastrySelect(item) only when interactionEnabled is true. "
+                "Add role='button' and tabIndex={0} to each belt-item for keyboard accessibility."
+            ),
+            "location_hint": "Full file content — new file",
+            "named_elements": [
+                "component:ConveyorBelt",
+                "prop:items", "prop:beltDuration", "prop:interactionEnabled", "prop:onPastrySelect",
+            ],
+            "depends_on": ["P1-03"],
+            "rationale": "ConveyorBelt owns only the interaction surface. Game logic is handled by the onPastrySelect callback.",
+        },
+        {
+            "patch_id": "P1-07",
+            "file_path": "preview/src/games/bakery/components/PastryBox.jsx",
+            "patch_type": "add_component",
+            "change_description": (
+                "Create PastryBox as a default export function. "
+                "Props: boxItems (array of {id, emoji}), currentTotal (number), currentTarget (number), "
+                "feedbackMode (string|null). "
+                "Render: outer div class pastry-box. "
+                "Apply box-success class when feedbackMode === 'success'. "
+                "Apply box-overshoot class when feedbackMode === 'overshoot'. "
+                "Items area: box-items-grid div mapping boxItems to box-item spans (each showing item.emoji). "
+                "Total display: box-total-row div containing box-total-label span ('Total: ') "
+                "and box-total-value span (currentTotal). "
+                "Target indicator: box-target-label div ('of ' + currentTarget)."
+            ),
+            "location_hint": "Full file content — new file",
+            "named_elements": [
+                "component:PastryBox",
+                "prop:boxItems", "prop:currentTotal", "prop:feedbackMode",
+            ],
+            "depends_on": ["P1-03"],
+            "rationale": "PastryBox is purely presentational. feedbackMode drives CSS class-based animations defined in styles.css.",
+        },
+        {
+            "patch_id": "P1-08",
+            "file_path": "preview/src/games/bakery/components/ShiftHUD.jsx",
+            "patch_type": "add_component",
+            "change_description": (
+                "Create ShiftHUD as a default export function. "
+                "Props: score (number), lives (number), patiencePercent (number 0–1), "
+                "levelIndex (number), queue (array of {customerEmoji, targetValue} up to 3 items). "
+                "Render: outer div class shift-hud. "
+                "Score block: hud-score-label span ('Score') and hud-score-value span. "
+                "Lives: hud-lives div rendering '❤️'.repeat(lives). "
+                "Level badge: hud-level-badge span ('Lv ' + (levelIndex + 1)). "
+                "Queue preview: hud-queue div, each item as hud-queue-item span (customerEmoji + ' ' + targetValue). "
+                "Patience strip: hud-patience-bar div wrapping hud-patience-fill div "
+                "with inline width = patiencePercent * 100 + '%'."
+            ),
+            "location_hint": "Full file content — new file",
+            "named_elements": [
+                "component:ShiftHUD",
+                "prop:score", "prop:lives", "prop:patiencePercent", "prop:levelIndex", "prop:queue",
+            ],
+            "depends_on": ["P1-03"],
+            "rationale": "ShiftHUD is purely presentational — all situational awareness data flows in as props.",
+        },
+        {
+            "patch_id": "P1-09",
+            "file_path": "preview/src/games/bakery/components/FeedbackOverlay.jsx",
+            "patch_type": "add_component",
+            "change_description": (
+                "Create FeedbackOverlay as a default export function. "
+                "Props: feedbackMode (string|null: 'success'|'overshoot'|'end_of_shift'|null), "
+                "customerReaction (string emoji), summaryStats ({score, ordersCompleted, streakBest}). "
+                "Return null when feedbackMode is null. "
+                "Render: outer div class feedback-overlay plus one of overlay-success, overlay-overshoot, overlay-end "
+                "depending on feedbackMode. "
+                "Inner: overlay-inner div containing overlay-emoji (large emoji), overlay-title (state label string), "
+                "overlay-subtitle (contextual message string). "
+                "When feedbackMode is 'end_of_shift': also render overlay-stats div showing "
+                "Score, Orders Completed, and Best Streak from summaryStats."
+            ),
+            "location_hint": "Full file content — new file",
             "named_elements": [
                 "component:FeedbackOverlay",
-                "css_class:feedback-fullscreen", "css_class:feedback-success", "css_class:feedback-overshoot",
-                "css_class:feedback-inner", "css_class:feedback-emoji", "css_class:feedback-text",
+                "prop:feedbackMode", "prop:customerReaction", "prop:summaryStats",
             ],
-            "depends_on": [],
-            "rationale": "FeedbackOverlay is independent of CustomerTicket and FlyingPastry and can be defined first.",
+            "depends_on": ["P1-03"],
+            "rationale": "FeedbackOverlay is a stateless conditional renderer. feedbackMode is the single switch controlling visibility and variant.",
         },
         {
-            "patch_id": "P3-12",
-            "file_path": "preview/src/BakeryGame.css",
-            "patch_type": "add_css_class",
+            "patch_id": "P1-10",
+            "file_path": "preview/src/games/BakeryRushPrototype.jsx",
+            "patch_type": "add_component",
             "change_description": (
-                "Add full-screen overlay rules. "
-                ".feedback-fullscreen: position fixed, inset 0, z-index 100, flex center, pointer-events none, "
-                "animation overlay-scale-in 0.18s cubic-bezier(0.17,0.89,0.32,1.2) forwards. "
-                ".feedback-fullscreen.feedback-success: background rgba(40,120,60,0.92). "
-                ".feedback-fullscreen.feedback-overshoot: background rgba(180,40,30,0.88). "
-                ".feedback-inner: text-align center, color #fff. "
-                ".feedback-emoji: font-size 5rem, display block, animation emoji-pop 0.25s cubic-bezier(0.17,0.89,0.32,1.4) 0.1s both. "
-                ".feedback-text: font-size 1.6rem, font-weight 800, margin-top 16px, text-shadow 0 2px 8px rgba(0,0,0,0.25)."
+                "Create BakeryRushPrototype as a default export function. "
+                "Imports: levelConfigs and PASTRY_VALUES from '../games/bakery/levelConfig'. "
+                "Imports: OrderTicket, ConveyorBelt, PastryBox, ShiftHUD, FeedbackOverlay from './bakery/components/'. "
+                "Imports: '../games/bakery/styles.css'. "
+                "State (all via useState): screenState ('PLAYING'), levelIndex (0), score (0), lives (3), "
+                "currentTarget (drawn from levelConfigs[0].targetPool at random), currentTotal (0), "
+                "feedbackMode (null), patienceLeft (levelConfigs[0].patience), streak (0), "
+                "boxItems ([]), conveyorItems (initial generated list), customerQueue (3 random customer objects), "
+                "customerIndex (0). "
+                "Derived (computed inline): currentLevelConfig = levelConfigs[levelIndex], "
+                "patiencePercent = patienceLeft / currentLevelConfig.patience, "
+                "nextLevelUnlocked = score >= currentLevelConfig.scoreThreshold. "
+                "SUCCESS_MS = 1200, OVERSHOOT_MS = 700 as module-level constants. "
+                "Patience timer: useEffect with setInterval that decrements patienceLeft by 1 each second "
+                "when screenState is PLAYING and feedbackMode is null. "
+                "On patienceLeft reaching 0: decrement lives by 1, advance to next customer, reset box state. "
+                "When lives hits 0: set screenState to END_OF_SHIFT. "
+                "handlePastrySelect(item): if feedbackMode is not null, return early. "
+                "Look up item.value from PASTRY_VALUES. Append item to boxItems. "
+                "Compute newTotal = currentTotal + item.value. "
+                "If newTotal === currentTarget: award score, increment streak, set feedbackMode 'success'. "
+                "After SUCCESS_MS: advance to next customer, reset box and currentTotal to 0, clear feedbackMode. "
+                "If newTotal > currentTarget: set feedbackMode 'overshoot'. "
+                "After OVERSHOOT_MS: remove last item from boxItems, set currentTotal back to currentTotal (not newTotal), "
+                "clear feedbackMode. "
+                "Otherwise: set currentTotal to newTotal. "
+                "On nextLevelUnlocked: increment levelIndex (capped at 4), reset customer queue. "
+                "Render: root div class bakery-rush. "
+                "Always: ShiftHUD with score, lives, patiencePercent, levelIndex, queue slice of customerQueue. "
+                "Always: FeedbackOverlay with feedbackMode, customerReaction, summaryStats. "
+                "When screenState is PLAYING: OrderTicket (currentTarget, current customer emoji/name, patiencePercent, null message), "
+                "ConveyorBelt (conveyorItems, beltDuration derived from currentLevelConfig.conveyorSpeed, "
+                "interactionEnabled = feedbackMode is null, onPastrySelect = handlePastrySelect), "
+                "PastryBox (boxItems, currentTotal, currentTarget, feedbackMode)."
             ),
-            "location_hint": "After .game-shake keyframe block",
+            "location_hint": "Full file content — new file",
             "named_elements": [
-                "css_class:feedback-fullscreen", "css_class:feedback-success", "css_class:feedback-overshoot",
-                "css_class:feedback-inner", "css_class:feedback-emoji", "css_class:feedback-text",
+                "component:BakeryRushPrototype",
+                "state_variable:screenState", "state_variable:levelIndex", "state_variable:score",
+                "state_variable:lives", "state_variable:currentTarget", "state_variable:currentTotal",
+                "state_variable:feedbackMode", "state_variable:patienceLeft", "state_variable:streak",
+                "state_variable:boxItems", "state_variable:conveyorItems",
+                "state_variable:customerQueue", "state_variable:customerIndex",
+                "constant:SUCCESS_MS", "constant:OVERSHOOT_MS",
+                "callback:handlePastrySelect",
             ],
-            "depends_on": ["P3-11"],
-            "rationale": "z-index 100 exceeds game-header z-index 1, ensuring the overlay covers the entire game chrome. pointer-events none keeps isAnimating as the authoritative input gate.",
+            "depends_on": ["P1-01", "P1-02", "P1-03", "P1-04", "P1-05", "P1-06", "P1-07", "P1-08", "P1-09"],
+            "rationale": "BakeryRushPrototype must be built last — it owns all game state and depends on every child component and the level config data.",
         },
         {
-            "patch_id": "P3-13",
-            "file_path": "preview/src/BakeryGame.css",
-            "patch_type": "add_keyframe",
-            "change_description": (
-                "Add overlay-scale-in keyframe: from opacity 0 scale(0.88) to opacity 1 scale(1). "
-                "Add emoji-pop keyframe: from scale(0.4) opacity 0 to scale(1) opacity 1."
-            ),
-            "location_hint": "After .feedback-text rule",
-            "named_elements": ["keyframe:overlay-scale-in", "keyframe:emoji-pop"],
-            "depends_on": ["P3-12"],
-            "rationale": "overlay-scale-in makes the overlay feel like it lands. emoji-pop is delayed 0.1s so it appears after the background, establishing visual hierarchy in time.",
-        },
-        {
-            "patch_id": "P3-14",
-            "file_path": "preview/src/BakeryGame.jsx",
-            "patch_type": "edit_event_handler",
-            "change_description": (
-                "Update handleTap to: (1) set isAnimating true at start, "
-                "(2) append {id: nextFlyId.current++} to flyingItems to launch a flying item, "
-                "(3) wrap total evaluation in setTimeout of FLY_MS so box total updates only after arc completes, "
-                "(4) restore isAnimating false after the full feedback cycle (SUCCESS_MS or OVERSHOOT_MS) completes."
-            ),
-            "location_hint": "Inside BakeryGame, handleTap callback",
-            "named_elements": [
-                "state_variable:flyingItems", "ref:nextFlyId",
-                "callback:handleTap", "constant:FLY_MS", "constant:SUCCESS_MS", "constant:OVERSHOOT_MS",
-            ],
-            "depends_on": ["P3-06", "P3-01"],
-            "rationale": "The FLY_MS delay before total updates is the key timing coordination — the count must not change until the pastry visibly lands.",
-        },
-        {
-            "patch_id": "P3-15",
-            "file_path": "preview/src/BakeryGame.jsx",
-            "patch_type": "wire_callback",
-            "change_description": (
-                "Add removeFlyingItem as useCallback that filters flyingItems by id. "
-                "Wire it as the onDone prop passed to each FlyingPastry in the render output."
-            ),
-            "location_hint": "Inside BakeryGame, after handleTap definition",
-            "named_elements": ["callback:removeFlyingItem"],
-            "depends_on": ["P3-14"],
-            "rationale": "FlyingPastry elements must be removed after animation completes to prevent DOM accumulation across rapid taps.",
-        },
-        {
-            "patch_id": "P3-16",
-            "file_path": "preview/src/BakeryGame.jsx",
+            "patch_id": "P1-11",
+            "file_path": "preview/src/App.jsx",
             "patch_type": "edit_render_output",
             "change_description": (
-                "Update BakeryGame render: "
-                "(1) Add <FeedbackOverlay roundState={roundState} /> as first child of root div, before header. "
-                "(2) Map flyingItems to <FlyingPastry key={f.id} id={f.id} trayRef={trayRef} boxRef={boxRef} onDone={() => removeFlyingItem(f.id)} /> as direct root div children. "
-                "(3) Replace customer ticket markup in play area with <CustomerTicket target={target} roundIndex={roundIndex} totalRounds={totalRounds} roundState={roundState} />. "
-                "(4) Attach ref={boxRef} to wrapper div around PastryBox. "
-                "(5) Attach ref={trayRef} to game-footer div."
+                "Add import for BakeryRushPrototype: import BakeryRushPrototype from './games/BakeryRushPrototype'. "
+                "Replace the current active game component (or placeholder) in App's return statement "
+                "with <BakeryRushPrototype />. "
+                "Remove import for any previous game component that is no longer referenced."
             ),
-            "location_hint": "BakeryGame return statement",
-            "named_elements": ["ref:trayRef", "ref:boxRef"],
-            "depends_on": ["P3-07", "P3-08", "P3-11", "P3-15"],
-            "rationale": "Final wiring patch. Connects all new components and refs into the render tree. Must run last.",
+            "location_hint": "Import block at top of file and App function return statement",
+            "named_elements": ["component:BakeryRushPrototype"],
+            "depends_on": ["P1-10"],
+            "rationale": "App.jsx is the preview entry mount. BakeryRushPrototype must be mounted here for the preview to render the game.",
         },
     ],
     "naming_registry": [
-        {"name": "FLY_MS",            "name_type": "constant",           "file_path": "preview/src/BakeryGame.jsx", "purpose": "Flying pastry animation duration in ms"},
-        {"name": "SUCCESS_MS",         "name_type": "constant",           "file_path": "preview/src/BakeryGame.jsx", "purpose": "Success feedback display duration in ms"},
-        {"name": "OVERSHOOT_MS",       "name_type": "constant",           "file_path": "preview/src/BakeryGame.jsx", "purpose": "Overshoot feedback and bounce-back duration in ms"},
-        {"name": "--dx",               "name_type": "css_custom_property","file_path": "preview/src/BakeryGame.css", "purpose": "Horizontal translation delta for fly-to-box keyframe"},
-        {"name": "--dy",               "name_type": "css_custom_property","file_path": "preview/src/BakeryGame.css", "purpose": "Vertical translation delta for fly-to-box keyframe"},
-        {"name": "fly-to-box",         "name_type": "keyframe",           "file_path": "preview/src/BakeryGame.css", "purpose": "Arc animation from tray center to box center"},
-        {"name": "flying-pastry",      "name_type": "css_class",          "file_path": "preview/src/BakeryGame.css", "purpose": "Fixed-position animated emoji element"},
-        {"name": "character-bounce",   "name_type": "keyframe",           "file_path": "preview/src/BakeryGame.css", "purpose": "Bounce animation triggered by customer-happy class"},
-        {"name": "ticket-row",         "name_type": "css_class",          "file_path": "preview/src/BakeryGame.css", "purpose": "Flex row containing character and ticket card"},
-        {"name": "customer-character", "name_type": "css_class",          "file_path": "preview/src/BakeryGame.css", "purpose": "Customer emoji column wrapper"},
-        {"name": "customer-happy",     "name_type": "css_class",          "file_path": "preview/src/BakeryGame.css", "purpose": "Applied on SUCCESS state to trigger bounce animation"},
-        {"name": "customer-emoji",     "name_type": "css_class",          "file_path": "preview/src/BakeryGame.css", "purpose": "The emoji element inside character wrapper"},
-        {"name": "customer-label",     "name_type": "css_class",          "file_path": "preview/src/BakeryGame.css", "purpose": "'Customer' label below the emoji"},
-        {"name": "customer-ticket",    "name_type": "css_class",          "file_path": "preview/src/BakeryGame.css", "purpose": "The ticket card box"},
-        {"name": "ticket-label",       "name_type": "css_class",          "file_path": "preview/src/BakeryGame.css", "purpose": "'Order' label above target number"},
-        {"name": "ticket-number",      "name_type": "css_class",          "file_path": "preview/src/BakeryGame.css", "purpose": "Large target number display"},
-        {"name": "ticket-sub",         "name_type": "css_class",          "file_path": "preview/src/BakeryGame.css", "purpose": "Round progress indicator"},
-        {"name": "overlay-scale-in",   "name_type": "keyframe",           "file_path": "preview/src/BakeryGame.css", "purpose": "Scale-in entry animation for feedback overlay"},
-        {"name": "emoji-pop",          "name_type": "keyframe",           "file_path": "preview/src/BakeryGame.css", "purpose": "Delayed pop-in for the feedback emoji"},
-        {"name": "feedback-fullscreen","name_type": "css_class",          "file_path": "preview/src/BakeryGame.css", "purpose": "Fixed, inset-0 overlay container"},
-        {"name": "feedback-success",   "name_type": "css_class",          "file_path": "preview/src/BakeryGame.css", "purpose": "Green background variant for success state"},
-        {"name": "feedback-overshoot", "name_type": "css_class",          "file_path": "preview/src/BakeryGame.css", "purpose": "Red background variant for overshoot state"},
-        {"name": "feedback-inner",     "name_type": "css_class",          "file_path": "preview/src/BakeryGame.css", "purpose": "Centered content wrapper inside overlay"},
-        {"name": "feedback-emoji",     "name_type": "css_class",          "file_path": "preview/src/BakeryGame.css", "purpose": "Large emoji inside overlay"},
-        {"name": "feedback-text",      "name_type": "css_class",          "file_path": "preview/src/BakeryGame.css", "purpose": "Message text with text-shadow"},
-        {"name": "trayRef",            "name_type": "ref",                "file_path": "preview/src/BakeryGame.jsx", "purpose": "DOM ref for PastryTray footer wrapper"},
-        {"name": "boxRef",             "name_type": "ref",                "file_path": "preview/src/BakeryGame.jsx", "purpose": "DOM ref for PastryBox wrapper"},
-        {"name": "flyingItems",        "name_type": "state_variable",     "file_path": "preview/src/BakeryGame.jsx", "purpose": "Array of active flying pastry instances"},
-        {"name": "nextFlyId",          "name_type": "ref",                "file_path": "preview/src/BakeryGame.jsx", "purpose": "Monotonic counter for stable React keys"},
-        {"name": "removeFlyingItem",   "name_type": "callback",           "file_path": "preview/src/BakeryGame.jsx", "purpose": "Removes a completed FlyingPastry by id"},
-        {"name": "FlyingPastry",       "name_type": "component",          "file_path": "preview/src/BakeryGame.jsx", "purpose": "Single-use arc animation component"},
-        {"name": "CustomerTicket",     "name_type": "component",          "file_path": "preview/src/BakeryGame.jsx", "purpose": "Customer character plus order ticket card"},
-        {"name": "FeedbackOverlay",    "name_type": "component",          "file_path": "preview/src/BakeryGame.jsx", "purpose": "Full-screen success/overshoot overlay"},
-        {"name": "id",                 "name_type": "prop",               "file_path": "preview/src/BakeryGame.jsx", "purpose": "Unique key for each FlyingPastry instance"},
-        {"name": "onDone",             "name_type": "prop",               "file_path": "preview/src/BakeryGame.jsx", "purpose": "Callback fired by FlyingPastry when animation completes"},
-        {"name": "target",             "name_type": "prop",               "file_path": "preview/src/BakeryGame.jsx", "purpose": "Current round target number passed to CustomerTicket"},
-        {"name": "roundIndex",         "name_type": "prop",               "file_path": "preview/src/BakeryGame.jsx", "purpose": "0-based current round index passed to CustomerTicket"},
-        {"name": "totalRounds",        "name_type": "prop",               "file_path": "preview/src/BakeryGame.jsx", "purpose": "Total number of rounds in the session"},
-        {"name": "roundState",         "name_type": "prop",               "file_path": "preview/src/BakeryGame.jsx", "purpose": "Current round state string driving CustomerTicket expression and overlay variant"},
-        {"name": "handleTap",          "name_type": "callback",           "file_path": "preview/src/BakeryGame.jsx", "purpose": "Tap handler passed to PastryTray; fires flying pastry and increments total"},
+        # Data constants
+        {"name": "levelConfigs",       "name_type": "constant",        "file_path": "preview/src/games/bakery/levelConfig.js",                    "purpose": "Array of 5 level configs: speed, targets, weights, patience, scoreThreshold"},
+        {"name": "PASTRY_VALUES",      "name_type": "constant",        "file_path": "preview/src/games/bakery/levelConfig.js",                    "purpose": "Maps pastry emoji to numeric math value"},
+        {"name": "SUCCESS_MS",         "name_type": "constant",        "file_path": "preview/src/games/BakeryRushPrototype.jsx",                   "purpose": "Duration in ms to display success overlay before advancing"},
+        {"name": "OVERSHOOT_MS",       "name_type": "constant",        "file_path": "preview/src/games/BakeryRushPrototype.jsx",                   "purpose": "Duration in ms to display overshoot feedback before bounce-back"},
+        # Components
+        {"name": "BakeryRushPrototype","name_type": "component",       "file_path": "preview/src/games/BakeryRushPrototype.jsx",                   "purpose": "Root game container — owns all session state and loop orchestration"},
+        {"name": "OrderTicket",        "name_type": "component",       "file_path": "preview/src/games/bakery/components/OrderTicket.jsx",         "purpose": "Displays current customer, target value, and patience bar"},
+        {"name": "ConveyorBelt",       "name_type": "component",       "file_path": "preview/src/games/bakery/components/ConveyorBelt.jsx",        "purpose": "Animated belt of pastry items with tap-to-select surface"},
+        {"name": "PastryBox",          "name_type": "component",       "file_path": "preview/src/games/bakery/components/PastryBox.jsx",           "purpose": "Selected pastry display with running total and feedback classes"},
+        {"name": "ShiftHUD",           "name_type": "component",       "file_path": "preview/src/games/bakery/components/ShiftHUD.jsx",            "purpose": "Persistent situational awareness bar: score, lives, level, queue"},
+        {"name": "FeedbackOverlay",    "name_type": "component",       "file_path": "preview/src/games/bakery/components/FeedbackOverlay.jsx",     "purpose": "Full-screen feedback overlay for success, overshoot, end-of-shift"},
+        # State variables (owned by BakeryRushPrototype)
+        {"name": "screenState",        "name_type": "state_variable",  "file_path": "preview/src/games/BakeryRushPrototype.jsx",                   "purpose": "Top-level screen state: PLAYING or END_OF_SHIFT"},
+        {"name": "levelIndex",         "name_type": "state_variable",  "file_path": "preview/src/games/BakeryRushPrototype.jsx",                   "purpose": "0-based index into levelConfigs array"},
+        {"name": "score",              "name_type": "state_variable",  "file_path": "preview/src/games/BakeryRushPrototype.jsx",                   "purpose": "Cumulative session score"},
+        {"name": "lives",              "name_type": "state_variable",  "file_path": "preview/src/games/BakeryRushPrototype.jsx",                   "purpose": "Remaining lives; decrements on patience expiry"},
+        {"name": "currentTarget",      "name_type": "state_variable",  "file_path": "preview/src/games/BakeryRushPrototype.jsx",                   "purpose": "Target total for the current customer order"},
+        {"name": "currentTotal",       "name_type": "state_variable",  "file_path": "preview/src/games/BakeryRushPrototype.jsx",                   "purpose": "Running sum of pastry values in the box"},
+        {"name": "feedbackMode",       "name_type": "state_variable",  "file_path": "preview/src/games/BakeryRushPrototype.jsx",                   "purpose": "Active feedback state: success, overshoot, end_of_shift, or null"},
+        {"name": "patienceLeft",       "name_type": "state_variable",  "file_path": "preview/src/games/BakeryRushPrototype.jsx",                   "purpose": "Seconds remaining before customer patience expires"},
+        {"name": "streak",             "name_type": "state_variable",  "file_path": "preview/src/games/BakeryRushPrototype.jsx",                   "purpose": "Consecutive first-try successes; resets on miss or overshoot"},
+        {"name": "boxItems",           "name_type": "state_variable",  "file_path": "preview/src/games/BakeryRushPrototype.jsx",                   "purpose": "Array of pastry items currently in the box"},
+        {"name": "conveyorItems",      "name_type": "state_variable",  "file_path": "preview/src/games/BakeryRushPrototype.jsx",                   "purpose": "Array of pastry items currently on the conveyor belt"},
+        {"name": "customerQueue",      "name_type": "state_variable",  "file_path": "preview/src/games/BakeryRushPrototype.jsx",                   "purpose": "Upcoming customer objects (emoji, name, targetValue)"},
+        {"name": "customerIndex",      "name_type": "state_variable",  "file_path": "preview/src/games/BakeryRushPrototype.jsx",                   "purpose": "Index of the currently active customer in the queue"},
+        # Callbacks
+        {"name": "handlePastrySelect", "name_type": "callback",        "file_path": "preview/src/games/BakeryRushPrototype.jsx",                   "purpose": "Handles player tap on belt item; computes total and triggers feedback"},
+        # Props (OrderTicket)
+        {"name": "currentTarget",      "name_type": "prop",            "file_path": "preview/src/games/bakery/components/OrderTicket.jsx",         "purpose": "Target order total displayed in the ticket"},
+        {"name": "customerName",       "name_type": "prop",            "file_path": "preview/src/games/bakery/components/OrderTicket.jsx",         "purpose": "Customer name string displayed below emoji"},
+        {"name": "customerEmoji",      "name_type": "prop",            "file_path": "preview/src/games/bakery/components/OrderTicket.jsx",         "purpose": "Customer identity emoji"},
+        {"name": "patiencePercent",    "name_type": "prop",            "file_path": "preview/src/games/bakery/components/OrderTicket.jsx",         "purpose": "0–1 float driving patience bar fill width"},
+        {"name": "message",            "name_type": "prop",            "file_path": "preview/src/games/bakery/components/OrderTicket.jsx",         "purpose": "Optional contextual message shown below ticket"},
+        # Props (ConveyorBelt)
+        {"name": "items",              "name_type": "prop",            "file_path": "preview/src/games/bakery/components/ConveyorBelt.jsx",        "purpose": "Array of {id, emoji, value} pastry items to render on belt"},
+        {"name": "beltDuration",       "name_type": "prop",            "file_path": "preview/src/games/bakery/components/ConveyorBelt.jsx",        "purpose": "CSS animation duration in seconds for belt-scroll"},
+        {"name": "interactionEnabled", "name_type": "prop",            "file_path": "preview/src/games/bakery/components/ConveyorBelt.jsx",        "purpose": "When false, disables tap events and applies belt-item-disabled class"},
+        {"name": "onPastrySelect",     "name_type": "prop",            "file_path": "preview/src/games/bakery/components/ConveyorBelt.jsx",        "purpose": "Callback invoked with the tapped item object"},
+        # Props (PastryBox)
+        {"name": "boxItems",           "name_type": "prop",            "file_path": "preview/src/games/bakery/components/PastryBox.jsx",           "purpose": "Array of pastry items currently in the box"},
+        {"name": "currentTotal",       "name_type": "prop",            "file_path": "preview/src/games/bakery/components/PastryBox.jsx",           "purpose": "Running total value displayed in box"},
+        {"name": "feedbackMode",       "name_type": "prop",            "file_path": "preview/src/games/bakery/components/PastryBox.jsx",           "purpose": "Drives box-success and box-overshoot CSS classes"},
+        # Props (ShiftHUD)
+        {"name": "score",              "name_type": "prop",            "file_path": "preview/src/games/bakery/components/ShiftHUD.jsx",            "purpose": "Cumulative score to display"},
+        {"name": "lives",              "name_type": "prop",            "file_path": "preview/src/games/bakery/components/ShiftHUD.jsx",            "purpose": "Remaining lives count for heart display"},
+        {"name": "patiencePercent",    "name_type": "prop",            "file_path": "preview/src/games/bakery/components/ShiftHUD.jsx",            "purpose": "0–1 float for patience bar fill in HUD"},
+        {"name": "levelIndex",         "name_type": "prop",            "file_path": "preview/src/games/bakery/components/ShiftHUD.jsx",            "purpose": "0-based level index for level badge display"},
+        {"name": "queue",              "name_type": "prop",            "file_path": "preview/src/games/bakery/components/ShiftHUD.jsx",            "purpose": "Array of upcoming customer preview objects for queue strip"},
+        # Props (FeedbackOverlay)
+        {"name": "feedbackMode",       "name_type": "prop",            "file_path": "preview/src/games/bakery/components/FeedbackOverlay.jsx",     "purpose": "Controls overlay visibility and variant (success/overshoot/end_of_shift/null)"},
+        {"name": "customerReaction",   "name_type": "prop",            "file_path": "preview/src/games/bakery/components/FeedbackOverlay.jsx",     "purpose": "Emoji shown in overlay-emoji for the current feedback state"},
+        {"name": "summaryStats",       "name_type": "prop",            "file_path": "preview/src/games/bakery/components/FeedbackOverlay.jsx",     "purpose": "Object with score, ordersCompleted, streakBest for end-of-shift display"},
+        # CSS classes
+        {"name": "bakery-rush",        "name_type": "css_class",       "file_path": "preview/src/games/bakery/styles.css",                        "purpose": "Root game wrapper: flex column, 100vh, base font"},
+        {"name": "conveyor-belt",      "name_type": "css_class",       "file_path": "preview/src/games/bakery/styles.css",                        "purpose": "Overflow-hidden container for the belt track"},
+        {"name": "belt-track",         "name_type": "css_class",       "file_path": "preview/src/games/bakery/styles.css",                        "purpose": "Flex row that scrolls via belt-scroll animation"},
+        {"name": "belt-item",          "name_type": "css_class",       "file_path": "preview/src/games/bakery/styles.css",                        "purpose": "Individual tappable pastry item on the belt"},
+        {"name": "belt-item-disabled", "name_type": "css_class",       "file_path": "preview/src/games/bakery/styles.css",                        "purpose": "Applied when interactionEnabled is false"},
+        {"name": "pastry-emoji",       "name_type": "css_class",       "file_path": "preview/src/games/bakery/styles.css",                        "purpose": "Large emoji span on belt item"},
+        {"name": "pastry-value",       "name_type": "css_class",       "file_path": "preview/src/games/bakery/styles.css",                        "purpose": "Small +N value label below emoji on belt item"},
+        {"name": "patience-bar",       "name_type": "css_class",       "file_path": "preview/src/games/bakery/styles.css",                        "purpose": "Track div for patience fill in OrderTicket"},
+        {"name": "patience-fill",      "name_type": "css_class",       "file_path": "preview/src/games/bakery/styles.css",                        "purpose": "Fill div inside patience-bar, width driven by patiencePercent"},
+        {"name": "hud-patience-bar",   "name_type": "css_class",       "file_path": "preview/src/games/bakery/styles.css",                        "purpose": "Track div for patience fill in ShiftHUD"},
+        {"name": "hud-patience-fill",  "name_type": "css_class",       "file_path": "preview/src/games/bakery/styles.css",                        "purpose": "Fill div inside hud-patience-bar"},
+        {"name": "pastry-box",         "name_type": "css_class",       "file_path": "preview/src/games/bakery/styles.css",                        "purpose": "Box container with border; receives success/overshoot modifier classes"},
+        {"name": "box-success",        "name_type": "css_class",       "file_path": "preview/src/games/bakery/styles.css",                        "purpose": "Green glow applied on exact match"},
+        {"name": "box-overshoot",      "name_type": "css_class",       "file_path": "preview/src/games/bakery/styles.css",                        "purpose": "Shake animation applied on overshoot"},
+        {"name": "box-items-grid",     "name_type": "css_class",       "file_path": "preview/src/games/bakery/styles.css",                        "purpose": "Wrapping grid for box item emoji chips"},
+        {"name": "box-item",           "name_type": "css_class",       "file_path": "preview/src/games/bakery/styles.css",                        "purpose": "Single emoji chip inside the pastry box"},
+        {"name": "box-total-row",      "name_type": "css_class",       "file_path": "preview/src/games/bakery/styles.css",                        "purpose": "Row containing total label and value"},
+        {"name": "box-total-label",    "name_type": "css_class",       "file_path": "preview/src/games/bakery/styles.css",                        "purpose": "'Total:' label in total row"},
+        {"name": "box-total-value",    "name_type": "css_class",       "file_path": "preview/src/games/bakery/styles.css",                        "purpose": "Bold current total number in total row"},
+        {"name": "box-target-label",   "name_type": "css_class",       "file_path": "preview/src/games/bakery/styles.css",                        "purpose": "'of N' target indicator below total"},
+        {"name": "feedback-overlay",   "name_type": "css_class",       "file_path": "preview/src/games/bakery/styles.css",                        "purpose": "Fixed inset-0 overlay; base class for all overlay variants"},
+        {"name": "overlay-success",    "name_type": "css_class",       "file_path": "preview/src/games/bakery/styles.css",                        "purpose": "Green background overlay for exact match"},
+        {"name": "overlay-overshoot",  "name_type": "css_class",       "file_path": "preview/src/games/bakery/styles.css",                        "purpose": "Red background overlay for overshoot"},
+        {"name": "overlay-end",        "name_type": "css_class",       "file_path": "preview/src/games/bakery/styles.css",                        "purpose": "Blue background overlay for end-of-shift summary"},
+        {"name": "overlay-inner",      "name_type": "css_class",       "file_path": "preview/src/games/bakery/styles.css",                        "purpose": "Centered content wrapper inside overlay"},
+        {"name": "overlay-emoji",      "name_type": "css_class",       "file_path": "preview/src/games/bakery/styles.css",                        "purpose": "Large reaction emoji inside overlay"},
+        {"name": "overlay-title",      "name_type": "css_class",       "file_path": "preview/src/games/bakery/styles.css",                        "purpose": "Bold title text inside overlay"},
+        {"name": "overlay-subtitle",   "name_type": "css_class",       "file_path": "preview/src/games/bakery/styles.css",                        "purpose": "Secondary message text inside overlay"},
+        {"name": "overlay-stats",      "name_type": "css_class",       "file_path": "preview/src/games/bakery/styles.css",                        "purpose": "Summary stats block visible in end-of-shift overlay"},
+        {"name": "shift-hud",          "name_type": "css_class",       "file_path": "preview/src/games/bakery/styles.css",                        "purpose": "HUD strip at top of game: score, lives, level, queue"},
+        {"name": "hud-score-label",    "name_type": "css_class",       "file_path": "preview/src/games/bakery/styles.css",                        "purpose": "'Score' label in HUD"},
+        {"name": "hud-score-value",    "name_type": "css_class",       "file_path": "preview/src/games/bakery/styles.css",                        "purpose": "Score number in HUD"},
+        {"name": "hud-lives",          "name_type": "css_class",       "file_path": "preview/src/games/bakery/styles.css",                        "purpose": "Heart emoji row in HUD"},
+        {"name": "hud-level-badge",    "name_type": "css_class",       "file_path": "preview/src/games/bakery/styles.css",                        "purpose": "Pill badge showing current level"},
+        {"name": "hud-queue",          "name_type": "css_class",       "file_path": "preview/src/games/bakery/styles.css",                        "purpose": "Queue preview strip in HUD"},
+        {"name": "hud-queue-item",     "name_type": "css_class",       "file_path": "preview/src/games/bakery/styles.css",                        "purpose": "Single upcoming customer chip in queue"},
+        {"name": "order-ticket",       "name_type": "css_class",       "file_path": "preview/src/games/bakery/styles.css",                        "purpose": "Outer wrapper for OrderTicket card"},
+        {"name": "order-target-label", "name_type": "css_class",       "file_path": "preview/src/games/bakery/styles.css",                        "purpose": "'Order' label above target number"},
+        {"name": "order-target-value", "name_type": "css_class",       "file_path": "preview/src/games/bakery/styles.css",                        "purpose": "Large bold target number in ticket"},
+        {"name": "order-message",      "name_type": "css_class",       "file_path": "preview/src/games/bakery/styles.css",                        "purpose": "Contextual message paragraph below ticket"},
+        # CSS custom properties
+        {"name": "--belt-duration",    "name_type": "css_custom_property", "file_path": "preview/src/games/bakery/styles.css",                    "purpose": "CSS animation duration for belt-scroll, set inline from beltDuration prop"},
+        # Keyframes
+        {"name": "belt-scroll",        "name_type": "keyframe",        "file_path": "preview/src/games/bakery/styles.css",                        "purpose": "Continuous left-scroll animation for conveyor belt track"},
+        {"name": "box-shake",          "name_type": "keyframe",        "file_path": "preview/src/games/bakery/styles.css",                        "purpose": "Horizontal rejection shake on overshoot"},
+        {"name": "overlay-enter",      "name_type": "keyframe",        "file_path": "preview/src/games/bakery/styles.css",                        "purpose": "Scale-in entry animation for feedback overlay"},
     ],
     "animation_contracts": [
         {
-            "animation_id": "fly-to-box",
-            "trigger": "FlyingPastry mounts (one instance per tap)",
-            "duration_ms": 380,
+            "animation_id": "belt-scroll",
+            "trigger": "ConveyorBelt mounts and interactionEnabled is true",
+            "duration_ms": 4000,
             "easing": "linear",
-            "css_custom_properties": ["--dx", "--dy"],
-            "keyframe_name": "fly-to-box",
-            "owner_file": "preview/src/BakeryGame.css",
-            "element_selector": ".flying-pastry",
-            "dom_measurement_required": True,
-        },
-        {
-            "animation_id": "character-bounce",
-            "trigger": "customer-happy class applied when roundState === SUCCESS",
-            "duration_ms": 400,
-            "easing": "cubic-bezier(0.17, 0.89, 0.32, 1.28)",
-            "css_custom_properties": [],
-            "keyframe_name": "character-bounce",
-            "owner_file": "preview/src/BakeryGame.css",
-            "element_selector": ".customer-character.customer-happy",
+            "css_custom_properties": ["--belt-duration"],
+            "keyframe_name": "belt-scroll",
+            "owner_file": "preview/src/games/bakery/styles.css",
+            "element_selector": ".belt-track",
             "dom_measurement_required": False,
         },
         {
-            "animation_id": "overlay-scale-in",
-            "trigger": ".feedback-fullscreen element mounts",
+            "animation_id": "box-shake",
+            "trigger": "box-overshoot class applied when currentTotal > currentTarget",
+            "duration_ms": 350,
+            "easing": "ease",
+            "css_custom_properties": [],
+            "keyframe_name": "box-shake",
+            "owner_file": "preview/src/games/bakery/styles.css",
+            "element_selector": ".pastry-box.box-overshoot",
+            "dom_measurement_required": False,
+        },
+        {
+            "animation_id": "overlay-enter",
+            "trigger": "FeedbackOverlay renders (feedbackMode is non-null)",
             "duration_ms": 180,
-            "easing": "cubic-bezier(0.17, 0.89, 0.32, 1.2)",
+            "easing": "cubic-bezier(0.17, 0.89, 0.32, 1.1)",
             "css_custom_properties": [],
-            "keyframe_name": "overlay-scale-in",
-            "owner_file": "preview/src/BakeryGame.css",
-            "element_selector": ".feedback-fullscreen",
-            "dom_measurement_required": False,
-        },
-        {
-            "animation_id": "emoji-pop",
-            "trigger": ".feedback-emoji mounts with 0.1s delay after overlay",
-            "duration_ms": 250,
-            "easing": "cubic-bezier(0.17, 0.89, 0.32, 1.4)",
-            "css_custom_properties": [],
-            "keyframe_name": "emoji-pop",
-            "owner_file": "preview/src/BakeryGame.css",
-            "element_selector": ".feedback-emoji",
+            "keyframe_name": "overlay-enter",
+            "owner_file": "preview/src/games/bakery/styles.css",
+            "element_selector": ".feedback-overlay",
             "dom_measurement_required": False,
         },
     ],
     "acceptance_signals": [
-        {"signal_id": "AS3-01", "description": "Customer character visible in neutral state",                  "observable_in_browser": "👩‍🍳 appears left of ticket card on every round start",                                            "related_patches": ["P3-08", "P3-09", "P3-16"]},
-        {"signal_id": "AS3-02", "description": "Customer reacts on success with bounce",                       "observable_in_browser": "On exact match character switches to 😊 and visibly bounces upward then returns",              "related_patches": ["P3-08", "P3-09", "P3-10", "P3-16"]},
-        {"signal_id": "AS3-03", "description": "Full-screen green overlay on success",                         "observable_in_browser": "Entire screen turns green-tinted overlapping header, play area, and footer",                   "related_patches": ["P3-11", "P3-12", "P3-13", "P3-16"]},
-        {"signal_id": "AS3-04", "description": "Full-screen red overlay on overshoot",                         "observable_in_browser": "Entire screen turns red-tinted on overshoot with same full coverage",                          "related_patches": ["P3-11", "P3-12", "P3-13", "P3-16"]},
-        {"signal_id": "AS3-05", "description": "Overlay scales in rather than appearing instantly",             "observable_in_browser": "Success and overshoot overlays animate from slightly smaller to full size on entry",             "related_patches": ["P3-12", "P3-13"]},
-        {"signal_id": "AS3-06", "description": "Large emoji in overlay pops in with delay",                    "observable_in_browser": "5rem emoji appears with delayed pop-in after overlay background establishes",                   "related_patches": ["P3-12", "P3-13"]},
-        {"signal_id": "AS3-07", "description": "Feedback text has visible text-shadow",                        "observable_in_browser": "'Perfect order!' text is legible against colored background with a visible shadow",             "related_patches": ["P3-12"]},
-        {"signal_id": "AS3-08", "description": "Pastry visibly travels from tray to box",                      "observable_in_browser": "🥐 emoji travels in an arc from footer tray area upward to pastry box before disappearing",    "related_patches": ["P3-03", "P3-04", "P3-07", "P3-14", "P3-16"]},
-        {"signal_id": "AS3-09", "description": "Box total updates only after pastry lands",                    "observable_in_browser": "Running total in header does not increment until flying pastry animation completes",            "related_patches": ["P3-01", "P3-14"]},
-        {"signal_id": "AS3-10", "description": "Multiple rapid taps do not cause multiple simultaneous flights","observable_in_browser": "isAnimating blocks subsequent taps during the arc — only one pastry flies per tap cycle",      "related_patches": ["P3-14", "P3-16"]},
+        {
+            "signal_id": "AS1-01",
+            "description": "Conveyor belt scrolls continuously with pastry items",
+            "observable_in_browser": "Belt items move left continuously at a readable speed on Level 1",
+            "related_patches": ["P1-03", "P1-04", "P1-06"],
+        },
+        {
+            "signal_id": "AS1-02",
+            "description": "Tapping a pastry adds it to the box and increments the total",
+            "observable_in_browser": "Tap on any belt item → emoji appears in pastry box → running total increases by item value",
+            "related_patches": ["P1-06", "P1-07", "P1-10"],
+        },
+        {
+            "signal_id": "AS1-03",
+            "description": "Exact match triggers success overlay",
+            "observable_in_browser": "When currentTotal === currentTarget, green overlay appears with emoji and 'Perfect order!' message",
+            "related_patches": ["P1-09", "P1-10"],
+        },
+        {
+            "signal_id": "AS1-04",
+            "description": "Overshoot triggers shake and bounce-back",
+            "observable_in_browser": "When total exceeds target, box shakes, overshoot overlay appears briefly, total resets",
+            "related_patches": ["P1-03", "P1-04", "P1-07", "P1-09", "P1-10"],
+        },
+        {
+            "signal_id": "AS1-05",
+            "description": "Patience bar depletes and causes a miss",
+            "observable_in_browser": "Bar empties in real time; when fully empty, lives decrement and next customer loads",
+            "related_patches": ["P1-05", "P1-08", "P1-10"],
+        },
+        {
+            "signal_id": "AS1-06",
+            "description": "Level badge increments on score threshold",
+            "observable_in_browser": "HUD shows 'Lv 2' after score crosses Level 1 scoreThreshold; belt speed visibly increases",
+            "related_patches": ["P1-01", "P1-08", "P1-10"],
+        },
     ],
     "patch_notes": (
-        "Pass 3 patches apply on top of the Pass 2 codebase. "
-        "The FlyingPastry DOM measurement reads getBoundingClientRect at component mount time, not at tap time. "
-        "This is correct sequencing: the element mounts, reads the DOM, sets custom properties, then the browser paints the first animation frame. "
-        "The --dx/--dy approach keeps all animation curve definitions in CSS. "
-        "Z-index stack: game chrome z-index 1, FeedbackOverlay z-index 100, FlyingPastry z-index 200 — "
-        "a flying pastry launched just before success lands on top of the green flash, which is the correct visual priority. "
-        "The delayed round advance (SUCCESS_MS after success state is set) is unchanged from Pass 2."
+        "Pass 1 creates the full file structure declared in implementation_plan.file_plan. "
+        "All state lives in BakeryRushPrototype — no child component owns gameplay logic. "
+        "The conveyor belt renders items twice (items.concat(items)) so the CSS scroll loop is seamless. "
+        "Belt speed is communicated to CSS via --belt-duration custom property; "
+        "beltDuration in seconds = track width / conveyorSpeed — derive this in BakeryRushPrototype before passing to ConveyorBelt. "
+        "OVERSHOOT_MS must elapse before currentTotal is decremented — the shake animation must complete first. "
+        "Patience timer must be cleared (clearInterval) whenever feedbackMode becomes non-null, "
+        "and restarted when the next customer loads."
     ),
 }
 
@@ -489,7 +658,6 @@ CONCEPT_OVERRIDES: Dict[str, Dict[str, Any]] = {
 
 def implementation_patch_plan_stub(context: Dict[str, Any]) -> Dict[str, Any]:
     # Read world_theme from implementation_plan (available in allowed_reads).
-    # Fall back to prototype_spec if present (legacy path).
     artifact_inputs = context.get("artifact_inputs", {})
     impl_plan = artifact_inputs.get("implementation_plan", {})
     world_theme = (
@@ -499,9 +667,6 @@ def implementation_patch_plan_stub(context: Dict[str, Any]) -> Dict[str, Any]:
             f.get("path", "") for f in impl_plan.get("file_plan", [])
         )
     )
-    if not world_theme.strip():
-        proto = artifact_inputs.get("prototype_spec", {})
-        world_theme = proto.get("concept_anchor", {}).get("world_theme", "")
 
     concept_key = None
     for key in CONCEPT_OVERRIDES:
@@ -511,17 +676,46 @@ def implementation_patch_plan_stub(context: Dict[str, Any]) -> Dict[str, Any]:
 
     plan = CONCEPT_OVERRIDES[concept_key] if concept_key else _GENERIC_PATCH_PLAN
 
+    # Derive target_files from implementation_plan.file_plan when available,
+    # mapping action (create/update) to operation (create/edit).
+    _ACTION_TO_OP = {"create": "create", "update": "edit", "delete": "do_not_touch"}
+    impl_file_plan = impl_plan.get("file_plan", [])
+    if impl_file_plan:
+        # Build a lookup from path → target_file entry from the plan constant
+        plan_tf_by_path = {tf["file_path"]: tf for tf in plan.get("target_files", [])}
+        derived_target_files = []
+        for fp in impl_file_plan:
+            path = fp.get("path", "")
+            action = fp.get("action", "create")
+            op = _ACTION_TO_OP.get(action, "create")
+            if path in plan_tf_by_path:
+                derived_target_files.append(plan_tf_by_path[path])
+            else:
+                derived_target_files.append({
+                    "file_path": path,
+                    "operation": op,
+                    "current_state": "State not yet described for this file",
+                    "post_patch_state": fp.get("purpose", "File created per implementation plan"),
+                })
+        target_files = derived_target_files
+    else:
+        target_files = plan["target_files"]
+
+    # Record implementation_plan file paths for gate coverage validation.
+    implementation_plan_files = [fp.get("path", "") for fp in impl_file_plan] if impl_file_plan else []
+
     return {
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "status": "pass",
-        "patch_objective":    plan["patch_objective"],
-        "source_pass":        plan["source_pass"],
-        "target_files":       plan["target_files"],
-        "patch_sequence":     plan["patch_sequence"],
-        "naming_registry":    plan["naming_registry"],
-        "animation_contracts": plan["animation_contracts"],
-        "acceptance_signals": plan["acceptance_signals"],
-        "patch_notes":        plan["patch_notes"],
+        "patch_objective":           plan["patch_objective"],
+        "source_pass":               plan["source_pass"],
+        "target_files":              target_files,
+        "patch_sequence":            plan["patch_sequence"],
+        "naming_registry":           plan["naming_registry"],
+        "animation_contracts":       plan["animation_contracts"],
+        "acceptance_signals":        plan["acceptance_signals"],
+        "patch_notes":               plan["patch_notes"],
+        "implementation_plan_files": implementation_plan_files,
     }
 
 

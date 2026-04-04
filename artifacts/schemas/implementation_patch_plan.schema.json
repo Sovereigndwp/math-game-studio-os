@@ -224,6 +224,12 @@
       "type": "string",
       "minLength": 1,
       "description": "Implementation decisions, constraints, sequencing rationale, and anything a build agent must know before starting."
+    },
+
+    "implementation_plan_files": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Optional: file paths declared in implementation_plan.file_plan, injected by stub for gate coverage validation."
     }
   }
 }

@@ -1268,6 +1268,19 @@ class GateEngine:
                                 f"Keyframe '{kf_name}' introduced in {patch['patch_id']} has no entry in animation_contracts."
                             )
 
+        # ---- Dim 6: implementation_plan.file_plan coverage (revise-level) ----
+        # If implementation_plan_files is present, verify every declared path appears in target_files.
+        implementation_plan_files = artifact.get("implementation_plan_files", [])
+        if implementation_plan_files:
+            target_file_paths = {tf["file_path"] for tf in target_files}
+            undeclared = [p for p in implementation_plan_files if p and p not in target_file_paths]
+            if undeclared:
+                failure_fields.append("target_files")
+                revision_instructions.append(
+                    f"The following files declared in implementation_plan.file_plan are missing from target_files: {undeclared}. "
+                    "Every file the implementation_plan commits to building must be covered by this patch plan."
+                )
+
         failure_fields = list(dict.fromkeys(failure_fields))
         if failure_fields:
             return self._finalize_gate(
@@ -1279,7 +1292,7 @@ class GateEngine:
                     stage_name="implementation_patch_plan",
                     status="revise",
                     failure_fields=failure_fields,
-                    strongest_failure_reason="Patch plan has dependency graph, signal coverage, or animation contract gaps.",
+                    strongest_failure_reason="Patch plan has dependency graph, signal coverage, animation contract, or implementation_plan coverage gaps.",
                     revision_instructions=revision_instructions,
                     escalation_recommendation="reroute",
                     memory_tags=["patch_plan_gaps"],

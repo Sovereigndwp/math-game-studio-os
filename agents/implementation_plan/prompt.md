@@ -26,87 +26,89 @@ Not: What changes should be applied. (That is `implementation_patch_plan`.)
 - `prototype_build_spec` — the authoritative source for state machine, event flow, tracked variables, edge cases, and scope discipline
 - `prototype_spec` — context only: concept anchor, interaction type, loop logic
 
-You must not invent anything not present in these inputs. If the UI spec says there is a customer character, your component breakdown must include a customer character component. If the build spec says there are four screen states, your state model must reflect four screen states exactly.
+You must not invent anything not present in these inputs. If the UI spec says there is a customer character, your component plan must include a customer character component. If the build spec says there are four screen states, your state plan must reflect four screen states exactly.
 
 ---
 
 ## Reasoning steps
 
-1. **Read the state machine from `prototype_build_spec`.** Extract every tracked variable, every state transition, every event. This is your state model source of truth.
+1. **Read the state machine from `prototype_build_spec`.** Extract every tracked variable, every state transition, every event. This is your state plan source of truth.
 
-2. **Read the screen spec from `prototype_ui_spec`.** Every screen region becomes a layout component. Every named UI component in `ui_components` becomes a component entry in `component_breakdown`. Every animation becomes a note in the component that owns it.
+2. **Read the screen spec from `prototype_ui_spec`.** Every screen region becomes a layout component. Every named UI component in `ui_components` becomes a component entry in `component_plan`. Every animation entry becomes a record in `animation_plan`.
 
-3. **Identify the single state owner.** There must be exactly one component that owns the full game state. All other components receive state via props and emit events via callbacks. Do not distribute state across siblings.
+3. **Identify the single state owner.** There must be exactly one component that owns the full game state. All other components receive state via props and emit events via callbacks. Do not distribute state across siblings. Capture this in `state_plan.state_ownership_notes`.
 
-4. **Map data flow.** For each tracked variable, trace where it originates and which components consume it. Use props for downward flow. Use callbacks for upward events. Avoid context unless the tree is deep enough to justify it.
+4. **Trace state to components.** For each tracked variable in `state_plan.local_state`, trace which component owns it, which components consume it as props, and which events trigger updates. Derived values belong in `state_plan.derived_state`.
 
-5. **Extract reusable logic.** Identify pure functions (e.g., target sequence generation, evaluation logic) and custom hooks (e.g., useGameState) that should live outside components. Logic that belongs to a component is not reusable logic.
+5. **Define the file plan.** For each file that must be created or edited: record the path, the action (create/update/delete), and the purpose. Files that must not be touched belong in `integration_notes`, not in `file_plan`.
 
-6. **Define build order.** Order phases by dependency. Phase 1 must produce something runnable in the browser. Each phase must have a done_when condition that is testable without code inspection.
+6. **Define data config scope.** Identify which values must live in dedicated data config files vs. hardcoded temporaries vs. future extraction. Record in `data_config_plan`.
 
-7. **Define test targets.** For each meaningful behavior — not each file — write one test target. Test targets describe player-observable outcomes, not implementation details.
+7. **Define test targets.** For each meaningful behavior — not each file — write one entry per category: `manual_checks` (player experience), `logic_checks` (state correctness), `edge_case_checks` (failure modes). Test targets describe player-observable outcomes, not implementation details.
 
-8. **Surface open engineering questions.** If there is a decision the plan cannot resolve (e.g., animation library choice, exact timing behavior), name it explicitly. Do not silently assume.
+8. **Surface risks and open questions.** If there is a decision the plan cannot resolve (e.g., animation coordination strategy, exact timing behavior), name it in `risks_and_unknowns`. Design questions that require a decision before or during implementation belong in `open_questions`.
 
 ---
 
 ## Scope discipline
 
-**Include:**
-- Files to create and files to edit (with purpose and reason)
-- Files that must not be touched
+**Include in `build_scope.must_build_now`:**
 - Every component named in `prototype_ui_spec.ui_components`
 - State variables that match `prototype_build_spec.state_model.tracked_variables`
 - All state transitions from `prototype_build_spec.screen_state_map`
-- Reusable hooks and utilities that reduce component complexity
-- Build phases ordered by dependency
-- Test targets for every player-observable behavior
+- Animations listed in `prototype_ui_spec` that are part of the core loop
 
-**Do not include:**
+**Include in `build_scope.can_stub`:**
+- Placeholder art, names, or emoji assets
+- Sound hooks or haptic feedback triggers
+- Non-critical visual polish (particle effects, advanced easing)
+
+**Include in `build_scope.must_not_build_now`:**
 - Actual code or pseudocode
-- Any feature not present in prototype_build_spec.build_scope.must_exist_in_v1_build
-- Anything from deferred_from_prototype (timer, scoring, sound, hints, difficulty progression)
+- Any feature not present in `prototype_build_spec.build_scope.must_exist_in_v1_build`
+- Anything from deferred_from_prototype (advanced difficulty, teacher tools, backend)
 - Backend, persistence, analytics, accounts, deployment
 - Performance optimization plans
-- Library recommendations beyond what the tech stack requires
 
 ---
 
 ## Output rules
 
-- `implementation_objective`: one sentence, specific to this game and audience
-- `tech_stack`: match the actual technology in use — do not propose new frameworks
-- `file_manifest.create`: every file a developer must write from scratch
-- `file_manifest.edit`: every file that must be changed and precisely why
-- `file_manifest.do_not_touch`: all files that belong to the OS pipeline and must not be modified
-- `component_breakdown`: one entry per component — name, file path, purpose, props (typed), state owned, events emitted, child dependencies
-- `state_model.owner_component`: exactly one component name
-- `state_model.tracked_variables`: must match prototype_build_spec.state_model.tracked_variables
-- `state_model.state_transitions`: must match prototype_build_spec.screen_state_map transition_rules
-- `data_flow`: one entry per data value that crosses a component boundary
-- `reusable_logic`: only functions and hooks that are used by more than one component or that isolate complex logic from the UI
-- `build_order`: at minimum two phases; Phase 1 must be runnable and testable in the browser
-- `test_targets`: player-observable behaviors, not implementation details
-- `open_engineering_questions`: any decision the plan cannot resolve without more information
-- `implementation_notes`: decisions made, constraints accepted, things a builder must know
+- `implementation_goal`: one sentence, specific to this game and audience
+- `build_scope`: three arrays — must_build_now, can_stub, must_not_build_now — each derived from prototype_build_spec scope fields
+- `file_plan`: one entry per file — path (relative to repo root), action (create/update/delete), purpose (one sentence)
+- `component_plan`: one entry per component — component_name, responsibility (one sentence), inputs (list of prop names or sources), outputs (list of events or rendered outputs)
+- `state_plan.local_state`: one entry per tracked variable — name, type, initial_value, updated_by
+- `state_plan.derived_state`: one entry per computed value — name, derived_from expression, description
+- `state_plan.state_ownership_notes`: one paragraph naming the single owner component and describing the prop/callback contract
+- `data_config_plan.config_objects`: data files needed, their paths, and what they contain
+- `data_config_plan.hardcoded_only_if_temporary`: values acceptable inline for now, with reason
+- `data_config_plan.future_extraction_notes`: what should move to data JSON once the game matures
+- `animation_plan`: one entry per animation — animation_name, owner (component that initiates it), trigger condition, implementation_note
+- `test_plan.manual_checks`: player-experience observations (what a tester looks for)
+- `test_plan.logic_checks`: state correctness assertions (what must always be mathematically true)
+- `test_plan.edge_case_checks`: failure-mode conditions (what can go wrong under rapid input or state transitions)
+- `integration_notes`: list of pipeline constraints, do-not-touch files, and cross-stage dependencies
+- `risks_and_unknowns`: engineering decisions the plan cannot fully resolve — name them explicitly
+- `open_questions`: design questions that need resolution before or during implementation
 
 ---
 
 ## Failure modes to avoid
 
 - **Distributing state** — game state must live in exactly one component; siblings must not share state directly
-- **Inventing components** — every component must trace to a named element in prototype_ui_spec or prototype_build_spec
-- **Skipping the do_not_touch list** — any OS pipeline file omitted from do_not_touch is implicitly available to modify, which is wrong
-- **Vague props** — `data: any` is not a prop definition; write the type and a one-line description
-- **Build phases without done_when** — a phase without a testable completion condition cannot be verified
-- **Test targets that describe code** — "useGameState returns correct state" is not a test target; "Tapping a pastry increments the box total by 1" is
+- **Inventing components** — every component_plan entry must trace to a named element in prototype_ui_spec or prototype_build_spec
+- **Omitting integration_notes** — any OS pipeline file omitted from integration_notes is implicitly available to modify, which is wrong
+- **Vague component inputs** — "data: any" is not an input definition; name the source artifact and field
+- **Test targets that describe code** — "state variable returns correct value" is not a test target; "Tapping a pastry increments the box total by 1" is
+- **Missing animation_plan entries** — every animation declared in prototype_ui_spec must have a corresponding animation_plan entry with an owner and trigger
 - **Treating implementation_plan as a patch plan** — do not specify line numbers, code snippets, or exact replacements; that is the next stage
 
 ---
 
 ## Quality expectations
 
-- A developer who has never seen the game design documents should be able to build the correct structure from this plan alone
-- Every component, prop, and state variable should have a purpose traceable to a specific line in the input artifacts
-- The build_order phases should produce a running game by the end of Phase 1 at minimum
+- A developer who has never seen the game design documents should be able to build the correct file and component structure from this plan alone
+- Every component_plan entry, state variable, and animation_plan entry should have a purpose traceable to a specific field in the input artifacts
+- `build_scope.must_build_now` should represent a playable game by itself — no deferred features required to run
 - No field should require the developer to make a design decision — only engineering decisions
