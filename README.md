@@ -29,13 +29,14 @@ Stage 3  Interaction Mapper ────── choose primary interaction type
 Stage 4  Family Architect ──────── place concept in an interaction family
 Stage 5  Core Loop Designer ────── define the smallest meaningful loop
 Stage 6  Prototype Spec ────────── translate approved loop into a prototype specification
-Stage 7  Prototype Build Spec ──── translate spec to
+Stage 7  Prototype Build Spec ──── translate spec into an implementation-ready build handoff
+Stage 8  Prototype UI Spec ──────── translate build spec into screen layouts, components, and accessibility requirements
 ```
 
 Each stage produces one JSON artifact validated against a schema in
 artifacts/schemas/. Rejected concepts stop early, usually at Stage 2.
-Approved concepts run all eight stages, Stages 0 through 7, and exit with a
-prototype_build_spec ready for implementation planning.
+Approved concepts run all nine stages, Stages 0 through 8, and exit with a
+prototype_ui_spec ready for developer handoff.
 
 Revision behavior: If a gate returns revise, the pipeline retries the
 agent up to the limit in its config.yaml. If revision limits are exceeded, the
@@ -67,7 +68,7 @@ result = run_v1_pipeline(
     repo_root=Path("."),
 )
 print(result.outcome)              # "approved" or "rejected"
-print(result.final_artifact_name)  # e.g. "prototype_build_spec"
+print(result.final_artifact_name)  # e.g. "prototype_ui_spec"
 print(result.final_artifact_path)  # path to the output JSON
 ```
 
@@ -77,20 +78,19 @@ For LLM mode, see RUNBOOK.md.
 
 | # | Case | Learner | Expected outcome | Stop stage |
 |---|---|---|---|---|
-| 1 | Bakery | K–2, addition | approved | prototype_build_spec |
-| 2 | Fire Dispatch | grades 4–6, multiplication | approved | prototype_build_spec |
-| 3 | Unit Circle Pizza Lab | high school, trigonometry | approved | prototype_build_spec |
+| 1 | Bakery | K–2, addition | approved | prototype_ui_spec |
+| 2 | Fire Dispatch | grades 4–6, multiplication | approved | prototype_ui_spec |
+| 3 | Unit Circle Pizza Lab | high school, trigonometry | approved | prototype_ui_spec |
 | 4 | Overloaded bad concept | — | rejected | kill_report |
 | 5 | Cute but weak concept | — | rejected | kill_report |
 
-Cases 1 through 3 test the full pipeline through the current implementation-stage
-handoff. Cases 4 and 5 test early rejection at the kill gate. All five pass in
-both stub and LLM modes.
+Cases 1 through 3 test the full pipeline through Stage 8. Cases 4 and 5 test
+early rejection at the kill gate. All five pass in both stub and LLM modes.
 
 ## Repository structure
 
 ```
-pipeline.py                  Main entry point — runs stages 0–7 in sequence
+pipeline.py                  Main entry point — runs stages 0–8 in sequence
 agents/                      One directory per agent (agent.py, prompt.md, config.yaml)
   intake_framing/            Stage 1 — intake_brief
   kill_test/                 Stage 2 — kill_report
@@ -99,6 +99,7 @@ agents/                      One directory per agent (agent.py, prompt.md, confi
   core_loop/                 Stage 5 — lowest_viable_loop_brief
   prototype_spec/            Stage 6 — prototype_spec
   prototype_build_spec/      Stage 7 — prototype_build_spec
+  prototype_ui_spec/         Stage 8 — prototype_ui_spec
 engine/                      Gate decision engine (pass/revise/reject per stage)
 orchestrator/                Stage ledger — tracks versions, revision counts, gate states
 artifacts/schemas/           JSON schemas for all artifact types
@@ -146,6 +147,13 @@ For prototype_build_spec, the gate focuses on:
 - acceptance clarity
 - internal consistency
 
+For prototype_ui_spec, the gate focuses on:
+- build spec fidelity
+- screen completeness
+- component specification
+- animation definition
+- accessibility compliance
+
 Fidelity violations are identity-level failures and should reject. Most other
 gaps are fixable and should revise.
 
@@ -166,8 +174,10 @@ gaps are fixable and should revise.
 - V1 — frozen at tag v1.0. Stages 0 through 5, five benchmarks, all
   passing in stub and LLM modes.
 - V2 boundary — defined and frozen. Stage 6 prototype_spec and Stage 7
-  prototype_build_spec are now in place.
-- Current endpoint — approved concepts now exit with
-  prototype_build_spec, which serves as the first-build implementation handoff.
-- First implementation example — Bakery is the lead concept through the
-  current implementation-stage handoff.
+  prototype_build_spec are in place.
+- Stage 8 — prototype_ui_spec added. Approved concepts now run all nine
+  stages and exit with a UI-ready specification including screen layouts,
+  component styling, animations, and accessibility requirements.
+- Current endpoint — approved concepts exit with prototype_ui_spec.
+- First implementation example — Bakery is the lead concept through
+  the full pipeline.
