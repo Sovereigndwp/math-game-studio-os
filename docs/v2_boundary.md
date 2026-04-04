@@ -208,6 +208,38 @@ mechanic remains deferred — it is a second-loop concern, not a prototype conce
 
 ---
 
+## Known Limitations
+
+### Cross-validation of fidelity claims against input artifacts
+
+The `prototype_spec` gate validates the agent's self-reported
+`concept_fidelity_check` (three booleans and fidelity notes). However, the gate
+currently only receives the output artifact — it does not have access to the
+upstream V1 artifacts (`interaction_decision_memo`, `family_architecture_brief`,
+`lowest_viable_loop_brief`).
+
+This means the gate can verify that fidelity fields are present, non-empty, and
+internally consistent, but it cannot independently confirm that the agent's
+fidelity claims are *true* by comparing against the actual V1 values.
+
+**Implication:** If the agent falsely claims `v1_interaction_type_preserved: true`
+while actually drifting from the approved interaction, the gate will not catch
+this. In stub mode this is mitigated by deterministic templates. In LLM mode it
+is a real risk.
+
+**Resolution path:** Expanding the gate interface to accept input artifacts
+alongside the output artifact would enable true cross-validation. This is an
+architectural change to the gate engine that affects all stages and is out of
+scope for V2. It should be addressed when the gate architecture is revisited
+(likely V3+).
+
+**Current mitigation:** The agent prompt explicitly instructs the LLM to set
+fidelity claims honestly and warns that claims are audited. The gate validates
+that `fidelity_notes` contains a non-empty explanation, creating a paper trail
+even when cross-validation is not automated.
+
+---
+
 ## Recommended V1→V2 Sequencing
 
 1. **Build the Prototype Spec Agent** with Bakery as the first test case.
