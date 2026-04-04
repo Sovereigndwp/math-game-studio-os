@@ -88,6 +88,9 @@ hidden behind fake certainty.
 - Prototype covers the lowest viable loop ONLY — one loop, one math action, one feedback cycle
 - No progression systems, leveling, unlocks, or collection mechanics
 - No tutorial sequences — the loop must be self-teaching
+- Timer or urgency mechanics are permitted only when they are structural to the
+  approved interaction type (e.g., a fire dispatch incident timer). Do not add
+  timer/urgency as engagement padding for interactions that do not require it.
 - `difficulty_scaling_used` should be `"none"` for most prototypes, `"light"` only
   if a minimal range is needed to test the loop honestly (e.g., targets below and above 10)
 
@@ -157,6 +160,14 @@ Return `status: "reject"` only if the prototype spec would fundamentally violate
 the approved V1 concept.
 
 Do not force `"pass"` when `"revise"` is the honest answer.
+
+# Dual validation
+
+The agent sets `status` and `concept_fidelity_check` honestly based on its own
+assessment. The gate independently re-validates fidelity by inspecting the same
+fields. This means a fidelity claim of `true` that the gate cannot verify will
+still trigger a revise or reject. Do not rely on the gate to catch problems —
+set status honestly, but understand that your fidelity claims are audited.
 
 # Quality expectations
 
