@@ -1,0 +1,14 @@
+agent_name: prototype_ui_spec_agent
+expected_output_artifact: prototype_ui_spec
+expected_produced_by: Prototype UI Spec Agent
+allowed_reads:
+  - prototype_build_spec
+  - prototype_spec
+  - lowest_viable_loop_brief
+allowed_writes:
+  - prototype_ui_spec
+max_revision_count: 2
+retry_policy: revise_once_then_escalate
+model_profile: high_reasoning
+requires_gate_pass_from:
+  - prototype_build_spec

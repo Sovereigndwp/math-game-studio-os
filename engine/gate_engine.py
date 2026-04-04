@@ -868,9 +868,146 @@ class GateEngine:
             ),
         )
 
+    def gate_prototype_ui_spec(self, artifact: Dict[str, Any]) -> Dict[str, Any]:
+        """Gate for prototype_ui_spec — Stage 8.
+
+        Five dimensions:
+          Reject-level (identity compromise):
+            Dim 1 — Build spec fidelity: UI spec must implement the approved build spec
+          Revise-level (fixable gaps):
+            Dim 2 — Screen completeness
+            Dim 3 — Component specification
+            Dim 4 — Animation definition
+            Dim 5 — Accessibility compliance
+        """
+
+        # ---- Dim 1: Build spec fidelity (reject-level) ----
+        # The UI spec must reference the same components and screens from prototype_build_spec.
+        # In stub mode, this is guaranteed by template selection. In LLM mode, the gate
+        # catches drift by checking structural presence.
+        screen_layouts = artifact.get("screen_layouts", [])
+        ui_components = artifact.get("ui_components", [])
+        if not screen_layouts:
+            return self._finalize_gate(
+                artifact,
+                _new_gate_decision(
+                    job_id=artifact["job_id"],
+                    target_artifact="prototype_ui_spec",
+                    target_artifact_version=artifact["version"],
+                    stage_name="prototype_ui_spec",
+                    status="reject",
+                    failure_fields=["screen_layouts"],
+                    strongest_failure_reason="UI spec has no screen layouts — cannot verify build spec fidelity",
+                    revision_instructions=["screen_layouts must define at least one screen with regions and positioning."],
+                    escalation_recommendation="reject_job",
+                    memory_tags=["missing_screen_layouts"],
+                ),
+            )
+
+        # ---- Dim 2: Screen completeness (revise-level) ----
+        failure_fields = []
+        revision_instructions = []
+
+        for i, screen in enumerate(screen_layouts):
+            if not screen.get("regions"):
+                failure_fields.append(f"screen_layouts[{i}].regions")
+                revision_instructions.append(f"Screen '{screen.get('screen_name', i)}' must have at least one region defined.")
+
+            regions = screen.get("regions", [])
+            for j, region in enumerate(regions):
+                required_fields = ["position", "size", "purpose"]
+                for field in required_fields:
+                    if not region.get(field):
+                        failure_fields.append(f"screen_layouts[{i}].regions[{j}].{field}")
+                        revision_instructions.append(f"Region '{region.get('region_name', j)}' must have {field} defined.")
+
+        # ---- Dim 3: Component specification (revise-level) ----
+        if not ui_components:
+            failure_fields.append("ui_components")
+            revision_instructions.append("At least one UI component with styling and accessibility is required.")
+
+        for i, comp in enumerate(ui_components):
+            visual_style = comp.get("visual_style", {})
+            if not visual_style.get("colors"):
+                failure_fields.append(f"ui_components[{i}].visual_style.colors")
+                revision_instructions.append(f"Component '{comp.get('component_name', i)}' must have color definitions.")
+
+            if not comp.get("interaction_states"):
+                failure_fields.append(f"ui_components[{i}].interaction_states")
+                revision_instructions.append(f"Component '{comp.get('component_name', i)}' must define interaction states.")
+
+            accessibility = comp.get("accessibility", {})
+            required_accessibility = ["aria_label", "keyboard_navigation", "screen_reader_support", "color_contrast_ratio"]
+            for field in required_accessibility:
+                if field not in accessibility:
+                    failure_fields.append(f"ui_components[{i}].accessibility.{field}")
+                    revision_instructions.append(f"Component '{comp.get('component_name', i)}' must have {field} defined.")
+
+        # ---- Dim 4: Animation definition (revise-level) ----
+        animations = artifact.get("animations_and_transitions", [])
+        if not animations:
+            failure_fields.append("animations_and_transitions")
+            revision_instructions.append("At least one animation or transition must be defined.")
+
+        for i, anim in enumerate(animations):
+            required_anim_fields = ["trigger", "duration", "easing", "description"]
+            for field in required_anim_fields:
+                if not anim.get(field):
+                    failure_fields.append(f"animations_and_transitions[{i}].{field}")
+                    revision_instructions.append(f"Animation '{anim.get('animation_name', i)}' must have {field} defined.")
+
+        # ---- Dim 5: Accessibility compliance (revise-level) ----
+        accessibility_reqs = artifact.get("accessibility_requirements", {})
+        required_accessibility_reqs = ["wcag_level", "keyboard_navigation_complete", "screen_reader_compatible", "color_blind_friendly"]
+        for field in required_accessibility_reqs:
+            if field not in accessibility_reqs:
+                failure_fields.append(f"accessibility_requirements.{field}")
+                revision_instructions.append(f"Accessibility requirements must include {field}.")
+
+        motor_considerations = accessibility_reqs.get("motor_impairment_considerations", [])
+        if len(motor_considerations) < 2:
+            failure_fields.append("accessibility_requirements.motor_impairment_considerations")
+            revision_instructions.append("At least 2 motor impairment considerations must be listed.")
+
+        # Responsive breakpoints should exist
+        breakpoints = artifact.get("responsive_breakpoints", [])
+        if not breakpoints:
+            failure_fields.append("responsive_breakpoints")
+            revision_instructions.append("At least one responsive breakpoint must be defined.")
+
+        # Deduplicate
+        failure_fields = list(dict.fromkeys(failure_fields))
+
+        if failure_fields:
+            return self._finalize_gate(
+                artifact,
+                _new_gate_decision(
+                    job_id=artifact["job_id"],
+                    target_artifact="prototype_ui_spec",
+                    target_artifact_version=artifact["version"],
+                    stage_name="prototype_ui_spec",
+                    status="revise",
+                    failure_fields=failure_fields,
+                    strongest_failure_reason="UI spec is not yet implementation-ready — gaps in screen completeness, component specification, or accessibility",
+                    revision_instructions=revision_instructions,
+                    escalation_recommendation="reroute",
+                    memory_tags=["ui_completeness", "ui_spec_gaps"],
+                ),
+            )
+
+        return self._finalize_gate(
+            artifact,
+            _new_gate_decision(
+                job_id=artifact["job_id"],
+                target_artifact="prototype_ui_spec",
+                target_artifact_version=artifact["version"],
+                stage_name="prototype_ui_spec",
+                status="pass",
+            ),
+        )
+
 
 if __name__ == "__main__":
-    import json
     from pathlib import Path
     from utils.validation import load_json
 

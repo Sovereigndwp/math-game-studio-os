@@ -1,6 +1,6 @@
 # Benchmark Run 01
 **Date:** 2026-04-03
-**System version:** V1 stub pipeline
+**System version:** V1 stub pipeline (8 stages)
 **Benchmark set:** 5 concepts (3 strong, 2 weak)
 **Result:** 5/5 correct
 
@@ -10,9 +10,9 @@
 
 | ID | Name | Expected | Actual | Interaction | Pass? |
 |---|---|---|---|---|---|
-| 01 | strong_elementary_bakery | pass → LVL brief | APPROVED | combine_and_build ✓ | ✓ |
-| 02 | strong_middle_fire_dispatch | pass → LVL brief | APPROVED | route_and_dispatch ✓ | ✓ |
-| 03 | strong_high_school_unit_circle | pass → LVL brief | APPROVED | navigate_and_position ✓ | ✓ |
+| 01 | strong_elementary_bakery | pass → prototype_build_spec | APPROVED | combine_and_build ✓ | ✓ |
+| 02 | strong_middle_fire_dispatch | pass → prototype_build_spec | APPROVED | route_and_dispatch ✓ | ✓ |
+| 03 | strong_high_school_unit_circle | pass → prototype_build_spec | APPROVED | navigate_and_position ✓ | ✓ |
 | 04 | overloaded_bad_concept | reject or revise | REJECTED at kill_report | n/a | ✓ |
 | 05 | cute_but_weak_concept | reject or revise | REJECTED at kill_report | n/a | ✓ |
 
@@ -22,7 +22,7 @@
 
 **Command:** Create a grade 2 bakery game for addition to 20 where students pack pastry orders before customers leave.
 
-All six stages passed. Gate statuses: all pass.
+**Pipeline result:** All 8 stages completed successfully. Final artifact: `prototype_build_spec`.
 
 - Family: `Builder Bakery Family` (universal_ladder)
 - Primary interaction: `combine_and_build` — matches expected
@@ -30,8 +30,9 @@ All six stages passed. Gate statuses: all pass.
 - Signature moment: "Final piece snaps into place and the target structure completes — visual and audio payoff confirms."
 - First correct action: "Combines two components whose sum or product matches part or all of the target value."
 - Fail state: "Combining wrong pieces triggers a reset animation; pieces return to the tray."
+- Build spec status: complete with full implementation details
 
-**Verdict:** PASS — correct interaction, correct family type, complete and bounded loop brief.
+**Verdict:** PASS — correct interaction, correct family type, complete and bounded loop brief, prototype build spec successfully generated.
 
 ---
 
@@ -39,17 +40,18 @@ All six stages passed. Gate statuses: all pass.
 
 **Command:** Create a grade 7 fire station dispatch game for ratios and rates where students send the right trucks and supplies to the right zones under time pressure.
 
-All six stages passed.
+**Pipeline result:** All 8 stages completed successfully. Final artifact: `prototype_build_spec`.
 
 - Family: `Dispatch Dispatch Family` (age_band_specialist)
 - Primary interaction: `route_and_dispatch` — matches expected
 - max_steps_per_loop: 4
 - Signature moment: "The moment the learner routes the last item in a wave correctly and all destinations are filled — the screen clears cleanly."
 - First correct action: "Routes the first item to the matching destination based on its mathematical property."
+- Build spec status: complete with full implementation details
 
-**One naming issue noted:** Family name "Dispatch Dispatch Family" is redundant — the prefix "Dispatch" (from interaction type) concatenates with "dispatch" (first word of mission "dispatch coordinator"). This is a stub naming quirk, not a gate or pipeline error. The fix is to strip the prefix word from the mission-derived suffix if they match.
+**Known naming issue:** Family name "Dispatch Dispatch Family" is redundant — the prefix "Dispatch" (from interaction type) concatenates with "dispatch" (first word of mission "dispatch coordinator"). This is a stub naming quirk, not a gate or pipeline error. The fix is to strip the prefix word from the mission-derived suffix if they match.
 
-**Verdict:** PASS — correct interaction, correct loop, naming quirk logged for fix.
+**Verdict:** PASS — correct interaction, correct loop, full pipeline completion, naming quirk logged for fix.
 
 ---
 
@@ -57,15 +59,16 @@ All six stages passed.
 
 **Command:** Create a high school unit circle pizza lab for radians, coordinates, and sine/cosine relationships.
 
-All six stages passed.
+**Pipeline result:** All 8 stages completed successfully. Final artifact: `prototype_build_spec`.
 
 - Family: `Navigator Pizza Family` (advanced_anchor)
 - Primary interaction: `navigate_and_position` — matches expected
 - Secondary interaction: `transform_and_manipulate` (split_family_warning: true — correctly flagged)
 - max_steps_per_loop: 3
 - Signature moment: "Element lands on the exact position — grid snaps, number line locks, coordinate confirms."
+- Build spec status: complete with full implementation details
 
-**Verdict:** PASS — correct interaction, correct factory type (advanced_anchor), split family warning correctly triggered.
+**Verdict:** PASS — correct interaction, correct factory type (advanced_anchor), split family warning correctly triggered, full pipeline completion.
 
 ---
 

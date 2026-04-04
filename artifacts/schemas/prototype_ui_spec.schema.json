@@ -1,0 +1,259 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "prototype_ui_spec",
+  "type": "object",
+  "properties": {
+    "job_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "artifact_name": {
+      "type": "string",
+      "const": "prototype_ui_spec"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "produced_by": {
+      "type": "string",
+      "const": "Prototype UI Spec Agent"
+    },
+    "timestamp": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": ["pass", "revise", "reject"]
+    },
+    "ui_objective": {
+      "type": "string",
+      "minLength": 1,
+      "description": "What this UI specification achieves for the prototype"
+    },
+    "screen_layouts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "screen_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "screen_name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "layout_type": {
+            "type": "string",
+            "enum": ["single_column", "grid", "freeform", "overlay"]
+          },
+          "regions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "region_id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "region_name": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "position": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "CSS-style position or grid area"
+                },
+                "size": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "CSS-style dimensions"
+                },
+                "purpose": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": ["region_id", "region_name", "position", "size", "purpose"],
+              "additionalProperties": false
+            },
+            "minItems": 1
+          }
+        },
+        "required": ["screen_id", "screen_name", "layout_type", "regions"],
+        "additionalProperties": false
+      },
+      "minItems": 1
+    },
+    "ui_components": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "component_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "component_name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "component_type": {
+            "type": "string",
+            "enum": ["button", "display", "container", "interactive", "feedback"]
+          },
+          "visual_style": {
+            "type": "object",
+            "properties": {
+              "colors": {
+                "type": "object",
+                "properties": {
+                  "primary": { "type": "string" },
+                  "secondary": { "type": "string" },
+                  "accent": { "type": "string" },
+                  "background": { "type": "string" }
+                }
+              },
+              "typography": {
+                "type": "object",
+                "properties": {
+                  "font_family": { "type": "string" },
+                  "font_size": { "type": "string" },
+                  "font_weight": { "type": "string" }
+                }
+              },
+              "spacing": {
+                "type": "object",
+                "properties": {
+                  "padding": { "type": "string" },
+                  "margin": { "type": "string" }
+                }
+              }
+            }
+          },
+          "interaction_states": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["default", "hover", "active", "disabled", "success", "error"]
+            }
+          },
+          "accessibility": {
+            "type": "object",
+            "properties": {
+              "aria_label": { "type": "string" },
+              "keyboard_navigation": { "type": "boolean" },
+              "screen_reader_support": { "type": "boolean" },
+              "color_contrast_ratio": { "type": "number", "minimum": 1.0 }
+            }
+          }
+        },
+        "required": ["component_id", "component_name", "component_type", "visual_style", "interaction_states", "accessibility"],
+        "additionalProperties": false
+      },
+      "minItems": 1
+    },
+    "animations_and_transitions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "animation_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "animation_name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "trigger": {
+            "type": "string",
+            "minLength": 1,
+            "description": "When this animation plays"
+          },
+          "duration": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Animation duration in CSS format"
+          },
+          "easing": {
+            "type": "string",
+            "enum": ["linear", "ease", "ease-in", "ease-out", "ease-in-out"]
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": ["animation_id", "animation_name", "trigger", "duration", "easing", "description"],
+        "additionalProperties": false
+      }
+    },
+    "responsive_breakpoints": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "breakpoint_name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "min_width": {
+            "type": "string"
+          },
+          "max_width": {
+            "type": "string"
+          },
+          "layout_adjustments": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 }
+          }
+        },
+        "required": ["breakpoint_name", "layout_adjustments"],
+        "additionalProperties": false
+      }
+    },
+    "accessibility_requirements": {
+      "type": "object",
+      "properties": {
+        "wcag_level": {
+          "type": "string",
+          "enum": ["A", "AA", "AAA"]
+        },
+        "keyboard_navigation_complete": {
+          "type": "boolean"
+        },
+        "screen_reader_compatible": {
+          "type": "boolean"
+        },
+        "color_blind_friendly": {
+          "type": "boolean"
+        },
+        "motor_impairment_considerations": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "required": ["wcag_level", "keyboard_navigation_complete", "screen_reader_compatible", "color_blind_friendly"],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "job_id",
+    "artifact_name",
+    "version",
+    "produced_by",
+    "timestamp",
+    "status",
+    "ui_objective",
+    "screen_layouts",
+    "ui_components",
+    "animations_and_transitions",
+    "responsive_breakpoints",
+    "accessibility_requirements"
+  ],
+  "additionalProperties": false
+}
