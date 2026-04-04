@@ -1,7 +1,7 @@
 """
 pipeline.py — Math Game Studio OS V1 end-to-end runner.
 
-Chains all eight agents (stages 0-7) in order, enforces gate pre-conditions between each stage,
+Chains all nine agents (stages 0-8) in order, enforces gate pre-conditions between each stage,
 and returns a PipelineResult with the final outcome.
 
 Modes:

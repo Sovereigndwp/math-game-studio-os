@@ -179,140 +179,175 @@ CONCEPT_OVERRIDES: Dict[str, Dict[str, Any]] = {
 }
 
 
-def _generic_ui_spec(job_id: str, concept_keywords: list[str]) -> Dict[str, Any]:
-    """Generic fallback UI spec when no concept override exists."""
-    return {
-        "ui_objective": (
-            "Create a clean, accessible UI specification that supports the core learning "
-            "interaction with appropriate visual hierarchy, feedback systems, and inclusive design."
-        ),
-        "screen_layouts": [
-            {
-                "screen_id": "main_game",
-                "screen_name": "Main Game Screen",
-                "layout_type": "single_column",
-                "regions": [
-                    {
-                        "region_id": "header",
-                        "region_name": "Header Area",
-                        "position": "top: 0; left: 0; right: 0; height: 15%",
-                        "size": "100% width, 15% height",
-                        "purpose": "Display progress and objectives"
-                    },
-                    {
-                        "region_id": "content",
-                        "region_name": "Main Content Area",
-                        "position": "top: 15%; bottom: 20%; left: 5%; right: 5%",
-                        "size": "90% width, 65% height",
-                        "purpose": "Primary interactive elements"
-                    },
-                    {
-                        "region_id": "footer",
-                        "region_name": "Footer Area",
-                        "position": "bottom: 0; left: 0; right: 0; height: 20%",
-                        "size": "100% width, 20% height",
-                        "purpose": "Controls and feedback"
-                    }
-                ]
-            }
-        ],
-        "ui_components": [
-            {
-                "component_id": "primary_action",
-                "component_name": "Primary Action Button",
-                "component_type": "interactive",
-                "visual_style": {
-                    "colors": {
-                        "primary": "#2196F3",
-                        "secondary": "#1976D2",
-                        "accent": "#42A5F5",
-                        "background": "#FFFFFF"
-                    },
-                    "typography": {
-                        "font_family": "Arial, sans-serif",
-                        "font_size": "16px",
-                        "font_weight": "bold"
-                    },
-                    "spacing": {
-                        "padding": "12px 24px",
-                        "margin": "8px"
-                    }
+_GENERIC_UI_SPEC_TEMPLATE: Dict[str, Any] = {
+    "ui_objective": (
+        "Create a clean, accessible UI specification that supports the core learning "
+        "interaction with appropriate visual hierarchy, feedback systems, and inclusive design."
+    ),
+    "screen_layouts": [
+        {
+            "screen_id": "main_game",
+            "screen_name": "Main Game Screen",
+            "layout_type": "single_column",
+            "regions": [
+                {
+                    "region_id": "header",
+                    "region_name": "Header Area",
+                    "position": "top: 0; left: 0; right: 0; height: 15%",
+                    "size": "100% width, 15% height",
+                    "purpose": "Display progress and objectives"
                 },
-                "interaction_states": ["default", "hover", "active", "disabled"],
-                "accessibility": {
-                    "aria_label": "Perform main action",
-                    "keyboard_navigation": True,
-                    "screen_reader_support": True,
-                    "color_contrast_ratio": 4.5
+                {
+                    "region_id": "content",
+                    "region_name": "Main Content Area",
+                    "position": "top: 15%; bottom: 20%; left: 5%; right: 5%",
+                    "size": "90% width, 65% height",
+                    "purpose": "Primary interactive elements"
+                },
+                {
+                    "region_id": "footer",
+                    "region_name": "Footer Area",
+                    "position": "bottom: 0; left: 0; right: 0; height: 20%",
+                    "size": "100% width, 20% height",
+                    "purpose": "Controls and feedback"
                 }
-            }
-        ],
-        "animations_and_transitions": [
-            {
-                "animation_id": "state_change",
-                "animation_name": "State Change Transition",
-                "trigger": "When game state changes",
-                "duration": "0.3s",
-                "easing": "ease-in-out",
-                "description": "Smooth transition between different UI states"
-            }
-        ],
-        "responsive_breakpoints": [
-            {
-                "breakpoint_name": "mobile",
-                "max_width": "767px",
-                "layout_adjustments": [
-                    "Stack elements vertically",
-                    "Increase touch target sizes",
-                    "Simplify layout for small screens"
-                ]
-            }
-        ],
-        "accessibility_requirements": {
-            "wcag_level": "AA",
-            "keyboard_navigation_complete": True,
-            "screen_reader_compatible": True,
-            "color_blind_friendly": True,
-            "motor_impairment_considerations": [
-                "Minimum 44px touch targets",
-                "No gesture-only interactions",
-                "Clear visual focus indicators"
             ]
         }
+    ],
+    "ui_components": [
+        {
+            "component_id": "primary_action",
+            "component_name": "Primary Action Button",
+            "component_type": "interactive",
+            "visual_style": {
+                "colors": {
+                    "primary": "#2196F3",
+                    "secondary": "#1976D2",
+                    "accent": "#42A5F5",
+                    "background": "#FFFFFF"
+                },
+                "typography": {
+                    "font_family": "Arial, sans-serif",
+                    "font_size": "16px",
+                    "font_weight": "bold"
+                },
+                "spacing": {
+                    "padding": "12px 24px",
+                    "margin": "8px"
+                }
+            },
+            "interaction_states": ["default", "hover", "active", "disabled"],
+            "accessibility": {
+                "aria_label": "Perform main action",
+                "keyboard_navigation": True,
+                "screen_reader_support": True,
+                "color_contrast_ratio": 4.5
+            }
+        }
+    ],
+    "animations_and_transitions": [
+        {
+            "animation_id": "state_change",
+            "animation_name": "State Change Transition",
+            "trigger": "When game state changes",
+            "duration": "0.3s",
+            "easing": "ease-in-out",
+            "description": "Smooth transition between different UI states"
+        }
+    ],
+    "responsive_breakpoints": [
+        {
+            "breakpoint_name": "mobile",
+            "max_width": "767px",
+            "layout_adjustments": [
+                "Stack elements vertically",
+                "Increase touch target sizes",
+                "Simplify layout for small screens"
+            ]
+        }
+    ],
+    "accessibility_requirements": {
+        "wcag_level": "AA",
+        "keyboard_navigation_complete": True,
+        "screen_reader_compatible": True,
+        "color_blind_friendly": True,
+        "motor_impairment_considerations": [
+            "Minimum 44px touch targets",
+            "No gesture-only interactions",
+            "Clear visual focus indicators"
+        ]
+    }
+}
+
+
+def prototype_ui_spec_stub(context: Dict[str, Any]) -> Dict[str, Any]:
+    """Deterministic stub for the Prototype UI Spec Agent.
+
+    Selects a concept override by world_theme keyword, or falls back to the
+    generic template if no match is found.
+
+    NOTE: Short keys ("bakery") risk false positives in LLM mode when the
+    world_theme contains unexpected terms. Same documented limitation as other stubs.
+    """
+    proto = context.get("artifact_inputs", {}).get("prototype_spec", {})
+    world_theme = proto.get("concept_anchor", {}).get("world_theme", "")
+
+    concept_key = None
+    theme_lower = world_theme.lower()
+    for key in CONCEPT_OVERRIDES:
+        if key in theme_lower:
+            concept_key = key
+            break
+
+    t = CONCEPT_OVERRIDES[concept_key] if concept_key else _GENERIC_UI_SPEC_TEMPLATE
+
+    return {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "status": "pass",
+        "ui_objective": t.get("ui_objective", _GENERIC_UI_SPEC_TEMPLATE["ui_objective"]),
+        "screen_layouts": t.get("screen_layouts", _GENERIC_UI_SPEC_TEMPLATE["screen_layouts"]),
+        "ui_components": t.get("ui_components", _GENERIC_UI_SPEC_TEMPLATE["ui_components"]),
+        "animations_and_transitions": t.get(
+            "animations_and_transitions", _GENERIC_UI_SPEC_TEMPLATE["animations_and_transitions"]
+        ),
+        "responsive_breakpoints": t.get(
+            "responsive_breakpoints", _GENERIC_UI_SPEC_TEMPLATE["responsive_breakpoints"]
+        ),
+        "accessibility_requirements": t.get(
+            "accessibility_requirements", _GENERIC_UI_SPEC_TEMPLATE["accessibility_requirements"]
+        ),
     }
 
 
+def build_spec(repo_root: Path) -> AgentSpec:
+    return AgentSpec(
+        agent_name="prototype_ui_spec_agent",
+        expected_output_artifact="prototype_ui_spec",
+        expected_produced_by="Prototype UI Spec Agent",
+        prompt_path=repo_root / "agents" / "prototype_ui_spec" / "prompt.md",
+        config_path=repo_root / "agents" / "prototype_ui_spec" / "config.yaml",
+        allowed_reads=["prototype_build_spec", "prototype_spec", "lowest_viable_loop_brief"],
+        allowed_writes=["prototype_ui_spec"],
+        max_revision_count=2,
+    )
+
+
 def run(
-    job_id: str,
     repo_root: Path,
-    model_callable: Any = None,
-) -> Dict[str, Any]:
-    """
-    Run the Prototype UI Spec Agent.
+    job_id: str,
+    artifact_paths: Dict[str, Path],
+    model_callable=None,
+):
+    """Run the Prototype UI Spec Agent.
 
     Args:
-        job_id: Job workspace identifier
-        repo_root: Repository root path
-        model_callable: Optional LLM callable for non-stub mode
-
-    Returns:
-        Validated prototype_ui_spec artifact
+        model_callable: Optional override. If provided, replaces the stub.
+                        If None, uses the deterministic stub.
     """
-    agent_spec = AgentSpec(
-        agent_name="Prototype UI Spec Agent",
-        input_artifacts=["prototype_build_spec"],
-        output_artifact="prototype_ui_spec",
-        prompt_template_path=repo_root / "agents" / "prototype_ui_spec" / "prompt.md",
-        config_path=repo_root / "agents" / "prototype_ui_spec" / "config.yaml",
-        concept_overrides=CONCEPT_OVERRIDES,
-        generic_fallback=_generic_ui_spec,
-    )
-
-    runner = SharedAgentRunner(
-        agent_spec=agent_spec,
+    runner = SharedAgentRunner(repo_root)
+    return runner.run(
+        spec=build_spec(repo_root),
         job_id=job_id,
-        repo_root=repo_root,
-        model_callable=model_callable,
+        artifact_paths=artifact_paths,
+        model_callable=model_callable if model_callable is not None else prototype_ui_spec_stub,
     )
-
-    return runner.run()

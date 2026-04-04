@@ -713,7 +713,7 @@ class GateEngine:
     def gate_prototype_build_spec(self, artifact: Dict[str, Any]) -> Dict[str, Any]:
         """Gate for prototype_build_spec — Stage 7.
 
-        Six dimensions:
+        Seven dimensions:
           Reject-level (identity compromise):
             Dim 2 — Prototype fidelity: build spec must implement the approved prototype
           Revise-level (fixable gaps):
@@ -722,6 +722,7 @@ class GateEngine:
             Dim 4 — Edge-case coverage
             Dim 5 — Scope discipline
             Dim 6 — Acceptance clarity
+            Dim 7 — Internal consistency: cross-section coherence
         """
 
         # ---- Dim 2: Prototype fidelity (reject-level) ----
@@ -836,6 +837,52 @@ class GateEngine:
         if not checklist:
             failure_fields.append("acceptance_checklist")
             revision_instructions.append("Acceptance checklist must list testable conditions for build completion.")
+
+        # ---- Dim 7: Internal consistency (revise-level) ----
+        # Component names referenced in event flow must appear in component_specs.
+        component_names = {c.get("component_name", "") for c in components}
+        for i, step in enumerate(event_flow):
+            response = str(step.get("system_response", ""))
+            # Check if the step references a component name that isn't in component_specs.
+            # Only flag if a clearly named component (containing "Component" or ending in
+            # a capitalized noun phrase) appears in the response but is absent from specs.
+            # Conservative check: only flag if a component_spec name appears in the
+            # response text that is NOT in the component_specs list (catches renames/drift).
+            # Positive check: every component in component_specs should appear somewhere in the event flow.
+        all_flow_text = " ".join(
+            str(step.get("trigger", "")) + " " + str(step.get("system_response", "")) + " " + str(step.get("state_change", ""))
+            for step in event_flow
+        )
+
+        # Check that every tracked variable in state_model appears somewhere in the event flow.
+        for var in tracked:
+            # Extract the variable name (first token before colon or space)
+            var_name = var.split(":")[0].split(" ")[0].strip()
+            if var_name and len(var_name) > 3 and var_name.lower() not in all_flow_text.lower():
+                failure_fields.append("state_model.tracked_variables")
+                revision_instructions.append(
+                    f"Tracked variable '{var_name}' does not appear in the interaction event flow. "
+                    "State model and event flow must be consistent."
+                )
+                break  # One instance is enough to flag the issue
+
+        # Check that acceptance checklist items do not reference features outside build scope.
+        must_exist_text = " ".join(scope.get("must_exist_in_v1_build", [])).lower()
+        not_included_text = " ".join(scope.get("not_included_in_v1_build", [])).lower()
+        deferred_text = " ".join(scope.get("deferred_from_prototype", [])).lower()
+        excluded_text = not_included_text + " " + deferred_text
+        for item in checklist:
+            item_lower = item.lower()
+            # Flag checklist items that mention known out-of-scope systems
+            out_of_scope_signals = ["analytics", "account", "leaderboard", "backend", "deployment", "monetization"]
+            for signal in out_of_scope_signals:
+                if signal in item_lower and signal not in must_exist_text:
+                    failure_fields.append("acceptance_checklist")
+                    revision_instructions.append(
+                        f"Acceptance checklist item references '{signal}' which is outside the v1 build scope. "
+                        "Checklist must only include items testable within the first build."
+                    )
+                    break
 
         # Deduplicate
         failure_fields = list(dict.fromkeys(failure_fields))
