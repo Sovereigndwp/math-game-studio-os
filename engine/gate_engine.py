@@ -561,6 +561,29 @@ class GateEngine:
                 ),
             )
 
+        # ---- Dim 2 continued: fidelity_notes must be non-empty ----
+        fidelity_notes = fidelity.get("fidelity_notes", "").strip()
+        if not fidelity_notes:
+            failure_fields_fn = ["concept_fidelity_check.fidelity_notes"]
+            revision_instructions_fn = [
+                "concept_fidelity_check.fidelity_notes must contain a non-empty explanation of how fidelity was verified."
+            ]
+            return self._finalize_gate(
+                artifact,
+                _new_gate_decision(
+                    job_id=artifact["job_id"],
+                    target_artifact="prototype_spec",
+                    target_artifact_version=artifact["version"],
+                    stage_name="prototype_spec",
+                    status="revise",
+                    failure_fields=failure_fields_fn,
+                    strongest_failure_reason="Fidelity notes are empty — cannot verify concept alignment",
+                    revision_instructions=revision_instructions_fn,
+                    escalation_recommendation="revise_agent",
+                    memory_tags=["fidelity_notes_missing"],
+                ),
+            )
+
         # ---- Dim 1: Build clarity (revise-level) ----
         failure_fields = []
         revision_instructions = []
