@@ -755,6 +755,10 @@ def prototype_spec_stub(context: Dict[str, Any]) -> Dict[str, Any]:
     target_skills = intake.get("likely_target_skills", ["unknown"]) or ["unknown"]
 
     # --- Select best template: concept-specific override > generic ---
+    # NOTE: Short keys ("fire", "pizza") risk false positives in LLM mode where
+    # intake may produce novel themes containing these substrings (e.g., "pizza
+    # fraction game" would hit the unit-circle trig override). Before enabling
+    # LLM mode, replace substring matching with (theme, interaction_type) pairs.
     concept_key = None
     theme_lower = world_theme.lower()
     for key in CONCEPT_OVERRIDES:
