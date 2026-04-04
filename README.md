@@ -29,7 +29,7 @@ Stage 3  Interaction Mapper ────── choose primary interaction type
 Stage 4  Family Architect ──────── place concept in an interaction family
 Stage 5  Core Loop Designer ────── define the smallest meaningful loop
 Stage 6  Prototype Spec ────────── translate approved loop into a prototype specification
-Stage 7  Prototype Build Spec ──── translate spec to implementation handoff
+Stage 7  Prototype Build Spec ──── translate spec to
 ```
 
 Each stage produces one JSON artifact validated against a schema in
@@ -116,7 +116,7 @@ Every agent follows the same pattern:
 | File | Purpose |
 |---|---|
 | `agent.py` | Stub and LLM implementations. Exports a `run()` entry point. |
-| `prompt.md` | Agent contract: role, reasoning rules, and constraints. |
+| `prompt.md` | Agent contract: role, reasoning rules, and constraint
 | `config.yaml` | Allowed artifact reads and writes, revision limit, and model profile. |
 
 The orchestrator calls `run()`, the shared agent runner injects metadata such as
