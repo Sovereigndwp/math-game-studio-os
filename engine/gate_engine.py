@@ -661,6 +661,17 @@ class GateEngine:
             failure_fields.append("prototype_scope.deferred")
             revision_instructions.append("Separate deferred items from excluded items explicitly.")
 
+        # Deferred and excluded must not overlap
+        deferred_set = set(scope.get("deferred", []))
+        excluded_set = set(scope.get("excluded", []))
+        overlap = deferred_set & excluded_set
+        if overlap:
+            failure_fields.append("prototype_scope.deferred")
+            revision_instructions.append(
+                f"Items appear in both deferred and excluded: {sorted(overlap)}. "
+                "Each item must be in exactly one list."
+            )
+
         # ---- Readiness score sanity ----
         readiness = artifact.get("prototype_readiness_score", 0)
         if readiness < 0.5:

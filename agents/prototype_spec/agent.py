@@ -864,8 +864,17 @@ def prototype_spec_stub(context: Dict[str, Any]) -> Dict[str, Any]:
     ))
 
     # --- Status and readiness ---
-    readiness = 0.92 if fidelity_ok else 0.5
-    status = "pass" if fidelity_ok else "reject"
+    # Concept overrides are implementation-ready (0.92); generic fallbacks are
+    # structurally valid but lack domain-specific detail (0.75).
+    if not fidelity_ok:
+        readiness = 0.5
+        status = "reject"
+    elif concept_key:
+        readiness = 0.92
+        status = "pass"
+    else:
+        readiness = 0.75
+        status = "pass"
 
     timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
