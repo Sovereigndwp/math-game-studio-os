@@ -2,6 +2,12 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "Bakery Preview",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 5173
+    },
+    {
       "name": "Pipeline — Stub Mode",
       "runtimeExecutable": ".venv/bin/python",
       "runtimeArgs": ["pipeline.py"],

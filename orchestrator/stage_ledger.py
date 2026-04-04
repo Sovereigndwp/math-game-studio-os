@@ -16,6 +16,7 @@ ARTIFACT_ORDER = [
     "prototype_spec",
     "prototype_build_spec",
     "prototype_ui_spec",
+    "implementation_plan",
 ]
 
 REVISION_TRACKED = [
@@ -27,6 +28,7 @@ REVISION_TRACKED = [
     "prototype_spec",
     "prototype_build_spec",
     "prototype_ui_spec",
+    "implementation_plan",
 ]
 
 DEFAULT_STAGE_STATE = {
@@ -39,6 +41,7 @@ DEFAULT_STAGE_STATE = {
     "prototype_spec": "not_started",
     "prototype_build_spec": "not_started",
     "prototype_ui_spec": "not_started",
+    "implementation_plan": "not_started",
 }
 
 DEFAULT_AUTHORITATIVE_VERSIONS = {
@@ -51,6 +54,7 @@ DEFAULT_AUTHORITATIVE_VERSIONS = {
     "prototype_spec": 0,
     "prototype_build_spec": 0,
     "prototype_ui_spec": 0,
+    "implementation_plan": 0,
 }
 
 DEFAULT_REVISION_COUNTS = {
@@ -61,6 +65,8 @@ DEFAULT_REVISION_COUNTS = {
     "lowest_viable_loop_brief": 0,
     "prototype_spec": 0,
     "prototype_build_spec": 0,
+    "prototype_ui_spec": 0,
+    "implementation_plan": 0,
 }
 
 

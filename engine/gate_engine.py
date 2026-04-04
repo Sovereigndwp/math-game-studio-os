@@ -1054,6 +1054,132 @@ class GateEngine:
         )
 
 
+    def gate_implementation_plan(self, artifact: Dict[str, Any]) -> Dict[str, Any]:
+        """Gate for implementation_plan — Stage 9.
+
+        Four dimensions:
+          Reject-level (identity compromise):
+            Dim 1 — File manifest completeness: plan must define files to create
+          Revise-level (fixable gaps):
+            Dim 2 — Component coverage: component_breakdown must be non-empty
+            Dim 3 — State clarity: state_model must have owner and tracked variables
+            Dim 4 — Build order testability: each phase must have a done_when condition
+        """
+
+        # ---- Dim 1: File manifest completeness (reject-level) ----
+        file_manifest = artifact.get("file_manifest", {})
+        files_to_create = file_manifest.get("create", [])
+        if not files_to_create:
+            return self._finalize_gate(
+                artifact,
+                _new_gate_decision(
+                    job_id=artifact["job_id"],
+                    target_artifact="implementation_plan",
+                    target_artifact_version=artifact["version"],
+                    stage_name="implementation_plan",
+                    status="reject",
+                    failure_fields=["file_manifest.create"],
+                    strongest_failure_reason="Implementation plan defines no files to create — cannot guide a build",
+                    revision_instructions=["file_manifest.create must list every file a developer must write from scratch."],
+                    escalation_recommendation="reject_job",
+                    memory_tags=["missing_file_manifest"],
+                ),
+            )
+
+        # ---- Dim 2: Component coverage (revise-level) ----
+        failure_fields = []
+        revision_instructions = []
+
+        components = artifact.get("component_breakdown", [])
+        if not components:
+            failure_fields.append("component_breakdown")
+            revision_instructions.append("component_breakdown must define at least one component.")
+
+        for i, comp in enumerate(components):
+            if not comp.get("purpose", "").strip():
+                failure_fields.append(f"component_breakdown[{i}].purpose")
+                revision_instructions.append(
+                    f"Component '{comp.get('component_name', i)}' must have a clear purpose statement."
+                )
+            if comp.get("props") is None:
+                failure_fields.append(f"component_breakdown[{i}].props")
+                revision_instructions.append(
+                    f"Component '{comp.get('component_name', i)}' must list its props (use [] if none)."
+                )
+
+        # do_not_touch must be present (even if empty)
+        if "do_not_touch" not in file_manifest:
+            failure_fields.append("file_manifest.do_not_touch")
+            revision_instructions.append(
+                "file_manifest.do_not_touch must list OS pipeline files that must not be modified."
+            )
+
+        # ---- Dim 3: State clarity (revise-level) ----
+        state_model = artifact.get("state_model", {})
+        if not state_model.get("owner_component", "").strip():
+            failure_fields.append("state_model.owner_component")
+            revision_instructions.append("state_model must identify exactly one owner component for game state.")
+
+        tracked = state_model.get("tracked_variables", [])
+        if not tracked:
+            failure_fields.append("state_model.tracked_variables")
+            revision_instructions.append("state_model must list all tracked variables with types and initial values.")
+
+        transitions = state_model.get("state_transitions", [])
+        if not transitions:
+            failure_fields.append("state_model.state_transitions")
+            revision_instructions.append("state_model must define state transitions matching the prototype_build_spec screen_state_map.")
+
+        # ---- Dim 4: Build order testability (revise-level) ----
+        build_order = artifact.get("build_order", [])
+        if len(build_order) < 2:
+            failure_fields.append("build_order")
+            revision_instructions.append("build_order must have at least 2 phases — minimum: Phase 1 (runnable core) and Phase 2 (complete feature set).")
+
+        for i, phase in enumerate(build_order):
+            if not str(phase.get("done_when", "")).strip():
+                failure_fields.append(f"build_order[{i}].done_when")
+                revision_instructions.append(
+                    f"Phase {phase.get('phase', i+1)} must have a testable done_when condition."
+                )
+
+        # Test targets required
+        if not artifact.get("test_targets"):
+            failure_fields.append("test_targets")
+            revision_instructions.append("test_targets must describe at least one player-observable behavior to verify.")
+
+        # Deduplicate
+        failure_fields = list(dict.fromkeys(failure_fields))
+
+        if failure_fields:
+            return self._finalize_gate(
+                artifact,
+                _new_gate_decision(
+                    job_id=artifact["job_id"],
+                    target_artifact="implementation_plan",
+                    target_artifact_version=artifact["version"],
+                    stage_name="implementation_plan",
+                    status="revise",
+                    failure_fields=failure_fields,
+                    strongest_failure_reason="Implementation plan is not yet builder-ready — gaps in component coverage, state clarity, or build order",
+                    revision_instructions=revision_instructions,
+                    escalation_recommendation="reroute",
+                    memory_tags=["implementation_plan_gaps"],
+                ),
+            )
+
+        return self._finalize_gate(
+            artifact,
+            _new_gate_decision(
+                job_id=artifact["job_id"],
+                target_artifact="implementation_plan",
+                target_artifact_version=artifact["version"],
+                stage_name="implementation_plan",
+                status="pass",
+            ),
+        )
+
+
 if __name__ == "__main__":
     from pathlib import Path
     from utils.validation import load_json

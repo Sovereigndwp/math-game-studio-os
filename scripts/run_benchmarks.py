@@ -23,7 +23,7 @@ BENCHMARKS = [
         "label": "strong_elementary_bakery",
         "command": "Create a grade 2 bakery game for addition to 20 where students pack pastry orders before customers leave.",
         "expected_outcome": "approved",
-        "expected_stop": "prototype_ui_spec",
+        "expected_stop": "implementation_plan",
         "expected_interaction": "combine_and_build",
     },
     {
@@ -31,7 +31,7 @@ BENCHMARKS = [
         "label": "strong_middle_fire_dispatch",
         "command": "Create a grade 3 fire station dispatch game where students send the right trucks and supplies to the right locations using arithmetic under time pressure.",
         "expected_outcome": "approved",
-        "expected_stop": "prototype_ui_spec",
+        "expected_stop": "implementation_plan",
         "expected_interaction": "route_and_dispatch",
     },
     {
@@ -39,7 +39,7 @@ BENCHMARKS = [
         "label": "strong_high_school_unit_circle",
         "command": "Create a high school trigonometry and unit circle pizza lab where students use angle position, radians, and sine/cosine relationships to complete pizza tasks.",
         "expected_outcome": "approved",
-        "expected_stop": "prototype_ui_spec",
+        "expected_stop": "implementation_plan",
         "expected_interaction": "navigate_and_position",
     },
     {
