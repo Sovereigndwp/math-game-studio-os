@@ -1,6 +1,7 @@
 # Math Game Studio OS — V2 Boundary Freeze
 
-**Tag:** `v2.0-boundary` · **Commit:** `83a4b1b` · **Date:** 2026-04-04
+**Original tag:** `v2.0-boundary` (commit `5962efb`) · **Extended through:** commit `a773b7e` with Stage 7 prototype_build_spec
+**Date:** 2026-04-04
 
 ---
 
@@ -16,8 +17,8 @@ implementation.
 
 ## What was added in this phase
 
-This phase added the first V2 boundary layer across 9 commits (`8a98c64`
-through `83a4b1b`):
+This phase extended the V2 boundary from `v2.0-boundary` through Stage 7 across multiple commits,
+including the Prototype Build Spec Agent and updated documentation to reflect both stages:
 
 **Core V2 artifact:**
 - `prototype_spec` as the first V2 artifact and schema
@@ -37,10 +38,9 @@ through `83a4b1b`):
   to `prototype_build_spec`
 
 **Gate hardening (post-initial implementation):**
-- `fidelity_notes` non-empty check added to gate (revise on empty notes)
-- Deferred/excluded overlap check added to gate (revise on intersection)
-- Readiness score differentiated: concept overrides score 0.92, generic
-  fallback scores 0.75
+- non-empty fidelity-notes checks added where fidelity fields are required
+- overlap checks added for excluded/deferred-style scope lists where applicable
+- readiness score differentiated: concept overrides score 0.92, generic fallback scores 0.75
 
 **Prompt refinements:**
 - Timer/urgency rule clarified (structural only, not engagement padding)
@@ -70,8 +70,8 @@ The following are considered stable at this checkpoint:
 - `prototype_build_spec` gate logic (`engine/gate_engine.py :: gate_prototype_build_spec`)
 - Pipeline integration: Stage 6 runs after Stage 5, Stage 7 runs after Stage 6, gate enforces all dimensions
 - Stage ledger tracks `prototype_spec` and `prototype_build_spec` alongside all V1 artifacts
-- Bakery, Fire Dispatch, and Unit Circle Pizza Lab all produce approved
-  `prototype_spec` and `prototype_build_spec` artifacts in stub mode
+- Bakery, Fire Dispatch, and Unit Circle Pizza Lab all reach approved `prototype_spec`
+  and `prototype_build_spec` outputs in stub mode under the current benchmark suite
 
 ---
 
@@ -93,11 +93,11 @@ The following are considered stable at this checkpoint:
 The following are documented in `docs/v2_boundary.md § Known Limitations` and
 in code comments, but intentionally not solved in this phase:
 
-1. **Fidelity claims are self-reported.** The gate validates that
-   `concept_fidelity_check` booleans are true and `fidelity_notes` is non-empty,
-   but cannot cross-validate against upstream V1 artifacts. The gate interface
-   only receives the output artifact. Fixing this requires a gate architecture
-   change affecting all stages (V3+).
+1. **Fidelity claims are still partly self-reported.** The relevant gate validates
+   the fidelity booleans and requires non-empty fidelity notes, but does not fully
+   cross-validate those claims against upstream artifacts. The current gate interface
+   receives only the output artifact. Fixing this would require a broader gate-architecture
+   change affecting multiple stages.
 
 2. **Concept override matching is brittle.** Short keys (`"fire"`, `"pizza"`)
    match by substring against `world_theme`. False positives are possible if
