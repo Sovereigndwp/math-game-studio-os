@@ -18,6 +18,8 @@ ARTIFACT_ORDER = [
     "prototype_ui_spec",
     "implementation_plan",
     "implementation_patch_plan",
+    "playtest_diagnostic_report",
+    "revision_brief",
 ]
 
 REVISION_TRACKED = [
@@ -31,6 +33,8 @@ REVISION_TRACKED = [
     "prototype_ui_spec",
     "implementation_plan",
     "implementation_patch_plan",
+    "playtest_diagnostic_report",
+    "revision_brief",
 ]
 
 DEFAULT_STAGE_STATE = {
@@ -45,6 +49,8 @@ DEFAULT_STAGE_STATE = {
     "prototype_ui_spec": "not_started",
     "implementation_plan": "not_started",
     "implementation_patch_plan": "not_started",
+    "playtest_diagnostic_report": "not_started",
+    "revision_brief": "not_started",
 }
 
 DEFAULT_AUTHORITATIVE_VERSIONS = {
@@ -59,6 +65,8 @@ DEFAULT_AUTHORITATIVE_VERSIONS = {
     "prototype_ui_spec": 0,
     "implementation_plan": 0,
     "implementation_patch_plan": 0,
+    "playtest_diagnostic_report": 0,
+    "revision_brief": 0,
 }
 
 DEFAULT_REVISION_COUNTS = {
@@ -72,6 +80,8 @@ DEFAULT_REVISION_COUNTS = {
     "prototype_ui_spec": 0,
     "implementation_plan": 0,
     "implementation_patch_plan": 0,
+    "playtest_diagnostic_report": 0,
+    "revision_brief": 0,
 }
 
 

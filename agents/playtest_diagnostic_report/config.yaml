@@ -1,0 +1,13 @@
+agent_name: playtest_diagnostic_agent
+expected_output_artifact: playtest_diagnostic_report
+expected_produced_by: Playtest Diagnostic Agent
+allowed_reads:
+  - implementation_patch_plan
+  - implementation_plan
+allowed_writes:
+  - playtest_diagnostic_report
+max_revision_count: 1
+retry_policy: revise_once_then_escalate
+model_profile: high_reasoning
+requires_gate_pass_from:
+  - implementation_patch_plan

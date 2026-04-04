@@ -48,6 +48,8 @@ from agents.prototype_build_spec.agent import run as run_prototype_build_spec
 from agents.prototype_ui_spec.agent import run as run_prototype_ui_spec
 from agents.implementation_plan.agent import run as run_implementation_plan
 from agents.implementation_patch_plan.agent import run as run_implementation_patch_plan
+from agents.playtest_diagnostic_report.agent import run as run_playtest_diagnostic
+from agents.revision_brief.agent import run as run_revision_brief
 from utils.shared_agent_runner import AgentRunResult
 
 
@@ -134,8 +136,10 @@ def run_v1_pipeline(
         6. PrototypeSpec     → prototype_spec              → gate_prototype_spec
         7. PrototypeBuildSpec→ prototype_build_spec        → gate_prototype_build_spec
         8. PrototypeUISpec       → prototype_ui_spec       → gate_prototype_ui_spec
-        9. ImplementationPlan    → implementation_plan       → gate_implementation_plan
-   10. ImplementationPatch  → implementation_patch_plan → gate_implementation_patch_plan
+        9. ImplementationPlan    → implementation_plan          → gate_implementation_plan
+   10. ImplementationPatch  → implementation_patch_plan    → gate_implementation_patch_plan
+   11. PlaytestDiagnostic   → playtest_diagnostic_report   → gate_playtest_diagnostic_report
+   12. RevisionBrief        → revision_brief               → gate_revision_brief
 
     Gate pre-conditions are enforced: no agent runs unless the previous gate returned 'pass'.
     Revision limits are enforced: if a stage exceeds max_revisions, the job is rejected.
@@ -381,14 +385,56 @@ def run_v1_pipeline(
     if gate_patch["status"] != "pass":
         return _rejected_result(job_id, "implementation_patch_plan", patch_result, gate_patch, stage_records)
 
+    patch_plan_path = Path(patch_result.artifact_path)
+
     # ------------------------------------------------------------------
-    # Pipeline success: approved implementation_patch_plan
+    # Stage 11: Playtest Diagnostic Agent → playtest_diagnostic_report
+    # ------------------------------------------------------------------
+    diag_result, gate_diag = _run_agent_with_gate(
+        stage_name="playtest_diagnostic_report",
+        agent_runner=lambda artifact_paths: run_playtest_diagnostic(repo_root, job_id, artifact_paths, model_callable=mc),
+        gate_fn=gate_engine.gate_playtest_diagnostic_report,
+        artifact_paths={
+            "implementation_patch_plan": patch_plan_path,
+            "implementation_plan":       impl_plan_path,
+        },
+        stage_records=stage_records,
+        workspace=workspace,
+        ledger_path=ledger_path,
+        max_revisions=max_revisions_per_stage,
+    )
+    if gate_diag["status"] != "pass":
+        return _rejected_result(job_id, "playtest_diagnostic_report", diag_result, gate_diag, stage_records)
+
+    diag_path = Path(diag_result.artifact_path)
+
+    # ------------------------------------------------------------------
+    # Stage 12: Revision Brief Agent → revision_brief
+    # ------------------------------------------------------------------
+    revision_result, gate_revision = _run_agent_with_gate(
+        stage_name="revision_brief",
+        agent_runner=lambda artifact_paths: run_revision_brief(repo_root, job_id, artifact_paths, model_callable=mc),
+        gate_fn=gate_engine.gate_revision_brief,
+        artifact_paths={
+            "playtest_diagnostic_report": diag_path,
+            "implementation_patch_plan":  patch_plan_path,
+        },
+        stage_records=stage_records,
+        workspace=workspace,
+        ledger_path=ledger_path,
+        max_revisions=max_revisions_per_stage,
+    )
+    if gate_revision["status"] != "pass":
+        return _rejected_result(job_id, "revision_brief", revision_result, gate_revision, stage_records)
+
+    # ------------------------------------------------------------------
+    # Pipeline success: approved revision_brief
     # ------------------------------------------------------------------
     return PipelineResult(
         job_id=job_id,
         outcome="approved",
-        final_artifact_name="implementation_patch_plan",
-        final_artifact_path=patch_result.artifact_path,
+        final_artifact_name="revision_brief",
+        final_artifact_path=revision_result.artifact_path,
         stage_records=stage_records,
     )
 

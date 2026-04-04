@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "implementation_plan",
-  "description": "Stage 9 — Engineering blueprint that translates prototype_ui_spec into buildable code structure. Defines files, components, state ownership, data flow, build order, and test targets. Does NOT contain code — that is implementation_patch_plan.",
+  "description": "Stage 9 — Engineering blueprint that translates prototype_ui_spec into buildable code structure. Defines what to build now, what to stub, what files are needed, component responsibilities, state ownership, animation contracts, and test targets. Does NOT contain code — that is implementation_patch_plan.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -11,17 +11,17 @@
     "produced_by",
     "timestamp",
     "status",
-    "implementation_objective",
-    "tech_stack",
-    "file_manifest",
-    "component_breakdown",
-    "state_model",
-    "data_flow",
-    "reusable_logic",
-    "build_order",
-    "test_targets",
-    "open_engineering_questions",
-    "implementation_notes"
+    "implementation_goal",
+    "build_scope",
+    "file_plan",
+    "component_plan",
+    "state_plan",
+    "data_config_plan",
+    "animation_plan",
+    "test_plan",
+    "integration_notes",
+    "risks_and_unknowns",
+    "open_questions"
   ],
   "properties": {
     "job_id":        { "type": "string", "minLength": 1 },
@@ -31,126 +31,85 @@
     "timestamp":     { "type": "string", "minLength": 1 },
     "status": {
       "type": "string",
-      "enum": ["pass", "needs_review"]
+      "enum": ["pass", "revise", "reject"]
     },
 
-    "implementation_objective": {
+    "implementation_goal": {
       "type": "string",
       "minLength": 1,
       "description": "One clear sentence: what this implementation plan is building and for whom."
     },
 
-    "tech_stack": {
+    "build_scope": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["framework", "language", "styling", "bundler", "test_approach"],
+      "required": ["must_build_now", "can_stub", "must_not_build_now"],
       "properties": {
-        "framework":     { "type": "string" },
-        "language":      { "type": "string" },
-        "styling":       { "type": "string" },
-        "bundler":       { "type": "string" },
-        "test_approach": { "type": "string" }
-      }
-    },
-
-    "file_manifest": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["create", "edit", "do_not_touch"],
-      "properties": {
-        "create": {
+        "must_build_now": {
           "type": "array",
           "minItems": 1,
-          "items": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": ["file_path", "purpose", "file_type"],
-            "properties": {
-              "file_path":  { "type": "string" },
-              "purpose":    { "type": "string" },
-              "file_type": {
-                "type": "string",
-                "enum": ["component", "hook", "utility", "style", "constant", "test", "entry", "config"]
-              }
-            }
-          }
+          "items": { "type": "string" },
+          "description": "Features/systems that must be fully implemented in this pass."
         },
-        "edit": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": ["file_path", "change_description", "reason"],
-            "properties": {
-              "file_path":          { "type": "string" },
-              "change_description": { "type": "string" },
-              "reason":             { "type": "string" }
-            }
-          }
-        },
-        "do_not_touch": {
+        "can_stub": {
           "type": "array",
           "items": { "type": "string" },
-          "description": "File paths that must not be modified during this build phase."
+          "description": "Features that can be placeholder/stub implementations for now."
+        },
+        "must_not_build_now": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Features explicitly deferred. Do not build these yet."
         }
       }
     },
 
-    "component_breakdown": {
+    "file_plan": {
       "type": "array",
       "minItems": 1,
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "component_name",
-          "file_path",
-          "purpose",
-          "props",
-          "state_owned",
-          "events_emitted",
-          "depends_on"
-        ],
+        "required": ["path", "action", "purpose"],
+        "properties": {
+          "path":    { "type": "string" },
+          "action":  { "type": "string", "enum": ["create", "update", "reuse"] },
+          "purpose": { "type": "string" }
+        }
+      }
+    },
+
+    "component_plan": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["component_name", "responsibility", "inputs", "outputs"],
         "properties": {
           "component_name": { "type": "string" },
-          "file_path":      { "type": "string" },
-          "purpose":        { "type": "string" },
-          "props": {
+          "responsibility": { "type": "string" },
+          "inputs": {
             "type": "array",
             "items": { "type": "string" },
-            "description": "Each entry is 'propName: type — description'."
+            "description": "Props or data this component receives."
           },
-          "state_owned": {
+          "outputs": {
             "type": "array",
             "items": { "type": "string" },
-            "description": "State variables this component owns locally."
-          },
-          "events_emitted": {
-            "type": "array",
-            "items": { "type": "string" },
-            "description": "Callbacks or events this component can fire upward."
-          },
-          "depends_on": {
-            "type": "array",
-            "items": { "type": "string" },
-            "description": "Other component names this component uses."
+            "description": "Callbacks or events this component emits."
           }
         }
       }
     },
 
-    "state_model": {
+    "state_plan": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["owner_component", "tracked_variables", "state_transitions"],
+      "required": ["local_state", "derived_state", "state_ownership_notes"],
       "properties": {
-        "owner_component": {
-          "type": "string",
-          "description": "The single component that owns the authoritative game state."
-        },
-        "tracked_variables": {
+        "local_state": {
           "type": "array",
-          "minItems": 1,
           "items": {
             "type": "object",
             "additionalProperties": false,
@@ -159,115 +118,116 @@
               "name":          { "type": "string" },
               "type":          { "type": "string" },
               "initial_value": { "type": "string" },
-              "updated_by": {
-                "type": "array",
-                "items": { "type": "string" },
-                "description": "Event or action names that modify this variable."
-              }
+              "updated_by":    { "type": "array", "items": { "type": "string" } }
             }
           }
         },
-        "state_transitions": {
+        "derived_state": {
           "type": "array",
-          "minItems": 1,
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["trigger", "from_state", "to_state", "side_effects"],
+            "required": ["name", "derived_from", "description"],
             "properties": {
-              "trigger":      { "type": "string" },
-              "from_state":   { "type": "string" },
-              "to_state":     { "type": "string" },
-              "side_effects": {
-                "type": "array",
-                "items": { "type": "string" }
-              }
+              "name":         { "type": "string" },
+              "derived_from": { "type": "string" },
+              "description":  { "type": "string" }
             }
           }
+        },
+        "state_ownership_notes": {
+          "type": "string",
+          "description": "Which component/hook owns authoritative state and why."
         }
       }
     },
 
-    "data_flow": {
-      "type": "array",
-      "minItems": 1,
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["data_name", "source", "consumers", "mechanism"],
-        "properties": {
-          "data_name": { "type": "string" },
-          "source":    { "type": "string" },
-          "consumers": {
-            "type": "array",
-            "minItems": 1,
-            "items": { "type": "string" }
+    "data_config_plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["config_objects", "hardcoded_only_if_temporary", "future_extraction_notes"],
+      "properties": {
+        "config_objects": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "file_path", "description"],
+            "properties": {
+              "name":        { "type": "string" },
+              "file_path":   { "type": "string" },
+              "description": { "type": "string" }
+            }
           },
-          "mechanism": {
-            "type": "string",
-            "enum": ["props", "context", "callback", "local_state", "ref"]
-          }
+          "description": "Named config objects: LEVELS, TARGET_SEQUENCE, ROUND_STATES, timing maps, etc."
+        },
+        "hardcoded_only_if_temporary": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Values that are hardcoded in this pass but should be data-driven later."
+        },
+        "future_extraction_notes": {
+          "type": "string",
+          "description": "What should move to external config/data files in a future pass."
         }
       }
     },
 
-    "reusable_logic": {
+    "animation_plan": {
       "type": "array",
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["name", "logic_type", "file_path", "purpose", "signature"],
+        "required": ["animation_name", "owner", "trigger", "implementation_note"],
         "properties": {
-          "name":       { "type": "string" },
-          "logic_type": {
-            "type": "string",
-            "enum": ["hook", "utility", "constant", "reducer"]
-          },
-          "file_path":  { "type": "string" },
-          "purpose":    { "type": "string" },
-          "signature":  { "type": "string", "description": "TypeScript-style function or value signature." }
+          "animation_name":      { "type": "string" },
+          "owner":               { "type": "string", "description": "Component or file that owns this animation." },
+          "trigger":             { "type": "string", "description": "What event/state change triggers this animation." },
+          "implementation_note": { "type": "string", "description": "How to implement: CSS keyframe, Framer, etc." }
         }
       }
     },
 
-    "build_order": {
-      "type": "array",
-      "minItems": 2,
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["phase", "tasks", "done_when"],
-        "properties": {
-          "phase":     { "type": "integer", "minimum": 1 },
-          "tasks":     { "type": "array", "minItems": 1, "items": { "type": "string" } },
-          "done_when": { "type": "string" }
+    "test_plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["manual_checks", "logic_checks", "edge_case_checks"],
+      "properties": {
+        "manual_checks": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" },
+          "description": "Player-observable behaviors to verify in the browser."
+        },
+        "logic_checks": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "State machine behaviors and math accuracy to verify."
+        },
+        "edge_case_checks": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Edge cases: rapid tapping, boundary values, replay, etc."
         }
       }
     },
 
-    "test_targets": {
+    "integration_notes": {
       "type": "array",
-      "minItems": 1,
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["description", "how_to_verify", "target_component"],
-        "properties": {
-          "description":     { "type": "string" },
-          "how_to_verify":   { "type": "string" },
-          "target_component": { "type": "string" }
-        }
-      }
+      "items": { "type": "string" },
+      "description": "Decisions made, constraints accepted, things a builder must know before touching code."
     },
 
-    "open_engineering_questions": {
+    "risks_and_unknowns": {
       "type": "array",
-      "items": { "type": "string" }
+      "items": { "type": "string" },
+      "description": "Engineering risks and open technical questions that could affect the build."
     },
 
-    "implementation_notes": {
-      "type": "string",
-      "description": "Engineering decisions made, constraints accepted, and anything a builder must know before touching code."
+    "open_questions": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Design or scoping questions that remain unresolved — flag for review."
     }
   }
 }

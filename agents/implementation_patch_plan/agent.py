@@ -348,6 +348,13 @@ _BAKERY_PATCH_PLAN: Dict[str, Any] = {
         {"name": "FlyingPastry",       "name_type": "component",          "file_path": "preview/src/BakeryGame.jsx", "purpose": "Single-use arc animation component"},
         {"name": "CustomerTicket",     "name_type": "component",          "file_path": "preview/src/BakeryGame.jsx", "purpose": "Customer character plus order ticket card"},
         {"name": "FeedbackOverlay",    "name_type": "component",          "file_path": "preview/src/BakeryGame.jsx", "purpose": "Full-screen success/overshoot overlay"},
+        {"name": "id",                 "name_type": "prop",               "file_path": "preview/src/BakeryGame.jsx", "purpose": "Unique key for each FlyingPastry instance"},
+        {"name": "onDone",             "name_type": "prop",               "file_path": "preview/src/BakeryGame.jsx", "purpose": "Callback fired by FlyingPastry when animation completes"},
+        {"name": "target",             "name_type": "prop",               "file_path": "preview/src/BakeryGame.jsx", "purpose": "Current round target number passed to CustomerTicket"},
+        {"name": "roundIndex",         "name_type": "prop",               "file_path": "preview/src/BakeryGame.jsx", "purpose": "0-based current round index passed to CustomerTicket"},
+        {"name": "totalRounds",        "name_type": "prop",               "file_path": "preview/src/BakeryGame.jsx", "purpose": "Total number of rounds in the session"},
+        {"name": "roundState",         "name_type": "prop",               "file_path": "preview/src/BakeryGame.jsx", "purpose": "Current round state string driving CustomerTicket expression and overlay variant"},
+        {"name": "handleTap",          "name_type": "callback",           "file_path": "preview/src/BakeryGame.jsx", "purpose": "Tap handler passed to PastryTray; fires flying pastry and increments total"},
     ],
     "animation_contracts": [
         {
@@ -481,8 +488,20 @@ CONCEPT_OVERRIDES: Dict[str, Dict[str, Any]] = {
 
 
 def implementation_patch_plan_stub(context: Dict[str, Any]) -> Dict[str, Any]:
-    proto = context.get("artifact_inputs", {}).get("prototype_spec", {})
-    world_theme = proto.get("concept_anchor", {}).get("world_theme", "")
+    # Read world_theme from implementation_plan (available in allowed_reads).
+    # Fall back to prototype_spec if present (legacy path).
+    artifact_inputs = context.get("artifact_inputs", {})
+    impl_plan = artifact_inputs.get("implementation_plan", {})
+    world_theme = (
+        impl_plan.get("implementation_goal", "")
+        + " "
+        + " ".join(
+            f.get("path", "") for f in impl_plan.get("file_plan", [])
+        )
+    )
+    if not world_theme.strip():
+        proto = artifact_inputs.get("prototype_spec", {})
+        world_theme = proto.get("concept_anchor", {}).get("world_theme", "")
 
     concept_key = None
     for key in CONCEPT_OVERRIDES:

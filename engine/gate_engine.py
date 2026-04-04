@@ -1059,17 +1059,17 @@ class GateEngine:
 
         Four dimensions:
           Reject-level (identity compromise):
-            Dim 1 — File manifest completeness: plan must define files to create
+            Dim 1 — Build scope: must_build_now must be non-empty
           Revise-level (fixable gaps):
-            Dim 2 — Component coverage: component_breakdown must be non-empty
-            Dim 3 — State clarity: state_model must have owner and tracked variables
-            Dim 4 — Build order testability: each phase must have a done_when condition
+            Dim 2 — File plan: file_plan must list files to create or update
+            Dim 3 — Component plan: component_plan must be non-empty with responsibilities
+            Dim 4 — Test plan: manual_checks must exist and be non-empty
         """
 
-        # ---- Dim 1: File manifest completeness (reject-level) ----
-        file_manifest = artifact.get("file_manifest", {})
-        files_to_create = file_manifest.get("create", [])
-        if not files_to_create:
+        # ---- Dim 1: Build scope completeness (reject-level) ----
+        build_scope = artifact.get("build_scope", {})
+        must_build_now = build_scope.get("must_build_now", [])
+        if not must_build_now:
             return self._finalize_gate(
                 artifact,
                 _new_gate_decision(
@@ -1078,75 +1078,54 @@ class GateEngine:
                     target_artifact_version=artifact["version"],
                     stage_name="implementation_plan",
                     status="reject",
-                    failure_fields=["file_manifest.create"],
-                    strongest_failure_reason="Implementation plan defines no files to create — cannot guide a build",
-                    revision_instructions=["file_manifest.create must list every file a developer must write from scratch."],
+                    failure_fields=["build_scope.must_build_now"],
+                    strongest_failure_reason="Implementation plan defines nothing to build now — cannot guide a build",
+                    revision_instructions=["build_scope.must_build_now must list every feature/system to implement in this pass."],
                     escalation_recommendation="reject_job",
-                    memory_tags=["missing_file_manifest"],
+                    memory_tags=["missing_build_scope"],
                 ),
             )
 
-        # ---- Dim 2: Component coverage (revise-level) ----
+        # ---- Dim 2–4: Revise-level checks ----
         failure_fields = []
         revision_instructions = []
 
-        components = artifact.get("component_breakdown", [])
-        if not components:
-            failure_fields.append("component_breakdown")
-            revision_instructions.append("component_breakdown must define at least one component.")
+        # Dim 2: File plan
+        file_plan = artifact.get("file_plan", [])
+        if not file_plan:
+            failure_fields.append("file_plan")
+            revision_instructions.append("file_plan must list every file to create or update with its purpose.")
 
-        for i, comp in enumerate(components):
-            if not comp.get("purpose", "").strip():
-                failure_fields.append(f"component_breakdown[{i}].purpose")
+        create_files = [f for f in file_plan if f.get("action") in ("create", "update")]
+        if file_plan and not create_files:
+            failure_fields.append("file_plan.action")
+            revision_instructions.append("file_plan must include at least one file with action 'create' or 'update'.")
+
+        # Dim 3: Component plan
+        component_plan = artifact.get("component_plan", [])
+        if not component_plan:
+            failure_fields.append("component_plan")
+            revision_instructions.append("component_plan must define at least one component with its responsibility.")
+
+        for i, comp in enumerate(component_plan):
+            if not comp.get("responsibility", "").strip():
+                failure_fields.append(f"component_plan[{i}].responsibility")
                 revision_instructions.append(
-                    f"Component '{comp.get('component_name', i)}' must have a clear purpose statement."
-                )
-            if comp.get("props") is None:
-                failure_fields.append(f"component_breakdown[{i}].props")
-                revision_instructions.append(
-                    f"Component '{comp.get('component_name', i)}' must list its props (use [] if none)."
-                )
-
-        # do_not_touch must be present (even if empty)
-        if "do_not_touch" not in file_manifest:
-            failure_fields.append("file_manifest.do_not_touch")
-            revision_instructions.append(
-                "file_manifest.do_not_touch must list OS pipeline files that must not be modified."
-            )
-
-        # ---- Dim 3: State clarity (revise-level) ----
-        state_model = artifact.get("state_model", {})
-        if not state_model.get("owner_component", "").strip():
-            failure_fields.append("state_model.owner_component")
-            revision_instructions.append("state_model must identify exactly one owner component for game state.")
-
-        tracked = state_model.get("tracked_variables", [])
-        if not tracked:
-            failure_fields.append("state_model.tracked_variables")
-            revision_instructions.append("state_model must list all tracked variables with types and initial values.")
-
-        transitions = state_model.get("state_transitions", [])
-        if not transitions:
-            failure_fields.append("state_model.state_transitions")
-            revision_instructions.append("state_model must define state transitions matching the prototype_build_spec screen_state_map.")
-
-        # ---- Dim 4: Build order testability (revise-level) ----
-        build_order = artifact.get("build_order", [])
-        if len(build_order) < 2:
-            failure_fields.append("build_order")
-            revision_instructions.append("build_order must have at least 2 phases — minimum: Phase 1 (runnable core) and Phase 2 (complete feature set).")
-
-        for i, phase in enumerate(build_order):
-            if not str(phase.get("done_when", "")).strip():
-                failure_fields.append(f"build_order[{i}].done_when")
-                revision_instructions.append(
-                    f"Phase {phase.get('phase', i+1)} must have a testable done_when condition."
+                    f"Component '{comp.get('component_name', i)}' must have a clear responsibility statement."
                 )
 
-        # Test targets required
-        if not artifact.get("test_targets"):
-            failure_fields.append("test_targets")
-            revision_instructions.append("test_targets must describe at least one player-observable behavior to verify.")
+        # Dim 4: Test plan
+        test_plan = artifact.get("test_plan", {})
+        manual_checks = test_plan.get("manual_checks", [])
+        if not manual_checks:
+            failure_fields.append("test_plan.manual_checks")
+            revision_instructions.append("test_plan.manual_checks must list at least one player-observable behavior to verify.")
+
+        # State plan must have state_ownership_notes
+        state_plan = artifact.get("state_plan", {})
+        if not state_plan.get("state_ownership_notes", "").strip():
+            failure_fields.append("state_plan.state_ownership_notes")
+            revision_instructions.append("state_plan.state_ownership_notes must identify which component/hook owns authoritative state.")
 
         # Deduplicate
         failure_fields = list(dict.fromkeys(failure_fields))
@@ -1161,7 +1140,7 @@ class GateEngine:
                     stage_name="implementation_plan",
                     status="revise",
                     failure_fields=failure_fields,
-                    strongest_failure_reason="Implementation plan is not yet builder-ready — gaps in component coverage, state clarity, or build order",
+                    strongest_failure_reason="Implementation plan is not yet builder-ready — gaps in file plan, component coverage, or test targets",
                     revision_instructions=revision_instructions,
                     escalation_recommendation="reroute",
                     memory_tags=["implementation_plan_gaps"],
@@ -1314,6 +1293,177 @@ class GateEngine:
                 target_artifact="implementation_patch_plan",
                 target_artifact_version=artifact["version"],
                 stage_name="implementation_patch_plan",
+                status="pass",
+            ),
+        )
+
+
+    def gate_playtest_diagnostic_report(self, artifact: Dict[str, Any]) -> Dict[str, Any]:
+        """Gate for playtest_diagnostic_report — Stage 11.
+
+        Dimensions:
+          Reject-level:
+            Dim 1 — Friction points non-empty: diagnostic must identify at least one issue
+          Revise-level:
+            Dim 2 — Feel scores present and complete
+            Dim 3 — Pattern summary non-empty
+            Dim 4 — Recommended action is a valid enum value
+        """
+        # Dim 1: Must have friction points (reject-level)
+        friction_points = artifact.get("friction_points", [])
+        if not friction_points:
+            return self._finalize_gate(
+                artifact,
+                _new_gate_decision(
+                    job_id=artifact["job_id"],
+                    target_artifact="playtest_diagnostic_report",
+                    target_artifact_version=artifact["version"],
+                    stage_name="playtest_diagnostic_report",
+                    status="reject",
+                    failure_fields=["friction_points"],
+                    strongest_failure_reason="Diagnostic has no friction points — cannot improve without knowing what is wrong",
+                    revision_instructions=["friction_points must list at least one observation, even for strong builds."],
+                    escalation_recommendation="reject_job",
+                    memory_tags=["missing_friction_points"],
+                ),
+            )
+
+        failure_fields = []
+        revision_instructions = []
+
+        # Dim 2: Feel scores
+        feel_scores = artifact.get("feel_scores", {})
+        required_scores = ["immediacy", "clarity", "reward_rhythm", "math_visibility", "overall_rating"]
+        for field in required_scores:
+            if field not in feel_scores:
+                failure_fields.append(f"feel_scores.{field}")
+                revision_instructions.append(f"feel_scores.{field} must be rated 1–5.")
+
+        # Dim 3: Pattern summary
+        if not artifact.get("pattern_summary", "").strip():
+            failure_fields.append("pattern_summary")
+            revision_instructions.append("pattern_summary must synthesize the dominant themes in 2–3 sentences.")
+
+        # Dim 4: Recommended action
+        valid_actions = {"proceed_to_next_pass", "revise_current_pass", "tune_only", "reject_concept"}
+        recommended = artifact.get("recommended_action", "")
+        if recommended not in valid_actions:
+            failure_fields.append("recommended_action")
+            revision_instructions.append(
+                f"recommended_action must be one of: {sorted(valid_actions)}. Got '{recommended}'."
+            )
+
+        failure_fields = list(dict.fromkeys(failure_fields))
+
+        if failure_fields:
+            return self._finalize_gate(
+                artifact,
+                _new_gate_decision(
+                    job_id=artifact["job_id"],
+                    target_artifact="playtest_diagnostic_report",
+                    target_artifact_version=artifact["version"],
+                    stage_name="playtest_diagnostic_report",
+                    status="revise",
+                    failure_fields=failure_fields,
+                    strongest_failure_reason="Diagnostic is incomplete — missing feel scores, pattern summary, or recommended action",
+                    revision_instructions=revision_instructions,
+                    escalation_recommendation="reroute",
+                    memory_tags=["incomplete_diagnostic"],
+                ),
+            )
+
+        return self._finalize_gate(
+            artifact,
+            _new_gate_decision(
+                job_id=artifact["job_id"],
+                target_artifact="playtest_diagnostic_report",
+                target_artifact_version=artifact["version"],
+                stage_name="playtest_diagnostic_report",
+                status="pass",
+            ),
+        )
+
+    def gate_revision_brief(self, artifact: Dict[str, Any]) -> Dict[str, Any]:
+        """Gate for revision_brief — Stage 12.
+
+        Dimensions:
+          Reject-level:
+            Dim 1 — change_items non-empty: must specify what to change
+          Revise-level:
+            Dim 2 — scope.change_now and scope.preserve non-empty
+            Dim 3 — All change_items have acceptance_signals
+            Dim 4 — revision_goal non-empty
+        """
+        # Dim 1: Must have change items (reject-level)
+        change_items = artifact.get("change_items", [])
+        if not change_items:
+            return self._finalize_gate(
+                artifact,
+                _new_gate_decision(
+                    job_id=artifact["job_id"],
+                    target_artifact="revision_brief",
+                    target_artifact_version=artifact["version"],
+                    stage_name="revision_brief",
+                    status="reject",
+                    failure_fields=["change_items"],
+                    strongest_failure_reason="Revision brief specifies no changes — cannot drive a patch plan",
+                    revision_instructions=["change_items must list at least one specific, independently testable change."],
+                    escalation_recommendation="reject_job",
+                    memory_tags=["empty_revision_brief"],
+                ),
+            )
+
+        failure_fields = []
+        revision_instructions = []
+
+        # Dim 2: Scope
+        scope = artifact.get("scope", {})
+        if not scope.get("change_now"):
+            failure_fields.append("scope.change_now")
+            revision_instructions.append("scope.change_now must list at least one item to change in this revision.")
+        if not scope.get("preserve"):
+            failure_fields.append("scope.preserve")
+            revision_instructions.append("scope.preserve must list at least one thing that must not be broken.")
+
+        # Dim 3: Acceptance signals
+        for i, item in enumerate(change_items):
+            if not item.get("acceptance_signal", "").strip():
+                failure_fields.append(f"change_items[{i}].acceptance_signal")
+                revision_instructions.append(
+                    f"Change '{item.get('change_id', i)}' must have an observable acceptance_signal."
+                )
+
+        # Dim 4: Revision goal
+        if not artifact.get("revision_goal", "").strip():
+            failure_fields.append("revision_goal")
+            revision_instructions.append("revision_goal must be a clear one-sentence statement of what this revision achieves.")
+
+        failure_fields = list(dict.fromkeys(failure_fields))
+
+        if failure_fields:
+            return self._finalize_gate(
+                artifact,
+                _new_gate_decision(
+                    job_id=artifact["job_id"],
+                    target_artifact="revision_brief",
+                    target_artifact_version=artifact["version"],
+                    stage_name="revision_brief",
+                    status="revise",
+                    failure_fields=failure_fields,
+                    strongest_failure_reason="Revision brief has incomplete scope or missing acceptance signals",
+                    revision_instructions=revision_instructions,
+                    escalation_recommendation="reroute",
+                    memory_tags=["incomplete_revision_brief"],
+                ),
+            )
+
+        return self._finalize_gate(
+            artifact,
+            _new_gate_decision(
+                job_id=artifact["job_id"],
+                target_artifact="revision_brief",
+                target_artifact_version=artifact["version"],
+                stage_name="revision_brief",
                 status="pass",
             ),
         )

@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "playtest_diagnostic_report",
+  "description": "Stage 11 — Playtest inspection report. Produced after a playable pass is reviewed. Identifies what works, what is broken, and what needs adjustment before the next revision or pass.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "job_id",
+    "artifact_name",
+    "version",
+    "produced_by",
+    "timestamp",
+    "status",
+    "session_context",
+    "strength_signals",
+    "friction_points",
+    "feel_scores",
+    "pattern_summary",
+    "recommended_action"
+  ],
+  "properties": {
+    "job_id":        { "type": "string", "minLength": 1 },
+    "artifact_name": { "type": "string", "const": "playtest_diagnostic_report" },
+    "version":       { "type": "integer", "minimum": 1 },
+    "produced_by":   { "type": "string", "const": "Playtest Diagnostic Agent" },
+    "timestamp":     { "type": "string", "minLength": 1 },
+    "status": {
+      "type": "string",
+      "enum": ["pass", "revise", "reject"]
+    },
+
+    "session_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pass_number", "game_title", "grade_target", "math_concept", "tester_notes"],
+      "properties": {
+        "pass_number":   { "type": "string", "description": "e.g. 'pass-3'" },
+        "game_title":    { "type": "string" },
+        "grade_target":  { "type": "string" },
+        "math_concept":  { "type": "string" },
+        "tester_notes":  { "type": "string", "description": "Free-form context about how the session was run." }
+      }
+    },
+
+    "strength_signals": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string" },
+      "description": "Observations of what worked well — mechanics, pacing moments, feedback that landed."
+    },
+
+    "friction_points": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["area", "description", "suspected_cause", "severity"],
+        "properties": {
+          "area": {
+            "type": "string",
+            "enum": ["math_accuracy", "math_visibility", "pacing", "clarity", "feedback", "progression", "feel", "technical"]
+          },
+          "description":    { "type": "string" },
+          "suspected_cause": { "type": "string" },
+          "severity": {
+            "type": "string",
+            "enum": ["high", "medium", "low"]
+          }
+        }
+      }
+    },
+
+    "feel_scores": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["immediacy", "clarity", "reward_rhythm", "math_visibility", "overall_rating", "score_notes"],
+      "properties": {
+        "immediacy":      { "type": "integer", "minimum": 1, "maximum": 5, "description": "Does the game respond instantly and decisively to player action?" },
+        "clarity":        { "type": "integer", "minimum": 1, "maximum": 5, "description": "Does the player always know what to do next?" },
+        "reward_rhythm":  { "type": "integer", "minimum": 1, "maximum": 5, "description": "Do rewards feel earned and well-timed?" },
+        "math_visibility": { "type": "integer", "minimum": 1, "maximum": 5, "description": "Is the math clearly embedded in the action, not hidden?" },
+        "overall_rating": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "score_notes":    { "type": "string" }
+      }
+    },
+
+    "pattern_summary": {
+      "type": "string",
+      "minLength": 1,
+      "description": "2-3 sentences synthesizing the dominant themes across strength signals and friction points."
+    },
+
+    "recommended_action": {
+      "type": "string",
+      "enum": ["proceed_to_next_pass", "revise_current_pass", "tune_only", "reject_concept"],
+      "description": "What happens next: advance to next pass, revise within this pass, minor tuning only, or abandon concept."
+    }
+  }
+}

@@ -1,0 +1,13 @@
+agent_name: revision_brief_agent
+expected_output_artifact: revision_brief
+expected_produced_by: Revision Brief Agent
+allowed_reads:
+  - playtest_diagnostic_report
+  - implementation_patch_plan
+allowed_writes:
+  - revision_brief
+max_revision_count: 1
+retry_policy: revise_once_then_escalate
+model_profile: high_reasoning
+requires_gate_pass_from:
+  - playtest_diagnostic_report
