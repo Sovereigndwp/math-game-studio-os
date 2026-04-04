@@ -112,6 +112,17 @@
             "reject",
             "active"
           ]
+        },
+        "implementation_plan": {
+          "type": "string",
+          "enum": [
+            "not_started",
+            "in_progress",
+            "pass",
+            "revise",
+            "reject",
+            "skipped"
+          ]
         }
       },
       "required": [
@@ -159,6 +170,10 @@
           "minimum": 0
         },
         "prototype_ui_spec": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "implementation_plan": {
           "type": "integer",
           "minimum": 0
         }
@@ -211,6 +226,10 @@
           "minimum": 0
         },
         "prototype_ui_spec": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "implementation_plan": {
           "type": "integer",
           "minimum": 0
         }

@@ -1,7 +1,7 @@
 """
 pipeline.py — Math Game Studio OS V1 end-to-end runner.
 
-Chains all nine agents (stages 0-8) in order, enforces gate pre-conditions between each stage,
+Chains all ten agents (stages 0-9) in order, enforces gate pre-conditions between each stage,
 and returns a PipelineResult with the final outcome.
 
 Modes:
@@ -46,6 +46,7 @@ from agents.core_loop.agent import run as run_core_loop
 from agents.prototype_spec.agent import run as run_prototype_spec
 from agents.prototype_build_spec.agent import run as run_prototype_build_spec
 from agents.prototype_ui_spec.agent import run as run_prototype_ui_spec
+from agents.implementation_plan.agent import run as run_implementation_plan
 from utils.shared_agent_runner import AgentRunResult
 
 
@@ -131,7 +132,8 @@ def run_v1_pipeline(
         5. CoreLoop          → lowest_viable_loop_brief    → gate_lowest_viable_loop_brief
         6. PrototypeSpec     → prototype_spec              → gate_prototype_spec
         7. PrototypeBuildSpec→ prototype_build_spec        → gate_prototype_build_spec
-        8. PrototypeUISpec   → prototype_ui_spec           → gate_prototype_ui_spec
+        8. PrototypeUISpec       → prototype_ui_spec       → gate_prototype_ui_spec
+        9. ImplementationPlan    → implementation_plan     → gate_implementation_plan
 
     Gate pre-conditions are enforced: no agent runs unless the previous gate returned 'pass'.
     Revision limits are enforced: if a stage exceeds max_revisions, the job is rejected.
@@ -333,14 +335,36 @@ def run_v1_pipeline(
     if gate_puis["status"] != "pass":
         return _rejected_result(job_id, "prototype_ui_spec", ui_result, gate_puis, stage_records)
 
+    ui_spec_path = Path(ui_result.artifact_path)
+
     # ------------------------------------------------------------------
-    # Pipeline success: approved prototype_ui_spec
+    # Stage 9: Implementation Plan Agent → implementation_plan
+    # ------------------------------------------------------------------
+    impl_result, gate_impl = _run_agent_with_gate(
+        stage_name="implementation_plan",
+        agent_runner=lambda artifact_paths: run_implementation_plan(repo_root, job_id, artifact_paths, model_callable=mc),
+        gate_fn=gate_engine.gate_implementation_plan,
+        artifact_paths={
+            "prototype_ui_spec": ui_spec_path,
+            "prototype_build_spec": build_spec_path,
+            "prototype_spec": proto_spec_path,
+        },
+        stage_records=stage_records,
+        workspace=workspace,
+        ledger_path=ledger_path,
+        max_revisions=max_revisions_per_stage,
+    )
+    if gate_impl["status"] != "pass":
+        return _rejected_result(job_id, "implementation_plan", impl_result, gate_impl, stage_records)
+
+    # ------------------------------------------------------------------
+    # Pipeline success: approved implementation_plan
     # ------------------------------------------------------------------
     return PipelineResult(
         job_id=job_id,
         outcome="approved",
-        final_artifact_name="prototype_ui_spec",
-        final_artifact_path=ui_result.artifact_path,
+        final_artifact_name="implementation_plan",
+        final_artifact_path=impl_result.artifact_path,
         stage_records=stage_records,
     )
 

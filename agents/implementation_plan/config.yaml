@@ -1,0 +1,14 @@
+agent_name: implementation_plan_agent
+expected_output_artifact: implementation_plan
+expected_produced_by: Implementation Plan Agent
+allowed_reads:
+  - prototype_ui_spec
+  - prototype_build_spec
+  - prototype_spec
+allowed_writes:
+  - implementation_plan
+max_revision_count: 2
+retry_policy: revise_once_then_escalate
+model_profile: high_reasoning
+requires_gate_pass_from:
+  - prototype_ui_spec
