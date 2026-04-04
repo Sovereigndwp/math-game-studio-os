@@ -27,5 +27,8 @@ reports/
 # Claude Code worktrees (session-local, not source)
 .claude/worktrees/
 
+# Duplicate directory (macOS artifact from directory name with spaces)
+Master Gaming App and OS/
+
 # Debug payloads written by shared_agent_runner on validation failure
 memory/**/*.INVALID_DEBUG.*.json
