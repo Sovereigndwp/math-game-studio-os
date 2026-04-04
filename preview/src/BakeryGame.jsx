@@ -1,20 +1,20 @@
 /**
- * BakeryGame.jsx
+ * BakeryGame.jsx — v2
  *
- * Implements the Bakery prototype from the Math Game Studio OS pipeline output.
- * State machine matches prototype_build_spec exactly:
- *   round_active → success_feedback → round_active (next) | session_complete
- *   round_active → overshoot_feedback → round_active (same target)
+ * Changes from v1:
+ *   1. CustomerTicket now shows a customer character (👩‍🍳) that reacts on success (😊)
+ *   2. FeedbackOverlay covers the full viewport (position: fixed) — not just the play area
+ *   3. FlyingPastry component animates a croissant from the tray to the box on every tap
  *
- * Scope: exactly what must_exist_in_v1_build lists. Nothing from deferred_from_prototype.
+ * State machine is unchanged — all four states preserved exactly.
  */
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import './BakeryGame.css'
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
-const TARGET_SEQUENCE = [3, 5, 4, 7, 6]   // 5-round session, varied targets ≤10
+const TARGET_SEQUENCE = [3, 5, 4, 7, 6]
 
 const ROUND_STATES = {
   ACTIVE:    'round_active',
@@ -23,24 +23,39 @@ const ROUND_STATES = {
   COMPLETE:  'session_complete',
 }
 
-// ── Utility ──────────────────────────────────────────────────────────────────
+const SUCCESS_MS  = 1500
+const OVERSHOOT_MS = 700
+const FLY_MS      = 380   // flying pastry animation duration
 
 function getTargets() {
-  // Shallow shuffle so replays feel different
   return [...TARGET_SEQUENCE].sort(() => Math.random() - 0.5).slice(0, 5)
 }
 
-// ── Sub-components ───────────────────────────────────────────────────────────
+// ── CustomerTicket ── CHANGE 1: customer character ───────────────────────────
 
-function CustomerTicket({ target, roundIndex, totalRounds }) {
+function CustomerTicket({ target, roundIndex, totalRounds, roundState }) {
+  const isSuccess = roundState === ROUND_STATES.SUCCESS
   return (
-    <div className="customer-ticket">
-      <div className="ticket-label">Customer order</div>
-      <div className="ticket-number">{target}</div>
-      <div className="ticket-sub">Round {roundIndex + 1} / {totalRounds}</div>
+    <div className="ticket-row">
+      {/* Customer character — reacts on success */}
+      <div className={`customer-character ${isSuccess ? 'customer-happy' : ''}`}>
+        <span className="customer-emoji">
+          {isSuccess ? '😊' : '👩‍🍳'}
+        </span>
+        <span className="customer-label">Customer</span>
+      </div>
+
+      {/* Ticket card */}
+      <div className="customer-ticket">
+        <div className="ticket-label">Order</div>
+        <div className="ticket-number">{target}</div>
+        <div className="ticket-sub">{roundIndex + 1} / {totalRounds}</div>
+      </div>
     </div>
   )
 }
+
+// ── RunningTotal ─────────────────────────────────────────────────────────────
 
 function RunningTotal({ total, target }) {
   const pct = target > 0 ? Math.min(total / target, 1) : 0
@@ -55,9 +70,11 @@ function RunningTotal({ total, target }) {
   )
 }
 
+// ── PastryBox ────────────────────────────────────────────────────────────────
+
 function PastryBox({ total, roundState }) {
   const items = Array.from({ length: total })
-  const isSuccess  = roundState === ROUND_STATES.SUCCESS
+  const isSuccess   = roundState === ROUND_STATES.SUCCESS
   const isOvershoot = roundState === ROUND_STATES.OVERSHOOT
 
   return (
@@ -68,14 +85,15 @@ function PastryBox({ total, roundState }) {
           <span key={i} className="box-pastry">🥐</span>
         ))}
       </div>
-      {isSuccess && <div className="box-lid">✅</div>}
+      {isSuccess   && <div className="box-lid">✅</div>}
       {isOvershoot && <div className="box-bounce">↩</div>}
     </div>
   )
 }
 
+// ── PastryTray ───────────────────────────────────────────────────────────────
+
 function PastryTray({ onTap, disabled }) {
-  // Always shows 12 items — tray is never consumed
   return (
     <div className="pastry-tray">
       <div className="tray-label">Tap a pastry to add it</div>
@@ -96,25 +114,67 @@ function PastryTray({ onTap, disabled }) {
   )
 }
 
-function FeedbackOverlay({ roundState, onNext }) {
-  if (roundState === ROUND_STATES.SUCCESS) {
-    return (
-      <div className="feedback-overlay feedback-success">
-        <div className="feedback-emoji">😊</div>
-        <div className="feedback-text">Perfect order!</div>
-      </div>
-    )
-  }
-  if (roundState === ROUND_STATES.OVERSHOOT) {
-    return (
-      <div className="feedback-overlay feedback-overshoot">
-        <div className="feedback-emoji">↩️</div>
-        <div className="feedback-text">Too many! One bounced back.</div>
-      </div>
-    )
-  }
-  return null
+// ── FlyingPastry ── CHANGE 3: arc animation from tray to box ─────────────────
+//
+// Mounts at tap time, reads the tray and box DOM positions, animates, then
+// calls onDone so the parent can remove it from the list.
+
+function FlyingPastry({ id, trayRef, boxRef, onDone }) {
+  // Compute start (tray center) and end (box center) in viewport coords
+  const style = (() => {
+    if (!trayRef.current || !boxRef.current) return {}
+    const tray = trayRef.current.getBoundingClientRect()
+    const box  = boxRef.current.getBoundingClientRect()
+
+    const startX = tray.left + tray.width / 2
+    const startY = tray.top  + tray.height / 2
+    const endX   = box.left  + box.width  / 2
+    const endY   = box.top   + box.height / 2
+
+    const dx = endX - startX
+    const dy = endY - startY
+
+    return {
+      '--dx': `${dx}px`,
+      '--dy': `${dy}px`,
+      left: `${startX}px`,
+      top:  `${startY}px`,
+      animationDuration: `${FLY_MS}ms`,
+    }
+  })()
+
+  return (
+    <span
+      className="flying-pastry"
+      style={style}
+      onAnimationEnd={onDone}
+      aria-hidden="true"
+    >
+      🥐
+    </span>
+  )
 }
+
+// ── FeedbackOverlay ── CHANGE 2: full-screen, scale-in, screen-dominant ──────
+
+function FeedbackOverlay({ roundState }) {
+  if (roundState !== ROUND_STATES.SUCCESS && roundState !== ROUND_STATES.OVERSHOOT) return null
+
+  const isSuccess = roundState === ROUND_STATES.SUCCESS
+
+  return (
+    <div className={`feedback-fullscreen ${isSuccess ? 'feedback-success' : 'feedback-overshoot'}`}>
+      <div className="feedback-inner">
+        <div className="feedback-emoji">{isSuccess ? '😊' : '↩️'}</div>
+        <div className="feedback-text">
+          {isSuccess ? 'Perfect order!' : 'Too many! One bounced back.'}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── SessionComplete ───────────────────────────────────────────────────────────
 
 function SessionComplete({ onReplay }) {
   return (
@@ -122,81 +182,87 @@ function SessionComplete({ onReplay }) {
       <div className="complete-emoji">🎉</div>
       <h2>All orders filled!</h2>
       <p>Great job at the bakery!</p>
-      <button className="replay-btn" onClick={onReplay}>
-        Play again
-      </button>
+      <button className="replay-btn" onClick={onReplay}>Play again</button>
     </div>
   )
 }
 
-// ── Main game component ──────────────────────────────────────────────────────
+// ── BakeryGame (root) ─────────────────────────────────────────────────────────
 
 export default function BakeryGame() {
-  const [targets, setTargets]       = useState(() => getTargets())
-  const [roundIndex, setRoundIndex] = useState(0)
-  const [currentTotal, setTotal]    = useState(0)
-  const [roundState, setRoundState] = useState(ROUND_STATES.ACTIVE)
-  const [isAnimating, setAnimating] = useState(false)
+  const [targets, setTargets]           = useState(() => getTargets())
+  const [roundIndex, setRoundIndex]     = useState(0)
+  const [currentTotal, setTotal]        = useState(0)
+  const [roundState, setRoundState]     = useState(ROUND_STATES.ACTIVE)
+  const [isAnimating, setAnimating]     = useState(false)
+  const [flyingItems, setFlyingItems]   = useState([])   // [{id}]
+  const nextFlyId                       = useRef(0)
 
-  const target = targets[roundIndex]
+  // DOM refs for FlyingPastry position calculation
+  const trayRef = useRef(null)
+  const boxRef  = useRef(null)
+
+  const target      = targets[roundIndex]
   const totalRounds = targets.length
 
-  // ── Event flow step 2–3: player taps pastry ─────────────────────────────
+  // ── Tap handler ────────────────────────────────────────────────────────────
   const handleTap = useCallback(() => {
-    // Step 2: if is_animating, ignore tap
     if (isAnimating || roundState !== ROUND_STATES.ACTIVE) return
 
     setAnimating(true)
 
-    // Step 3: increment, evaluate
-    setTotal(prev => {
-      const next = prev + 1
+    // Launch flying pastry
+    const flyId = nextFlyId.current++
+    setFlyingItems(prev => [...prev, { id: flyId }])
 
-      if (next === target) {
-        // Step 4: exact match → success
-        setRoundState(ROUND_STATES.SUCCESS)
-        setTimeout(() => {
-          setAnimating(false)
-          // Step 5: after 1.5s → next round or session complete
-          if (roundIndex + 1 >= totalRounds) {
-            setRoundState(ROUND_STATES.COMPLETE)
-          } else {
-            setRoundIndex(i => i + 1)
-            setTotal(0)
+    // After fly animation ends, evaluate the new total
+    setTimeout(() => {
+      setTotal(prev => {
+        const next = prev + 1
+
+        if (next === target) {
+          setRoundState(ROUND_STATES.SUCCESS)
+          setTimeout(() => {
+            setAnimating(false)
+            if (roundIndex + 1 >= totalRounds) {
+              setRoundState(ROUND_STATES.COMPLETE)
+            } else {
+              setRoundIndex(i => i + 1)
+              setTotal(0)
+              setRoundState(ROUND_STATES.ACTIVE)
+            }
+          }, SUCCESS_MS)
+
+        } else if (next > target) {
+          setRoundState(ROUND_STATES.OVERSHOOT)
+          setTimeout(() => {
+            setTotal(t => t - 1)
             setRoundState(ROUND_STATES.ACTIVE)
-          }
-        }, 1500)
+            setAnimating(false)
+          }, OVERSHOOT_MS)
 
-      } else if (next > target) {
-        // Step 6: overshoot → bounce back
-        setRoundState(ROUND_STATES.OVERSHOOT)
-        setTimeout(() => {
-          // Decrement back, return to active
-          setTotal(t => t - 1)
-          setRoundState(ROUND_STATES.ACTIVE)
+        } else {
           setAnimating(false)
-        }, 700)
+        }
 
-      } else {
-        // Remain in round_active
-        setAnimating(false)
-        setRoundState(ROUND_STATES.ACTIVE)
-      }
-
-      return next
-    })
+        return next
+      })
+    }, FLY_MS)
   }, [isAnimating, roundState, target, roundIndex, totalRounds])
 
-  // ── Replay ───────────────────────────────────────────────────────────────
+  const removeFlyingItem = useCallback((id) => {
+    setFlyingItems(prev => prev.filter(f => f.id !== id))
+  }, [])
+
   const handleReplay = useCallback(() => {
     setTargets(getTargets())
     setRoundIndex(0)
     setTotal(0)
     setRoundState(ROUND_STATES.ACTIVE)
     setAnimating(false)
+    setFlyingItems([])
   }, [])
 
-  // ── Session complete ─────────────────────────────────────────────────────
   if (roundState === ROUND_STATES.COMPLETE) {
     return (
       <div className="bakery-game">
@@ -211,33 +277,44 @@ export default function BakeryGame() {
   const trayDisabled = isAnimating || roundState !== ROUND_STATES.ACTIVE
 
   return (
-    <div className="bakery-game">
-      {/* Header region */}
+    <div className={`bakery-game ${roundState === ROUND_STATES.OVERSHOOT ? 'game-shake' : ''}`}>
+      {/* CHANGE 2: Full-screen overlay rendered at root level */}
+      <FeedbackOverlay roundState={roundState} />
+
+      {/* CHANGE 3: Flying pastries rendered at root level (fixed position) */}
+      {flyingItems.map(f => (
+        <FlyingPastry
+          key={f.id}
+          id={f.id}
+          trayRef={trayRef}
+          boxRef={boxRef}
+          onDone={() => removeFlyingItem(f.id)}
+        />
+      ))}
+
+      {/* Header */}
       <div className="game-header">
         <span className="game-title">🍞 Bakery Math</span>
         <RunningTotal total={currentTotal} target={target} />
       </div>
 
-      {/* Play area region */}
+      {/* Play area */}
       <div className="game-play-area">
+        {/* CHANGE 1: CustomerTicket now contains the customer character */}
         <CustomerTicket
           target={target}
           roundIndex={roundIndex}
           totalRounds={totalRounds}
-        />
-
-        <PastryBox
-          total={currentTotal}
           roundState={roundState}
         />
 
-        {(roundState === ROUND_STATES.SUCCESS || roundState === ROUND_STATES.OVERSHOOT) && (
-          <FeedbackOverlay roundState={roundState} />
-        )}
+        <div ref={boxRef}>
+          <PastryBox total={currentTotal} roundState={roundState} />
+        </div>
       </div>
 
-      {/* Footer region — pastry tray */}
-      <div className="game-footer">
+      {/* Footer tray */}
+      <div className="game-footer" ref={trayRef}>
         <PastryTray onTap={handleTap} disabled={trayDisabled} />
       </div>
     </div>

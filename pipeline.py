@@ -47,6 +47,7 @@ from agents.prototype_spec.agent import run as run_prototype_spec
 from agents.prototype_build_spec.agent import run as run_prototype_build_spec
 from agents.prototype_ui_spec.agent import run as run_prototype_ui_spec
 from agents.implementation_plan.agent import run as run_implementation_plan
+from agents.implementation_patch_plan.agent import run as run_implementation_patch_plan
 from utils.shared_agent_runner import AgentRunResult
 
 
@@ -133,7 +134,8 @@ def run_v1_pipeline(
         6. PrototypeSpec     → prototype_spec              → gate_prototype_spec
         7. PrototypeBuildSpec→ prototype_build_spec        → gate_prototype_build_spec
         8. PrototypeUISpec       → prototype_ui_spec       → gate_prototype_ui_spec
-        9. ImplementationPlan    → implementation_plan     → gate_implementation_plan
+        9. ImplementationPlan    → implementation_plan       → gate_implementation_plan
+   10. ImplementationPatch  → implementation_patch_plan → gate_implementation_patch_plan
 
     Gate pre-conditions are enforced: no agent runs unless the previous gate returned 'pass'.
     Revision limits are enforced: if a stage exceeds max_revisions, the job is rejected.
@@ -357,14 +359,36 @@ def run_v1_pipeline(
     if gate_impl["status"] != "pass":
         return _rejected_result(job_id, "implementation_plan", impl_result, gate_impl, stage_records)
 
+    impl_plan_path = Path(impl_result.artifact_path)
+
     # ------------------------------------------------------------------
-    # Pipeline success: approved implementation_plan
+    # Stage 10: Implementation Patch Plan Agent → implementation_patch_plan
+    # ------------------------------------------------------------------
+    patch_result, gate_patch = _run_agent_with_gate(
+        stage_name="implementation_patch_plan",
+        agent_runner=lambda artifact_paths: run_implementation_patch_plan(repo_root, job_id, artifact_paths, model_callable=mc),
+        gate_fn=gate_engine.gate_implementation_patch_plan,
+        artifact_paths={
+            "implementation_plan":  impl_plan_path,
+            "prototype_ui_spec":    ui_spec_path,
+            "prototype_build_spec": build_spec_path,
+        },
+        stage_records=stage_records,
+        workspace=workspace,
+        ledger_path=ledger_path,
+        max_revisions=max_revisions_per_stage,
+    )
+    if gate_patch["status"] != "pass":
+        return _rejected_result(job_id, "implementation_patch_plan", patch_result, gate_patch, stage_records)
+
+    # ------------------------------------------------------------------
+    # Pipeline success: approved implementation_patch_plan
     # ------------------------------------------------------------------
     return PipelineResult(
         job_id=job_id,
         outcome="approved",
-        final_artifact_name="implementation_plan",
-        final_artifact_path=impl_result.artifact_path,
+        final_artifact_name="implementation_patch_plan",
+        final_artifact_path=patch_result.artifact_path,
         stage_records=stage_records,
     )
 

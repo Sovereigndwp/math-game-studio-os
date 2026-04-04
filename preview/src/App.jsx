@@ -1,5 +1,5 @@
-import BakeryGame from './BakeryGame'
+import BakeryRushPrototype from './BakeryRushPrototype'
 
 export default function App() {
-  return <BakeryGame />
+  return <BakeryRushPrototype />
 }

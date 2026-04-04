@@ -1180,6 +1180,145 @@ class GateEngine:
         )
 
 
+    def gate_implementation_patch_plan(self, artifact: Dict[str, Any]) -> Dict[str, Any]:
+        failure_fields: List[str] = []
+        revision_instructions: List[str] = []
+
+        # ---- Dim 1: Patch completeness (reject-level) ----
+        patch_sequence = artifact.get("patch_sequence", [])
+        if not patch_sequence:
+            return self._finalize_gate(
+                artifact,
+                _new_gate_decision(
+                    job_id=artifact["job_id"],
+                    target_artifact="implementation_patch_plan",
+                    target_artifact_version=artifact["version"],
+                    stage_name="implementation_patch_plan",
+                    status="reject",
+                    failure_fields=["patch_sequence"],
+                    strongest_failure_reason="patch_sequence is empty — patch plan cannot guide a build.",
+                    revision_instructions=["patch_sequence must contain at least one patch entry covering every create/edit file in target_files."],
+                    escalation_recommendation="reject_job",
+                    memory_tags=["patch_plan_empty"],
+                ),
+            )
+
+        target_files = artifact.get("target_files", [])
+        files_needing_patches = {
+            f["file_path"] for f in target_files if f.get("operation") in ("create", "edit")
+        }
+        patched_files = {p["file_path"] for p in patch_sequence}
+        missing_file_coverage = files_needing_patches - patched_files
+        if missing_file_coverage:
+            return self._finalize_gate(
+                artifact,
+                _new_gate_decision(
+                    job_id=artifact["job_id"],
+                    target_artifact="implementation_patch_plan",
+                    target_artifact_version=artifact["version"],
+                    stage_name="implementation_patch_plan",
+                    status="reject",
+                    failure_fields=["patch_sequence"],
+                    strongest_failure_reason=f"Files missing patch coverage: {sorted(missing_file_coverage)}",
+                    revision_instructions=[
+                        f"Every file marked create or edit in target_files must have at least one patch entry. Missing: {sorted(missing_file_coverage)}"
+                    ],
+                    escalation_recommendation="reject_job",
+                    memory_tags=["patch_plan_missing_file_coverage"],
+                ),
+            )
+
+        # ---- Dim 2: Naming registry integrity (reject-level) ----
+        registry_names = {entry["name"] for entry in artifact.get("naming_registry", [])}
+        unregistered: List[str] = []
+        for patch in patch_sequence:
+            for ne in patch.get("named_elements", []):
+                parts = ne.split(":", 1)
+                if len(parts) == 2:
+                    name = parts[1]
+                    if name not in registry_names:
+                        unregistered.append(f"{patch['patch_id']}:{ne}")
+        if unregistered:
+            return self._finalize_gate(
+                artifact,
+                _new_gate_decision(
+                    job_id=artifact["job_id"],
+                    target_artifact="implementation_patch_plan",
+                    target_artifact_version=artifact["version"],
+                    stage_name="implementation_patch_plan",
+                    status="reject",
+                    failure_fields=["naming_registry"],
+                    strongest_failure_reason=f"Named elements not in naming_registry: {unregistered[:5]}",
+                    revision_instructions=[
+                        f"Every name in named_elements must appear in naming_registry. Missing: {unregistered[:5]}"
+                    ],
+                    escalation_recommendation="reject_job",
+                    memory_tags=["patch_plan_naming_drift"],
+                ),
+            )
+
+        # ---- Dim 3: Dependency graph validity (revise-level) ----
+        patch_ids = {p["patch_id"] for p in patch_sequence}
+        for patch in patch_sequence:
+            for dep in patch.get("depends_on", []):
+                if dep not in patch_ids:
+                    failure_fields.append(f"patch_sequence[{patch['patch_id']}].depends_on")
+                    revision_instructions.append(
+                        f"Patch {patch['patch_id']} declares dependency on {dep} which does not exist in patch_sequence."
+                    )
+
+        # ---- Dim 4: Acceptance signal coverage (revise-level) ----
+        features_added = artifact.get("source_pass", {}).get("features_added", [])
+        acceptance_signals = artifact.get("acceptance_signals", [])
+        if features_added and not acceptance_signals:
+            failure_fields.append("acceptance_signals")
+            revision_instructions.append(
+                "Every feature in source_pass.features_added must trace to at least one acceptance_signal."
+            )
+
+        # ---- Dim 5: Animation contract completeness (revise-level) ----
+        animation_contract_keyframes = {ac["keyframe_name"] for ac in artifact.get("animation_contracts", [])}
+        for patch in patch_sequence:
+            if patch.get("patch_type") in ("add_keyframe", "add_css_custom_property"):
+                for ne in patch.get("named_elements", []):
+                    if ne.startswith("keyframe:"):
+                        kf_name = ne.split(":", 1)[1]
+                        if kf_name not in animation_contract_keyframes:
+                            failure_fields.append(f"animation_contracts[{kf_name}]")
+                            revision_instructions.append(
+                                f"Keyframe '{kf_name}' introduced in {patch['patch_id']} has no entry in animation_contracts."
+                            )
+
+        failure_fields = list(dict.fromkeys(failure_fields))
+        if failure_fields:
+            return self._finalize_gate(
+                artifact,
+                _new_gate_decision(
+                    job_id=artifact["job_id"],
+                    target_artifact="implementation_patch_plan",
+                    target_artifact_version=artifact["version"],
+                    stage_name="implementation_patch_plan",
+                    status="revise",
+                    failure_fields=failure_fields,
+                    strongest_failure_reason="Patch plan has dependency graph, signal coverage, or animation contract gaps.",
+                    revision_instructions=revision_instructions,
+                    escalation_recommendation="reroute",
+                    memory_tags=["patch_plan_gaps"],
+                ),
+            )
+
+        return self._finalize_gate(
+            artifact,
+            _new_gate_decision(
+                job_id=artifact["job_id"],
+                target_artifact="implementation_patch_plan",
+                target_artifact_version=artifact["version"],
+                stage_name="implementation_patch_plan",
+                status="pass",
+            ),
+        )
+
+
 if __name__ == "__main__":
     from pathlib import Path
     from utils.validation import load_json

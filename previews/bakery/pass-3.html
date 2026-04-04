@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Bakery Rush — Pass 3</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    window.process = { env: { NODE_ENV: 'production' } };
+  </script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/framer-motion@10.18.0/dist/framer-motion.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 0; background: #0a0a0a; }
+    #root { min-height: 100vh; }
+
+    /* ── Pass 3 feel layer ── */
+
+    /* Customer character */
+    .ticket-row { display: flex; align-items: center; gap: 14px; }
+    .customer-character { display: flex; flex-direction: column; align-items: center; gap: 3px; transition: transform 0.2s ease; }
+    .customer-character.customer-happy { animation: character-bounce 0.4s cubic-bezier(0.17, 0.89, 0.32, 1.28); }
+    @keyframes character-bounce {
+      0%   { transform: scale(1); }
+      50%  { transform: scale(1.25) translateY(-6px); }
+      100% { transform: scale(1); }
+    }
+    .customer-emoji { font-size: 2.4rem; line-height: 1; display: block; transition: all 0.2s ease; }
+    .customer-name-label { font-size: 0.6rem; color: #d97706; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
+
+    /* Full-screen feedback overlay */
+    .feedback-fullscreen {
+      position: fixed; inset: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: center;
+      pointer-events: none;
+      animation: overlay-scale-in 0.18s cubic-bezier(0.17, 0.89, 0.32, 1.2) forwards;
+    }
+    @keyframes overlay-scale-in {
+      from { opacity: 0; transform: scale(0.88); }
+      to   { opacity: 1; transform: scale(1); }
+    }
+    .feedback-fullscreen.feedback-success  { background: rgba(22, 101, 52, 0.93); }
+    .feedback-fullscreen.feedback-overshoot { background: rgba(153, 27, 27, 0.90); }
+    .feedback-inner { text-align: center; color: #fff; }
+    .feedback-emoji {
+      font-size: 5rem; line-height: 1; display: block;
+      animation: emoji-pop 0.25s cubic-bezier(0.17, 0.89, 0.32, 1.4) 0.1s both;
+    }
+    @keyframes emoji-pop {
+      from { transform: scale(0.4); opacity: 0; }
+      to   { transform: scale(1);   opacity: 1; }
+    }
+    .feedback-text {
+      font-size: 1.6rem; font-weight: 800; margin-top: 14px;
+      letter-spacing: 0.01em; text-shadow: 0 2px 8px rgba(0,0,0,0.35);
+    }
+
+    /* Flying pastry arc */
+    .flying-pastry {
+      position: fixed; font-size: 1.6rem; pointer-events: none; z-index: 200;
+      transform: translate(-50%, -50%);
+      animation: fly-to-box linear forwards;
+      will-change: transform, opacity;
+    }
+    @keyframes fly-to-box {
+      0%   { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+      50%  {
+        transform: translate(
+          calc(-50% + var(--dx) * 0.5 - 30px),
+          calc(-50% + var(--dy) * 0.5 - 60px)
+        ) scale(1.15);
+        opacity: 1;
+      }
+      100% {
+        transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(0.5);
+        opacity: 0;
+      }
+    }
+
+    /* Game shake on overshoot */
+    .game-shake { animation: game-shake 0.4s ease; }
+    @keyframes game-shake {
+      0%,100% { transform: translateX(0); }
+      20%     { transform: translateX(-6px); }
+      40%     { transform: translateX(6px); }
+      60%     { transform: translateX(-4px); }
+      80%     { transform: translateX(4px); }
+    }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" data-presets="react">
+  const { useState, useEffect, useMemo, useRef, useCallback } = React;
+  const { motion, AnimatePresence } = FramerMotion;
+
+  // ── Inline SVG icons ───────────────────────────────────────────────────────
+  const ip = (cls) => ({ className: cls, viewBox:"0 0 24 24", fill:"none", stroke:"currentColor", strokeWidth:2, strokeLinecap:"round", strokeLinejoin:"round" });
+  const ShoppingBag = ({className=""}) => <svg xmlns="http://www.w3.org/2000/svg" {...ip(className)}><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>;
+  const CakeSlice   = ({className=""}) => <svg xmlns="http://www.w3.org/2000/svg" {...ip(className)}><path d="M20.2 6.3A8 8 0 0 0 5.7 20.8"/><path d="m2 22 2-2 2 2 2-2 2 2 2-2 2 2 2-2 2 2"/><path d="M7 13c0-1.5.5-3 2-4"/><path d="M12 11c0-1 .5-2 2-2"/></svg>;
+  const Cookie      = ({className=""}) => <svg xmlns="http://www.w3.org/2000/svg" {...ip(className)}><path d="M12 2a10 10 0 1 0 10 10 4 4 0 0 1-5-5 4 4 0 0 1-5-5"/><path d="M8.5 8.5v.01"/><path d="M16 15.5v.01"/><path d="M12 12v.01"/><path d="M11 17v.01"/><path d="M7 14v.01"/></svg>;
+  const Croissant   = ({className=""}) => <svg xmlns="http://www.w3.org/2000/svg" {...ip(className)}><path d="m4.6 13.11 5.79-3.21c1.89-1.05 4.79 1.78 3.71 3.71l-3.22 5.81C8.87 21.08 7.38 21.6 6 21c-2.03-.89-2.71-3.44-1.4-7.89Z"/><path d="m4.6 13.11.79-.87c.52-.57 1.28-.76 1.99-.53"/><path d="m10.7 2.1-.79.87c-.52.57-.76 1.28-.53 1.99"/><path d="M10.7 2.1c4.45-1.31 7 .38 7.89 1.4.6 1.38.08 2.87-2.58 4.96l-5.31 3.2"/></svg>;
+  const CupSoda     = ({className=""}) => <svg xmlns="http://www.w3.org/2000/svg" {...ip(className)}><path d="m6 8 1.75 12.28a2 2 0 0 0 2 1.72h4.54a2 2 0 0 0 2-1.72L18 8"/><path d="M4 8h16"/><path d="M7 15a6.47 6.47 0 0 1 5 0 6.47 6.47 0 0 0 5 0"/><path d="m12 8 1-6h2"/></svg>;
+  const RotateCcw   = ({className=""}) => <svg xmlns="http://www.w3.org/2000/svg" {...ip(className)}><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>;
+  const Heart       = ({className=""}) => <svg xmlns="http://www.w3.org/2000/svg" {...ip(className)}><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>;
+  const Clock3      = ({className=""}) => <svg xmlns="http://www.w3.org/2000/svg" {...ip(className)}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16.5 12"/></svg>;
+  const Trophy      = ({className=""}) => <svg xmlns="http://www.w3.org/2000/svg" {...ip(className)}><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>;
+  const ArrowRight  = ({className=""}) => <svg xmlns="http://www.w3.org/2000/svg" {...ip(className)}><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>;
+  const Layers3     = ({className=""}) => <svg xmlns="http://www.w3.org/2000/svg" {...ip(className)}><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m6.08 9.5-3.5 1.6a1 1 0 0 0 0 1.81l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9a1 1 0 0 0 0-1.83l-3.5-1.59"/><path d="m6.08 14.5-3.5 1.6a1 1 0 0 0 0 1.81l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9a1 1 0 0 0 0-1.83l-3.5-1.59"/></svg>;
+  const Lock        = ({className=""}) => <svg xmlns="http://www.w3.org/2000/svg" {...ip(className)}><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>;
+
+  // ── Stub UI components ─────────────────────────────────────────────────────
+  function Card({ className='', children, ...p }) {
+    return <div className={`rounded-3xl border border-neutral-800 bg-neutral-900 ${className}`} {...p}>{children}</div>;
+  }
+  function CardHeader({ className='', children }) {
+    return <div className={`flex flex-col space-y-1.5 p-6 pb-0 ${className}`}>{children}</div>;
+  }
+  function CardTitle({ className='', children }) {
+    return <h3 className={`font-semibold leading-none tracking-tight ${className}`}>{children}</h3>;
+  }
+  function CardContent({ className='', children }) {
+    return <div className={`p-6 ${className}`}>{children}</div>;
+  }
+  function Button({ className='', variant='default', children, ...p }) {
+    const v = { default:'bg-amber-400 text-black hover:bg-amber-300', outline:'border border-neutral-700 bg-transparent text-white hover:bg-neutral-900' };
+    return <button className={`inline-flex items-center justify-center rounded-2xl font-semibold transition-colors focus:outline-none cursor-pointer ${v[variant]||v.default} ${className}`} {...p}>{children}</button>;
+  }
+  function Progress({ value=0, className='' }) {
+    return (
+      <div className={`relative h-2 w-full overflow-hidden rounded-full bg-neutral-800 ${className}`}>
+        <div className="h-full rounded-full bg-amber-400 transition-all duration-300" style={{width:`${Math.min(100,Math.max(0,value))}%`}} />
+      </div>
+    );
+  }
+  function SmallStat({ label, value, valueClassName="text-amber-400" }) {
+    return (
+      <div className="rounded-2xl border border-neutral-800 bg-neutral-950 p-4">
+        <div className="text-xs uppercase tracking-[0.2em] text-neutral-500">{label}</div>
+        <div className={`mt-2 text-3xl font-bold ${valueClassName}`}>{value}</div>
+      </div>
+    );
+  }
+
+  // ── Game constants ─────────────────────────────────────────────────────────
+  const MAX_LIVES = 3;
+  const CONVEYOR_ITEM_COUNT = 10;
+  const FLY_MS = 380;
+  const SUCCESS_MS = 1500;
+  const OVERSHOOT_MS = 700;
+
+  const BASE_PASTRIES = {
+    cookie:    { id:"cookie",    label:"Cookie",     icon:Cookie,    value:1 },
+    croissant: { id:"croissant", label:"Croissant",  icon:Croissant, value:1 },
+    slice:     { id:"slice",     label:"Cake Slice", icon:CakeSlice, value:2 },
+    drink:     { id:"drink",     label:"Drink",      icon:CupSoda,   value:5 },
+  };
+
+  const LEVELS = [
+    { level:1, title:"Shift 1", subtitle:"Learn the loop",               shiftSeconds:70, targetScore:450,  patienceSeconds:16, pastrySet:[BASE_PASTRIES.cookie, BASE_PASTRIES.croissant], pastryWeights:[1,1],           targetPool:[1,2,3,4,5],                              customerCount:7,  conveyorDuration:9 },
+    { level:2, title:"Shift 2", subtitle:"Bigger orders",                shiftSeconds:65, targetScore:650,  patienceSeconds:14, pastrySet:[BASE_PASTRIES.cookie, BASE_PASTRIES.croissant], pastryWeights:[1,1],           targetPool:[6,7,8,9,10],                             customerCount:8,  conveyorDuration:8 },
+    { level:3, title:"Shift 3", subtitle:"Longer counts",                shiftSeconds:60, targetScore:850,  patienceSeconds:12, pastrySet:[BASE_PASTRIES.cookie, BASE_PASTRIES.croissant], pastryWeights:[1,1],           targetPool:[11,12,13,14,15],                         customerCount:9,  conveyorDuration:7 },
+    { level:4, title:"Shift 4", subtitle:"Choose the right combination", shiftSeconds:65, targetScore:1050, patienceSeconds:11, pastrySet:[BASE_PASTRIES.cookie, BASE_PASTRIES.slice],     pastryWeights:[0.65,0.35],     targetPool:[6,7,8,9,10,12,14,15,16,18],              customerCount:9,  conveyorDuration:6 },
+    { level:5, title:"Shift 5", subtitle:"Fast mixed value orders",      shiftSeconds:70, targetScore:1250, patienceSeconds:10, pastrySet:[BASE_PASTRIES.cookie, BASE_PASTRIES.slice, BASE_PASTRIES.drink], pastryWeights:[0.55,0.3,0.15], targetPool:[8,10,11,12,13,15,17,18,20,22,25], customerCount:10, conveyorDuration:5 },
+  ];
+
+  const CUSTOMER_NAMES = ["Mia","Leo","Ava","Noah","Sofia","Lucas","Emma","Mateo","Luna","Elena","Owen","Nina"];
+
+  function formatTime(s) { const safe=Math.max(0,s); return `${Math.floor(safe/60)}:${String(safe%60).padStart(2,"0")}`; }
+  function weightedChoice(items, weights) {
+    let roll = Math.random() * weights.reduce((a,b)=>a+b,0);
+    for (let i=0;i<items.length;i++) { roll-=weights[i]; if(roll<=0) return items[i]; }
+    return items[items.length-1];
+  }
+  function buildQueue(cfg) {
+    const pool=[...cfg.targetPool], targets=[];
+    for(let i=0;i<cfg.customerCount;i++) {
+      if(!pool.length) pool.push(...cfg.targetPool);
+      targets.push(pool.splice(Math.floor(Math.random()*pool.length),1)[0]);
+    }
+    return targets.map((t,i)=>({id:i+1,target:t,name:CUSTOMER_NAMES[i%CUSTOMER_NAMES.length]}));
+  }
+  function makeConveyorItems(ps,pw,count=CONVEYOR_ITEM_COUNT) {
+    return Array.from({length:count},(_,i)=>({uid:`${Date.now()}-${i}-${Math.random().toString(36).slice(2,8)}`,pastry:weightedChoice(ps,pw)}));
+  }
+  function nextItem(ps,pw) { return {uid:`${Date.now()}-${Math.random().toString(36).slice(2,8)}`,pastry:weightedChoice(ps,pw)}; }
+
+  // ── Pass 3: Customer character component ────────────────────────────────────
+  function CustomerCharacter({ customerName, isSuccess }) {
+    return (
+      <div className={`customer-character ${isSuccess ? 'customer-happy' : ''}`}>
+        <span className="customer-emoji">{isSuccess ? '😊' : '👤'}</span>
+        <span className="customer-name-label">{customerName}</span>
+      </div>
+    );
+  }
+
+  // ── Pass 3: Full-screen feedback overlay ────────────────────────────────────
+  function FeedbackOverlay({ screen }) {
+    if (screen !== 'order_success' && screen !== 'overshoot_flash') return null;
+    const isSuccess = screen === 'order_success';
+    return (
+      <div className={`feedback-fullscreen ${isSuccess ? 'feedback-success' : 'feedback-overshoot'}`}>
+        <div className="feedback-inner">
+          <span className="feedback-emoji">{isSuccess ? '😊' : '↩️'}</span>
+          <div className="feedback-text">{isSuccess ? 'Perfect order!' : 'Too many! One bounced back.'}</div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Pass 3: Flying pastry ────────────────────────────────────────────────────
+  function FlyingPastry({ id, conveyorRef, boxRef, onDone }) {
+    const style = (() => {
+      if (!conveyorRef.current || !boxRef.current) return {};
+      const tray = conveyorRef.current.getBoundingClientRect();
+      const box  = boxRef.current.getBoundingClientRect();
+      const startX = tray.left + tray.width  / 2;
+      const startY = tray.top  + tray.height / 2;
+      return {
+        '--dx': `${(box.left + box.width/2) - startX}px`,
+        '--dy': `${(box.top  + box.height/2) - startY}px`,
+        left: `${startX}px`,
+        top:  `${startY}px`,
+        animationDuration: `${FLY_MS}ms`,
+      };
+    })();
+    return (
+      <span className="flying-pastry" style={style} onAnimationEnd={onDone} aria-hidden="true">
+        🥐
+      </span>
+    );
+  }
+
+  // ── Root component ─────────────────────────────────────────────────────────
+  function BakeryRush() {
+    const [screen, setScreen]               = useState("intro");
+    const [levelIndex, setLevelIndex]       = useState(0);
+    const [highestUnlocked, setHighest]     = useState(0);
+    const [queue, setQueue]                 = useState(()=>buildQueue(LEVELS[0]));
+    const [customerIndex, setCustomerIndex] = useState(0);
+    const [countdown, setCountdown]         = useState(3);
+    const [shiftLeft, setShiftLeft]         = useState(LEVELS[0].shiftSeconds);
+    const [patienceLeft, setPatienceLeft]   = useState(LEVELS[0].patienceSeconds);
+    const [total, setTotal]                 = useState(0);
+    const [itemsInBox, setItemsInBox]       = useState([]);
+    const [lastItem, setLastItem]           = useState(null);
+    const [score, setScore]                 = useState(0);
+    const [completed, setCompleted]         = useState(0);
+    const [missed, setMissed]               = useState(0);
+    const [wrong, setWrong]                 = useState(0);
+    const [streak, setStreak]               = useState(0);
+    const [msg, setMsg]                     = useState("Pack the order exactly.");
+    const [firstTry, setFirstTry]           = useState(true);
+    const [lastAward, setLastAward]         = useState("");
+    const [lives, setLives]                 = useState(MAX_LIVES);
+    const [conveyor, setConveyor]           = useState(()=>makeConveyorItems(LEVELS[0].pastrySet,LEVELS[0].pastryWeights));
+    const [isShaking, setShaking]           = useState(false);
+    // Pass 3 state
+    const [flyingItems, setFlyingItems]     = useState([]);
+    const nextFlyId                         = useRef(0);
+    const conveyorRef                       = useRef(null);
+    const boxRef                            = useRef(null);
+
+    const overshootRef = useRef(null);
+    const successRef   = useRef(null);
+
+    const lvl         = LEVELS[levelIndex];
+    const customer    = queue[customerIndex] ?? null;
+    const target      = customer?.target ?? 0;
+    const pastries    = lvl.pastrySet;
+    const queuePrev   = queue.slice(customerIndex+1, customerIndex+4);
+    const patiencePct = (patienceLeft / lvl.patienceSeconds) * 100;
+    const scorePct    = Math.min(100, (score / lvl.targetScore) * 100);
+    const urgent      = shiftLeft <= 15;
+    const hasNext     = levelIndex < LEVELS.length - 1;
+    const levelLabel  = useMemo(()=>`${lvl.title} · ${lvl.subtitle}`,[lvl]);
+    const isSuccess   = screen === 'order_success';
+    const isEnd       = screen === 'shift_complete' || screen === 'game_over';
+
+    useEffect(()=>()=>{
+      if(overshootRef.current) clearTimeout(overshootRef.current);
+      if(successRef.current)   clearTimeout(successRef.current);
+    },[]);
+
+    useEffect(()=>{
+      if(screen!=='countdown') return;
+      if(countdown===0){setScreen('playing');setMsg('Fill the order before the customer leaves.');return;}
+      const t=setTimeout(()=>setCountdown(p=>p-1),800); return()=>clearTimeout(t);
+    },[screen,countdown]);
+
+    useEffect(()=>{
+      if(screen!=='playing') return;
+      const t=setInterval(()=>setShiftLeft(p=>{
+        if(p<=1){clearInterval(t);setScreen('shift_complete');setMsg('Shift complete.');return 0;}
+        return p-1;
+      }),1000); return()=>clearInterval(t);
+    },[screen]);
+
+    useEffect(()=>{
+      if(screen!=='playing') return;
+      const t=setInterval(()=>setPatienceLeft(p=>{
+        if(p<=1){clearInterval(t);doMissed();return 0;}
+        return p-1;
+      }),1000); return()=>clearInterval(t);
+    },[screen,customerIndex,lvl.patienceSeconds]);
+
+    useEffect(()=>{
+      if(screen!=='playing'||score<lvl.targetScore) return;
+      setHighest(p=>Math.max(p,Math.min(levelIndex+1,LEVELS.length-1)));
+      setScreen('shift_complete');setMsg('Shift goal reached.');
+    },[score,lvl.targetScore,screen,levelIndex]);
+
+    function fillConveyor(cfg){ setConveyor(makeConveyorItems(cfg.pastrySet,cfg.pastryWeights)); }
+
+    function resetOrder(nextMsg,cfg){
+      setTotal(0);setItemsInBox([]);setLastItem(null);
+      setPatienceLeft(cfg.patienceSeconds);setFirstTry(true);
+      setMsg(nextMsg);fillConveyor(cfg);
+      setFlyingItems([]);
+    }
+
+    function setupLevel(idx){
+      const cfg=LEVELS[idx];
+      setLevelIndex(idx);setQueue(buildQueue(cfg));setCustomerIndex(0);
+      setCountdown(3);setShiftLeft(cfg.shiftSeconds);setPatienceLeft(cfg.patienceSeconds);
+      setTotal(0);setItemsInBox([]);setLastItem(null);setScore(0);
+      setCompleted(0);setMissed(0);setWrong(0);setStreak(0);
+      setMsg('Study the first order.');setFirstTry(true);setLastAward('');setLives(MAX_LIVES);
+      fillConveyor(cfg);setScreen('countdown');setFlyingItems([]);
+    }
+
+    function nextCustomer(nextMsg){
+      const cfg=lvl;
+      setCustomerIndex(p=>{const n=p+1;if(n>=queue.length){setQueue(buildQueue(cfg));return 0;}return n;});
+      resetOrder(nextMsg,cfg);
+    }
+
+    function doMissed(){
+      setMissed(p=>p+1);
+      setLives(p=>{
+        const n=p-1;
+        if(n<=0){setScreen('game_over');setMsg('Too many customers left unhappy.');return 0;}
+        nextCustomer('Customer lost. A new order is waiting.');
+        return n;
+      });
+      setStreak(0);setFirstTry(false);setLastAward('Missed order -1 life');
+    }
+
+    function doComplete(){
+      const n=completed+1;
+      let earned=firstTry?100:60;
+      let award=firstTry?'+100 first try':'+60 completed';
+      if(n%3===0){earned+=50;award+=' · +50 streak';}
+      setCompleted(n);setScore(p=>p+earned);setStreak(p=>p+1);
+      setLastAward(award);setScreen('order_success');setMsg('Perfect order. Box closed.');
+      successRef.current=setTimeout(()=>{nextCustomer('Nice work. Next customer.');setScreen('playing');},SUCCESS_MS);
+    }
+
+    function tapPastry(item){
+      if(screen!=='playing') return;
+      const p=item.pastry;
+      const next=total+p.value;
+
+      // Pass 3: spawn flying pastry before updating total
+      const flyId=nextFlyId.current++;
+      setFlyingItems(prev=>[...prev,{id:flyId}]);
+
+      setTimeout(()=>{
+        setTotal(next);
+        setItemsInBox(prev=>[...prev,p.id]);
+        setLastItem(p.id);
+        setConveyor(prev=>[...prev.filter(e=>e.uid!==item.uid),nextItem(lvl.pastrySet,lvl.pastryWeights)]);
+
+        if(next===target){doComplete();return;}
+        if(next>target){
+          setWrong(w=>w+1);setFirstTry(false);setStreak(0);
+          setMsg('Too many. The last pastry bounced out.');setLastAward('Overshoot');
+          // Pass 3: game shake
+          setShaking(true);
+          setTimeout(()=>setShaking(false),450);
+          overshootRef.current=setTimeout(()=>{
+            setItemsInBox(prev=>{const c=[...prev];c.pop();return c;});
+            setTotal(t=>t-p.value);setLastItem(null);
+          },OVERSHOOT_MS);
+          return;
+        }
+        setMsg('Keep going until the total matches.');
+      }, FLY_MS);
+    }
+
+    const removeFlyingItem = useCallback((id)=>{
+      setFlyingItems(prev=>prev.filter(f=>f.id!==id));
+    },[]);
+
+    return (
+      <div className={`min-h-screen bg-neutral-950 p-4 text-white md:p-8 ${isShaking?'game-shake':''}`}>
+
+        {/* Pass 3: Full-screen feedback overlay */}
+        <FeedbackOverlay screen={screen} />
+
+        {/* Pass 3: Flying pastries */}
+        {flyingItems.map(f=>(
+          <FlyingPastry key={f.id} id={f.id} conveyorRef={conveyorRef} boxRef={boxRef} onDone={()=>removeFlyingItem(f.id)} />
+        ))}
+
+        <div className="mx-auto grid max-w-7xl gap-5">
+
+          {/* Intro overlay */}
+          <AnimatePresence>
+            {screen==='intro' && (
+              <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}
+                className="fixed inset-0 z-50 flex items-center justify-center overflow-auto bg-black/90 p-6">
+                <Card className="w-full max-w-5xl rounded-3xl border-neutral-800 bg-neutral-950 text-white shadow-2xl">
+                  <CardContent className="grid gap-6 p-8 md:p-10">
+                    <div className="text-center">
+                      <p className="text-sm uppercase tracking-[0.35em] text-amber-400">Bakery Rush — Pass 3</p>
+                      <h1 className="mt-3 text-4xl font-semibold md:text-6xl">Feel and UI Layer</h1>
+                      <p className="mx-auto mt-5 max-w-3xl text-base leading-7 text-neutral-300 md:text-lg">
+                        Pass 3 adds the feel layer: customer character reactions, full-screen feedback overlays,
+                        flying pastry arc animations, and stronger reward rhythm — built on top of Pass 2's conveyor and progression.
+                      </p>
+                    </div>
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+                      {LEVELS.map((lvl,i)=>{
+                        const unlocked=i<=highestUnlocked;
+                        return (
+                          <button key={lvl.level} onClick={()=>unlocked&&setupLevel(i)} disabled={!unlocked}
+                            className={`rounded-3xl border p-4 text-left transition ${unlocked?'border-neutral-700 bg-neutral-900 hover:border-amber-400 hover:bg-neutral-800':'cursor-not-allowed border-neutral-800 bg-neutral-950 opacity-45'} ${i===levelIndex?'ring-2 ring-amber-400/60':''}`}>
+                            <div className="flex items-center justify-between">
+                              <div className="text-xs uppercase tracking-[0.25em] text-neutral-500">Level {lvl.level}</div>
+                              {!unlocked && <Lock className="h-4 w-4 text-neutral-500" />}
+                            </div>
+                            <div className="mt-3 text-lg font-semibold">{lvl.title}</div>
+                            <div className="mt-1 min-h-[40px] text-sm text-neutral-400">{lvl.subtitle}</div>
+                            <div className="mt-2 text-xs text-neutral-500">Targets {Math.min(...lvl.targetPool)}–{Math.max(...lvl.targetPool)}</div>
+                            <div className="mt-1 text-xs text-neutral-500">Goal {lvl.targetScore}</div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div className="flex flex-wrap justify-center gap-3">
+                      <Button onClick={()=>setupLevel(0)} className="rounded-2xl bg-amber-400 px-8 py-6 text-lg font-semibold text-black hover:bg-amber-300">
+                        Start level 1 <ArrowRight className="ml-2 h-5 w-5 inline" />
+                      </Button>
+                      {highestUnlocked>0 && (
+                        <Button onClick={()=>setupLevel(highestUnlocked)} variant="outline" className="rounded-2xl border-neutral-700 bg-transparent px-8 py-6 text-lg text-white hover:bg-neutral-900">
+                          Resume highest unlocked
+                        </Button>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Countdown */}
+          <AnimatePresence>
+            {screen==='countdown' && (
+              <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}
+                className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
+                <div className="text-center">
+                  <div className="text-8xl font-bold text-amber-400 md:text-9xl">{countdown===0?'GO':countdown}</div>
+                  <div className="mt-4 uppercase tracking-[0.4em] text-neutral-300">{levelLabel}</div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <div className="grid gap-4 md:grid-cols-[1.15fr_1fr]">
+            <Card className="rounded-3xl border-neutral-800 bg-neutral-900 shadow-2xl">
+              <CardContent className="grid gap-5 p-6 md:p-8">
+
+                {/* Header row */}
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.3em] text-amber-400">{levelLabel}</p>
+                    {/* Pass 3: customer character beside name */}
+                    <div className="ticket-row mt-2">
+                      {customer && <CustomerCharacter customerName={customer.name} isSuccess={isSuccess} />}
+                      <h2 className="text-2xl font-semibold md:text-3xl">
+                        {customer ? `${customer.name}'s order` : 'Shift finished'}
+                      </h2>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-3">
+                    <div className={`min-w-[120px] rounded-2xl border px-4 py-3 ${urgent?'border-red-500 bg-red-500/10':'border-neutral-700 bg-neutral-950'}`}>
+                      <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-neutral-400">
+                        <Clock3 className="h-3.5 w-3.5" /> Shift time
+                      </div>
+                      <div className={`mt-1 text-3xl font-bold ${urgent?'text-red-400':'text-amber-400'}`}>{formatTime(shiftLeft)}</div>
+                    </div>
+                    <div className="min-w-[120px] rounded-2xl border border-neutral-700 bg-neutral-950 px-4 py-3">
+                      <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-neutral-400">
+                        <Trophy className="h-3.5 w-3.5" /> Shift score
+                      </div>
+                      <div className="mt-1 text-3xl font-bold text-emerald-400">{score}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid gap-5 md:grid-cols-[0.9fr_1.1fr]">
+                  {/* Order ticket */}
+                  <Card className="rounded-3xl border-neutral-800 bg-neutral-950">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-lg">
+                        <ShoppingBag className="h-5 w-5 text-amber-400" /> Order ticket
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="grid gap-4">
+                      <div className="rounded-3xl bg-amber-50 p-5 text-black">
+                        <div className="text-xs uppercase tracking-[0.25em] text-neutral-500">Target value</div>
+                        <div className="mt-2 text-6xl font-bold">{isEnd?'✓':target}</div>
+                        <div className="mt-3 text-sm text-neutral-600">Click pastries until the box matches exactly.</div>
+                      </div>
+                      <div className="grid gap-2">
+                        <div className="flex items-center justify-between text-sm text-neutral-300">
+                          <span>Customer patience</span><span>{patienceLeft}s</span>
+                        </div>
+                        <Progress value={patiencePct} className="h-3" />
+                      </div>
+                      <div className="grid gap-2">
+                        <div className="flex items-center justify-between text-sm text-neutral-300">
+                          <span>Target score</span><span>{lvl.targetScore}</span>
+                        </div>
+                        <Progress value={scorePct} className="h-3" />
+                      </div>
+                      <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-4 text-sm leading-6 text-neutral-200">
+                        <div className="mb-2 text-xs uppercase tracking-[0.2em] text-neutral-400">Status</div>
+                        {msg}
+                      </div>
+                      <div className="text-sm text-neutral-300">
+                        Last award: <span className="text-amber-400">{lastAward||'—'}</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Pastry box — Pass 3: boxRef attached */}
+                  <Card className="min-h-[470px] rounded-3xl border-neutral-800 bg-neutral-950">
+                    <CardHeader><CardTitle className="text-lg">Pastry box</CardTitle></CardHeader>
+                    <CardContent className="grid gap-5">
+                      <div ref={boxRef} className="relative min-h-[250px] overflow-hidden rounded-3xl border-2 border-dashed border-amber-500/60 bg-neutral-900 p-4">
+                        <AnimatePresence>
+                          {itemsInBox.length===0 && screen==='playing' && (
+                            <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}
+                              className="absolute inset-0 flex items-center justify-center text-sm text-neutral-500">
+                              Click pastries from the belt to add them here.
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                        <div className="relative z-10 grid grid-cols-4 gap-3 sm:grid-cols-5">
+                          {itemsInBox.map((item,idx)=>{
+                            const p=pastries.find(x=>x.id===item);
+                            const Icon=p?.icon??Cookie;
+                            const bounce=item===lastItem && idx===itemsInBox.length-1 && msg.includes('bounced out');
+                            return (
+                              <motion.div key={`${item}-${idx}`}
+                                initial={{opacity:0,scale:0.75,y:-8}}
+                                animate={bounce?{opacity:0.3,scale:0.8,y:-20,x:10}:{opacity:1,scale:1,y:0,x:0}}
+                                transition={{duration:0.25}}
+                                className="flex flex-col items-center justify-center gap-1 rounded-2xl bg-amber-100 p-3 text-black shadow-lg">
+                                <Icon className="h-7 w-7" />
+                                <div className="text-xs font-semibold">+{p?.value??1}</div>
+                              </motion.div>
+                            );
+                          })}
+                        </div>
+                        {/* Pass 3: full-screen overlay replaces this box overlay on success */}
+                        <AnimatePresence>
+                          {screen==='order_success' && (
+                            <motion.div initial={{opacity:0,scale:0.92}} animate={{opacity:1,scale:1}} exit={{opacity:0}}
+                              className="absolute inset-0 flex items-center justify-center rounded-3xl border border-emerald-400 bg-emerald-500/20">
+                              <div className="px-6 text-center">
+                                <div className="text-3xl font-semibold text-white">Perfect order</div>
+                                <div className="mt-2 text-sm text-emerald-100">The box closed right on target.</div>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <SmallStat label="Running total" value={total} />
+                        <SmallStat label="Orders done" value={completed} valueClassName="text-emerald-400" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Conveyor belt — Pass 3: conveyorRef attached */}
+                <Card className="overflow-hidden rounded-3xl border-neutral-800 bg-neutral-950">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                      <Layers3 className="h-5 w-5 text-amber-400" /> Conveyor belt
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="grid gap-4">
+                    <div className="text-sm text-neutral-400">Tap the correct pastries before patience or time runs out.</div>
+                    <div ref={conveyorRef} className="relative overflow-hidden rounded-3xl border border-neutral-800 bg-neutral-900 p-4">
+                      <div className="absolute inset-x-0 top-1/2 h-16 -translate-y-1/2 rounded-2xl bg-neutral-800 opacity-70" />
+                      <motion.div className="relative flex w-max gap-4"
+                        animate={{x:[0,-220]}}
+                        transition={{repeat:Infinity,duration:lvl.conveyorDuration,ease:'linear'}}>
+                        {[...conveyor,...conveyor].map((item,idx)=>{
+                          const p=item.pastry;
+                          const Icon=p.icon;
+                          const disabled=screen!=='playing';
+                          return (
+                            <motion.button key={`${item.uid}-${idx}`}
+                              whileHover={{scale:disabled?1:1.04,y:disabled?0:-2}}
+                              whileTap={{scale:disabled?1:0.96}}
+                              onClick={()=>tapPastry(item)}
+                              disabled={disabled}
+                              className="relative z-10 min-w-[126px] rounded-3xl border border-neutral-700 bg-neutral-950 px-4 py-5 text-center shadow-xl disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer">
+                              <div className="flex justify-center"><Icon className="h-8 w-8 text-amber-400" /></div>
+                              <div className="mt-3 text-sm font-medium">{p.label}</div>
+                              <div className="mt-1 text-xs text-neutral-400">Value {p.value}</div>
+                            </motion.button>
+                          );
+                        })}
+                      </motion.div>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      {pastries.map(p=>(
+                        <div key={p.id} className="rounded-2xl border border-neutral-800 bg-neutral-900 p-3 text-sm text-neutral-300">
+                          <div className="font-medium text-white">{p.label}</div>
+                          <div className="mt-1 text-neutral-400">Adds {p.value}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </CardContent>
+            </Card>
+
+            {/* Right column */}
+            <div className="grid gap-4">
+              <Card className="rounded-3xl border-neutral-800 bg-neutral-900 shadow-2xl">
+                <CardHeader><CardTitle className="text-lg">Shift dashboard</CardTitle></CardHeader>
+                <CardContent className="grid gap-4">
+                  <div className="rounded-2xl border border-neutral-800 bg-neutral-950 p-4">
+                    <div className="text-xs uppercase tracking-[0.2em] text-neutral-500">Lives</div>
+                    <div className="mt-3 flex gap-2">
+                      {Array.from({length:MAX_LIVES},(_,i)=>(
+                        <Heart key={i} className={`h-6 w-6 ${i<lives?'fill-red-400 text-red-400':'text-neutral-700'}`} />
+                      ))}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <SmallStat label="Missed"      value={missed} valueClassName="text-red-400" />
+                    <SmallStat label="Wrong moves" value={wrong}  valueClassName="text-orange-400" />
+                  </div>
+                  <div className="rounded-2xl border border-neutral-800 bg-neutral-950 p-4">
+                    <div className="text-xs uppercase tracking-[0.2em] text-neutral-500">Streak</div>
+                    <div className="mt-2 text-3xl font-bold text-emerald-400">{streak}</div>
+                    <div className="mt-2 text-sm text-neutral-400">Every third order gives a +50 bonus.</div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="rounded-3xl border-neutral-800 bg-neutral-900 shadow-2xl">
+                <CardHeader><CardTitle className="text-lg">Customer queue</CardTitle></CardHeader>
+                <CardContent className="grid gap-3">
+                  {queuePrev.map((c,i)=>(
+                    <div key={c.id} className="flex items-center justify-between rounded-2xl border border-neutral-800 bg-neutral-950 p-4">
+                      <div>
+                        <div className="text-xs uppercase tracking-[0.2em] text-neutral-500">Next {i+1}</div>
+                        <div className="mt-1 flex items-center gap-2">
+                          <span className="text-lg">👤</span>
+                          <span className="text-lg font-medium">{c.name}</span>
+                        </div>
+                      </div>
+                      <div className="text-3xl font-bold text-amber-400">{c.target}</div>
+                    </div>
+                  ))}
+                  {queuePrev.length===0 && <div className="text-sm text-neutral-500">No more queued customers.</div>}
+                </CardContent>
+              </Card>
+
+              <Card className="rounded-3xl border-neutral-800 bg-neutral-900 shadow-2xl">
+                <CardContent className="p-5 text-sm leading-6 text-neutral-300">
+                  <div className="mb-2 text-xs uppercase tracking-[0.2em] text-neutral-500">Pass 3 — What was added</div>
+                  Customer character reacts on success · Full-screen color overlay with scale-in animation · Flying pastry arc from belt to box · Game shake on overshoot · Stronger feedback rhythm
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
+          {/* End-of-shift / game-over overlay */}
+          <AnimatePresence>
+            {isEnd && (
+              <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}
+                className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-6">
+                <Card className="w-full max-w-2xl rounded-3xl border-neutral-800 bg-neutral-950 text-white shadow-2xl">
+                  <CardContent className="grid gap-6 p-8 text-center md:p-10">
+                    <div>
+                      <div className={`text-sm uppercase tracking-[0.35em] ${screen==='shift_complete'?'text-emerald-400':'text-red-400'}`}>
+                        {screen==='shift_complete'?'Shift complete':'Shift failed'}
+                      </div>
+                      <h2 className="mt-3 text-4xl font-semibold md:text-5xl">
+                        {screen==='shift_complete'?`${lvl.title} cleared`:'Too many lost orders'}
+                      </h2>
+                    </div>
+                    <div className="grid gap-4 md:grid-cols-4">
+                      <SmallStat label="Score"     value={score} />
+                      <SmallStat label="Completed" value={completed} valueClassName="text-emerald-400" />
+                      <SmallStat label="Missed"    value={missed}    valueClassName="text-red-400" />
+                      <SmallStat label="Wrong"     value={wrong}     valueClassName="text-orange-400" />
+                    </div>
+                    <div className="flex flex-wrap justify-center gap-3">
+                      <Button onClick={()=>setupLevel(levelIndex)} className="rounded-2xl bg-amber-400 px-8 py-6 text-lg font-semibold text-black hover:bg-amber-300">
+                        Retry level
+                      </Button>
+                      {screen==='shift_complete' && hasNext && (
+                        <Button onClick={()=>setupLevel(levelIndex+1)} variant="outline" className="rounded-2xl border-neutral-700 bg-transparent px-8 py-6 text-lg text-white hover:bg-neutral-900">
+                          Next level
+                        </Button>
+                      )}
+                      <Button onClick={()=>setScreen('intro')} variant="outline" className="rounded-2xl border-neutral-700 bg-transparent px-8 py-6 text-lg text-white hover:bg-neutral-900">
+                        <RotateCcw className="mr-2 h-4 w-4 inline" /> Back to briefing
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+        </div>
+      </div>
+    );
+  }
+
+  ReactDOM.createRoot(document.getElementById('root')).render(<BakeryRush />);
+</script>
+</body>
+</html>

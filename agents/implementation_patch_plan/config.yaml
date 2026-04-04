@@ -1,0 +1,14 @@
+agent_name: implementation_patch_plan_agent
+expected_output_artifact: implementation_patch_plan
+expected_produced_by: Implementation Patch Plan Agent
+allowed_reads:
+  - implementation_plan
+  - prototype_ui_spec
+  - prototype_build_spec
+allowed_writes:
+  - implementation_patch_plan
+max_revision_count: 2
+retry_policy: revise_once_then_escalate
+model_profile: high_reasoning
+requires_gate_pass_from:
+  - implementation_plan
