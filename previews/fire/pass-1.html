@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fire Station Dispatch — Pass 1</title>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0f0f1a;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 100vh;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      padding: 16px 8px 32px;
+    }
+
+    #root { width: 100%; max-width: 480px; }
+
+    /* ── Root container ── */
+    .fire-dispatch {
+      background: #1a1a2e;
+      color: #fff;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header / HUD ── */
+    .dispatch-hud {
+      background: #16213e;
+      padding: 12px 16px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 2px solid #0f3460;
+      gap: 8px;
+    }
+    .hud-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #94a3b8;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+    .hud-lives {
+      font-size: 18px;
+      letter-spacing: 2px;
+    }
+    .hud-score {
+      font-size: 14px;
+      font-weight: 700;
+      color: #f59e0b;
+      background: rgba(245,158,11,0.12);
+      border: 1px solid rgba(245,158,11,0.3);
+      border-radius: 8px;
+      padding: 3px 10px;
+    }
+    .hud-level {
+      font-size: 12px;
+      color: #64748b;
+      font-weight: 600;
+    }
+
+    /* ── Timer bar ── */
+    .timer-bar {
+      height: 6px;
+      background: #0f3460;
+      position: relative;
+      overflow: hidden;
+    }
+    .timer-fill {
+      height: 100%;
+      background: #22c55e;
+      transition: width 1s linear, background 0.4s;
+      transform-origin: left;
+    }
+    .timer-fill.timer-urgent {
+      background: #ef4444;
+      animation: timerPulse 0.5s ease-in-out infinite alternate;
+    }
+    @keyframes timerPulse {
+      from { opacity: 1; }
+      to   { opacity: 0.5; }
+    }
+
+    /* ── Mission card ── */
+    .mission-card {
+      background: linear-gradient(135deg, #16213e 0%, #0f3460 100%);
+      margin: 14px 14px 0;
+      border-radius: 14px;
+      padding: 16px 18px;
+      border: 1px solid #1e3a5f;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      position: relative;
+      overflow: hidden;
+    }
+    .mission-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, #ef4444, #f97316, #f59e0b);
+    }
+    .mission-emoji {
+      font-size: 44px;
+      line-height: 1;
+      flex-shrink: 0;
+      filter: drop-shadow(0 2px 6px rgba(0,0,0,0.4));
+    }
+    .mission-info { flex: 1; min-width: 0; }
+    .mission-name {
+      font-size: 17px;
+      font-weight: 800;
+      color: #f1f5f9;
+      margin-bottom: 3px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .mission-location {
+      font-size: 12px;
+      color: #94a3b8;
+      font-weight: 500;
+    }
+    .mission-demand-block {
+      text-align: center;
+      flex-shrink: 0;
+    }
+    .demand-label {
+      font-size: 10px;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 2px;
+    }
+    .demand-value {
+      font-size: 42px;
+      font-weight: 900;
+      color: #f59e0b;
+      line-height: 1;
+      text-shadow: 0 0 20px rgba(245,158,11,0.5);
+    }
+    .urgency-badge {
+      position: absolute;
+      top: 8px; right: 10px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      padding: 2px 7px;
+      border-radius: 20px;
+    }
+    .urgency-high   { background: rgba(239,68,68,0.25);  color: #fca5a5; }
+    .urgency-medium { background: rgba(245,158,11,0.2);  color: #fcd34d; }
+    .urgency-low    { background: rgba(34,197,94,0.18);  color: #86efac; }
+
+    /* ── Dispatch board ── */
+    .dispatch-board {
+      background: #0f172a;
+      margin: 10px 14px;
+      border-radius: 12px;
+      padding: 12px 14px;
+      border: 1px solid #1e293b;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .board-label {
+      font-size: 10px;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      white-space: nowrap;
+    }
+    .board-trucks {
+      display: flex;
+      gap: 6px;
+      flex: 1;
+      flex-wrap: wrap;
+      min-height: 28px;
+      align-items: center;
+    }
+    .board-truck {
+      background: #1e293b;
+      border-radius: 8px;
+      padding: 3px 8px;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      border: 1px solid #334155;
+    }
+    .board-truck-cap {
+      font-size: 11px;
+      font-weight: 700;
+      color: #22c55e;
+    }
+    .board-empty {
+      font-size: 12px;
+      color: #334155;
+      font-style: italic;
+    }
+    .board-total-block {
+      text-align: right;
+      flex-shrink: 0;
+    }
+    .board-total {
+      font-size: 30px;
+      font-weight: 900;
+      line-height: 1;
+      transition: color 0.25s;
+    }
+    .board-total.total-match { color: #22c55e; text-shadow: 0 0 12px rgba(34,197,94,0.5); }
+    .board-total.total-under { color: #94a3b8; }
+    .board-demand {
+      font-size: 11px;
+      color: #64748b;
+      white-space: nowrap;
+    }
+    .board-excess {
+      font-size: 11px;
+      color: #ef4444;
+      font-weight: 600;
+    }
+
+    /* board shake */
+    @keyframes boardShake {
+      0%,100% { transform: translateX(0); }
+      20%      { transform: translateX(-5px); }
+      40%      { transform: translateX(5px); }
+      60%      { transform: translateX(-4px); }
+      80%      { transform: translateX(4px); }
+    }
+    .board-shaking { animation: boardShake 0.35s ease; }
+
+    /* ── Truck yard ── */
+    .truck-yard {
+      flex: 1;
+      padding: 4px 14px 8px;
+    }
+    .yard-heading {
+      font-size: 11px;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 10px;
+    }
+    .truck-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: 10px;
+    }
+    .truck-card {
+      background: #16213e;
+      border: 2px solid #1e3a5f;
+      border-radius: 12px;
+      padding: 12px 8px 10px;
+      text-align: center;
+      cursor: pointer;
+      transition: transform 0.15s, border-color 0.2s, background 0.2s, box-shadow 0.2s;
+      user-select: none;
+      position: relative;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .truck-card:hover {
+      transform: translateY(-2px);
+      border-color: #3b5998;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+    }
+    .truck-card:active { transform: scale(0.96); }
+
+    .truck-card.truck-selected {
+      border-color: #22c55e;
+      background: rgba(34,197,94,0.1);
+      box-shadow: 0 0 14px rgba(34,197,94,0.25);
+    }
+    .truck-card.truck-selected:hover {
+      border-color: #16a34a;
+    }
+
+    @keyframes truckShake {
+      0%,100% { transform: translateX(0) rotate(0deg); }
+      15%      { transform: translateX(-6px) rotate(-2deg); }
+      30%      { transform: translateX(6px) rotate(2deg); }
+      45%      { transform: translateX(-5px) rotate(-1deg); }
+      60%      { transform: translateX(5px) rotate(1deg); }
+      75%      { transform: translateX(-3px) rotate(0deg); }
+    }
+    .truck-card.truck-blocked {
+      border-color: #ef4444;
+      animation: truckShake 0.4s ease;
+    }
+
+    .truck-emoji {
+      font-size: 36px;
+      display: block;
+      margin-bottom: 6px;
+      line-height: 1;
+    }
+    .truck-label {
+      font-size: 11px;
+      color: #94a3b8;
+      margin-bottom: 5px;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .truck-capacity {
+      display: inline-block;
+      background: #0f3460;
+      color: #f59e0b;
+      font-size: 15px;
+      font-weight: 900;
+      border-radius: 6px;
+      padding: 2px 10px;
+      border: 1px solid rgba(245,158,11,0.3);
+    }
+    .truck-card.truck-selected .truck-capacity {
+      background: #14532d;
+      color: #86efac;
+      border-color: rgba(34,197,94,0.4);
+    }
+    .truck-checkmark {
+      position: absolute;
+      top: 4px; right: 6px;
+      font-size: 14px;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+    .truck-card.truck-selected .truck-checkmark { opacity: 1; }
+
+    /* ── Dispatch button ── */
+    .dispatch-btn-wrap {
+      padding: 8px 14px 14px;
+    }
+    .dispatch-btn {
+      width: 100%;
+      padding: 15px;
+      border: none;
+      border-radius: 12px;
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      cursor: pointer;
+      transition: transform 0.12s, opacity 0.2s, box-shadow 0.2s;
+      text-transform: uppercase;
+    }
+    .dispatch-btn:not(:disabled) {
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      color: #fff;
+      box-shadow: 0 4px 20px rgba(34,197,94,0.35);
+    }
+    .dispatch-btn:not(:disabled):hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 24px rgba(34,197,94,0.45);
+    }
+    .dispatch-btn:not(:disabled):active { transform: scale(0.97); }
+    .dispatch-btn:disabled {
+      background: #1e293b;
+      color: #475569;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    /* ── Outcome overlay ── */
+    .outcome-overlay {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 20px;
+    }
+    .overlay-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.65);
+      backdrop-filter: blur(3px);
+    }
+    .overlay-inner {
+      position: relative;
+      border-radius: 20px;
+      padding: 32px 28px;
+      text-align: center;
+      width: 100%;
+      max-width: 340px;
+      box-shadow: 0 12px 48px rgba(0,0,0,0.5);
+      animation: overlayPop 0.25s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    @keyframes overlayPop {
+      from { transform: scale(0.7); opacity: 0; }
+      to   { transform: scale(1);   opacity: 1; }
+    }
+    .overlay-success .overlay-inner {
+      background: linear-gradient(135deg, #14532d, #166534);
+      border: 2px solid #22c55e;
+    }
+    .overlay-timeout .overlay-inner {
+      background: linear-gradient(135deg, #7c2d12, #9a3412);
+      border: 2px solid #f97316;
+    }
+    .overlay-end .overlay-inner {
+      background: linear-gradient(135deg, #0f172a, #1e293b);
+      border: 2px solid #475569;
+    }
+    .overlay-emoji {
+      font-size: 56px;
+      display: block;
+      margin-bottom: 12px;
+      animation: overlayBounce 0.5s ease 0.1s both;
+    }
+    @keyframes overlayBounce {
+      0%   { transform: scale(0) rotate(-15deg); }
+      60%  { transform: scale(1.2) rotate(5deg); }
+      100% { transform: scale(1) rotate(0deg); }
+    }
+    .overlay-title {
+      font-size: 22px;
+      font-weight: 900;
+      margin-bottom: 6px;
+    }
+    .overlay-subtitle {
+      font-size: 14px;
+      color: rgba(255,255,255,0.7);
+      line-height: 1.4;
+    }
+    .overlay-stats {
+      margin-top: 16px;
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+    }
+    .overlay-stat {
+      background: rgba(255,255,255,0.1);
+      border-radius: 10px;
+      padding: 8px 16px;
+      font-size: 13px;
+    }
+    .overlay-stat strong {
+      display: block;
+      font-size: 22px;
+      font-weight: 900;
+      color: #f59e0b;
+    }
+
+    /* streak badge */
+    .streak-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(245,158,11,0.15);
+      border: 1px solid rgba(245,158,11,0.3);
+      border-radius: 20px;
+      padding: 2px 10px;
+      font-size: 12px;
+      color: #f59e0b;
+      font-weight: 700;
+      margin-left: 6px;
+    }
+
+    /* start screen */
+    .start-screen {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 24px;
+      text-align: center;
+      gap: 16px;
+    }
+    .start-screen h1 {
+      font-size: 26px;
+      font-weight: 900;
+      line-height: 1.2;
+    }
+    .start-screen p {
+      font-size: 14px;
+      color: #94a3b8;
+      line-height: 1.6;
+      max-width: 340px;
+    }
+    .start-btn {
+      margin-top: 8px;
+      padding: 14px 40px;
+      background: linear-gradient(135deg, #ef4444, #b91c1c);
+      border: none;
+      border-radius: 12px;
+      color: #fff;
+      font-size: 18px;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 4px 20px rgba(239,68,68,0.4);
+      transition: transform 0.12s, box-shadow 0.2s;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .start-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 28px rgba(239,68,68,0.5); }
+    .start-btn:active { transform: scale(0.97); }
+
+    .play-again-btn {
+      margin-top: 16px;
+      padding: 13px 32px;
+      background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+      border: none;
+      border-radius: 12px;
+      color: #fff;
+      font-size: 16px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform 0.12s;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      width: 100%;
+    }
+    .play-again-btn:hover { transform: translateY(-2px); }
+    .play-again-btn:active { transform: scale(0.97); }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useCallback } = React;
+
+    /* ─────────────────── DATA ─────────────────── */
+    const TRUCK_TYPES = [
+      { id: 'hose',      emoji: '🚒', label: 'Hose Truck',   capacity: 5 },
+      { id: 'ladder',    emoji: '🪜', label: 'Ladder Truck', capacity: 3 },
+      { id: 'ambulance', emoji: '🚑', label: 'Ambulance',    capacity: 2 },
+      { id: 'command',   emoji: '🚐', label: 'Command Van',  capacity: 4 },
+      { id: 'tanker',    emoji: '🚛', label: 'Water Tanker', capacity: 6 },
+    ];
+
+    const LEVEL_CONFIGS = [
+      { timeLimit: 25, demandRange: [4,8],   trucksAvailable: ['hose','ladder','ambulance'],                        scoreThreshold: 40  },
+      { timeLimit: 20, demandRange: [5,12],  trucksAvailable: ['hose','ladder','ambulance','command'],              scoreThreshold: 100 },
+      { timeLimit: 18, demandRange: [6,15],  trucksAvailable: ['hose','ladder','ambulance','command','tanker'],     scoreThreshold: 180 },
+      { timeLimit: 15, demandRange: [8,18],  trucksAvailable: ['hose','ladder','command','tanker'],                 scoreThreshold: 280 },
+      { timeLimit: 12, demandRange: [10,20], trucksAvailable: ['hose','ladder','ambulance','command','tanker'],     scoreThreshold: 9999},
+    ];
+
+    const INCIDENTS = [
+      { name: 'Factory Fire',   emoji: '🏭', location: 'Industrial District' },
+      { name: 'House Fire',     emoji: '🏠', location: 'Oak Street'          },
+      { name: 'Car Accident',   emoji: '🚗', location: 'Highway 7'           },
+      { name: 'Chemical Spill', emoji: '⚗️', location: 'North Warehouse'    },
+      { name: 'Building Fire',  emoji: '🏢', location: 'Downtown'            },
+      { name: 'Brush Fire',     emoji: '🌿', location: 'City Park'           },
+    ];
+
+    const SUCCESS_MS  = 1400;
+    const TIMEOUT_MS  = 1200;
+
+    /* ─────────────────── HELPERS ─────────────────── */
+    const randInt = (a, b) => Math.floor(Math.random() * (b - a + 1)) + a;
+    const randPick = arr => arr[Math.floor(Math.random() * arr.length)];
+
+    function generateIncident(levelConfig) {
+      const [lo, hi] = levelConfig.demandRange;
+      const base = randPick(INCIDENTS);
+      return {
+        ...base,
+        demandValue: randInt(lo, hi),
+        urgency: Math.random() < 0.33 ? 'high' : Math.random() < 0.5 ? 'medium' : 'low',
+      };
+    }
+
+    function truckById(id) { return TRUCK_TYPES.find(t => t.id === id); }
+
+    /* ─────────────────── MissionCard ─────────────────── */
+    function MissionCard({ incidentName, incidentEmoji, locationName, demandValue, urgency }) {
+      const urgencyLabel = urgency === 'high' ? '🔴 HIGH' : urgency === 'medium' ? '🟡 MED' : '🟢 LOW';
+      return (
+        <div className="mission-card">
+          <span className={`urgency-badge urgency-${urgency}`}>{urgencyLabel}</span>
+          <span className="mission-emoji">{incidentEmoji}</span>
+          <div className="mission-info">
+            <div className="mission-name">{incidentName}</div>
+            <div className="mission-location">📍 {locationName}</div>
+          </div>
+          <div className="mission-demand-block">
+            <div className="demand-label">DEMAND</div>
+            <div className="demand-value">{demandValue}</div>
+          </div>
+        </div>
+      );
+    }
+
+    /* ─────────────────── DispatchBoard ─────────────────── */
+    function DispatchBoard({ selectedTrucks, totalCapacity, demandValue, feedbackMode, boardShaking }) {
+      const match = totalCapacity === demandValue;
+      const totalClass = `board-total ${match ? 'total-match' : 'total-under'}`;
+      return (
+        <div className={`dispatch-board${boardShaking ? ' board-shaking' : ''}`}>
+          <span className="board-label">Queued</span>
+          <div className="board-trucks">
+            {selectedTrucks.length === 0
+              ? <span className="board-empty">no trucks selected</span>
+              : selectedTrucks.map((t, i) => (
+                  <span key={i} className="board-truck">
+                    {t.emoji}<span className="board-truck-cap">{t.capacity}</span>
+                  </span>
+                ))
+            }
+          </div>
+          <div className="board-total-block">
+            <div className={totalClass}>{totalCapacity}</div>
+            <div className="board-demand">of {demandValue}</div>
+          </div>
+        </div>
+      );
+    }
+
+    /* ─────────────────── TruckYard ─────────────────── */
+    function TruckYard({ trucks, selectedIds, dispatchEnabled, onTruckToggle, onDispatch, shakingId }) {
+      return (
+        <div className="truck-yard">
+          <div className="yard-heading">Available Units — tap to select</div>
+          <div className="truck-grid">
+            {trucks.map(truck => {
+              const selected  = selectedIds.has(truck.id);
+              const shaking   = shakingId === truck.id;
+              let cardClass = 'truck-card';
+              if (selected) cardClass += ' truck-selected';
+              if (shaking)  cardClass += ' truck-blocked';
+              return (
+                <div
+                  key={truck.id}
+                  className={cardClass}
+                  onClick={() => onTruckToggle(truck.id)}
+                  role="button"
+                  aria-pressed={selected}
+                  tabIndex={0}
+                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') onTruckToggle(truck.id); }}
+                >
+                  <span className="truck-checkmark">✓</span>
+                  <span className="truck-emoji">{truck.emoji}</span>
+                  <div className="truck-label">{truck.label}</div>
+                  <span className="truck-capacity">{truck.capacity}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
+
+    /* ─────────────────── OutcomeOverlay ─────────────────── */
+    function OutcomeOverlay({ feedbackMode, summaryStats, onPlayAgain }) {
+      if (!feedbackMode) return null;
+
+      const config = {
+        success: {
+          wrapClass: 'overlay-success',
+          emoji: '✅',
+          title: 'Incident Resolved!',
+          subtitle: summaryStats && summaryStats.streak > 1
+            ? `${summaryStats.streak}x streak! +${summaryStats.pointsEarned} pts`
+            : `+${summaryStats ? summaryStats.pointsEarned : 10} pts`,
+        },
+        timeout: {
+          wrapClass: 'overlay-timeout',
+          emoji: '⏰',
+          title: 'Too Slow!',
+          subtitle: 'Incident escalated — a life lost.',
+        },
+        shift_end: {
+          wrapClass: 'overlay-end',
+          emoji: '🏁',
+          title: 'Shift Over!',
+          subtitle: null,
+        },
+      }[feedbackMode];
+
+      if (!config) return null;
+
+      return (
+        <div className={`outcome-overlay ${config.wrapClass}`}>
+          <div className="overlay-backdrop" />
+          <div className="overlay-inner">
+            <span className="overlay-emoji">{config.emoji}</span>
+            <div className="overlay-title">{config.title}</div>
+            {config.subtitle && <div className="overlay-subtitle">{config.subtitle}</div>}
+            {feedbackMode === 'shift_end' && summaryStats && (
+              <>
+                <div className="overlay-stats">
+                  <div className="overlay-stat">
+                    <strong>{summaryStats.incidentCount}</strong>
+                    Incidents
+                  </div>
+                  <div className="overlay-stat">
+                    <strong>{summaryStats.score}</strong>
+                    Score
+                  </div>
+                  <div className="overlay-stat">
+                    <strong>{summaryStats.levelIndex + 1}</strong>
+                    Level
+                  </div>
+                </div>
+                <button className="play-again-btn" onClick={onPlayAgain}>
+                  🔄 Play Again
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    /* ─────────────────── FireDispatchPrototype ─────────────────── */
+    function FireDispatchPrototype() {
+      const [started,         setStarted]         = useState(false);
+      const [levelIndex,      setLevelIndex]       = useState(0);
+      const [score,           setScore]            = useState(0);
+      const [lives,           setLives]            = useState(3);
+      const [currentIncident, setCurrentIncident]  = useState(null);
+      const [dispatched,      setDispatched]       = useState([]);   // truckId[]
+      const [totalCapacity,   setTotalCapacity]    = useState(0);
+      const [feedbackMode,    setFeedbackMode]     = useState(null); // null|'success'|'timeout'|'shift_end'
+      const [timeLeft,        setTimeLeft]         = useState(25);
+      const [streak,          setStreak]           = useState(0);
+      const [sessionComplete, setSessionComplete]  = useState(false);
+      const [incidentCount,   setIncidentCount]    = useState(0);
+      const [shakingId,       setShakingId]        = useState(null);
+      const [boardShaking,    setBoardShaking]     = useState(false);
+      const [lastPoints,      setLastPoints]       = useState(0);
+
+      // derived
+      const currentLevel   = LEVEL_CONFIGS[levelIndex];
+      const availableTrucks = TRUCK_TYPES.filter(t => currentLevel.trucksAvailable.includes(t.id));
+      const timePercent     = (timeLeft / currentLevel.timeLimit) * 100;
+      const selectedIds     = new Set(dispatched);
+      const selectedTrucks  = dispatched.map(id => truckById(id));
+      const dispatchEnabled = dispatched.length > 0 && totalCapacity === totalCapacity && !feedbackMode;
+
+      // refs for stable callbacks
+      const feedbackRef    = useRef(feedbackMode);
+      const sessionRef     = useRef(sessionComplete);
+      feedbackRef.current  = feedbackMode;
+      sessionRef.current   = sessionComplete;
+
+      /* init incident */
+      const spawnIncident = useCallback((lvlIdx) => {
+        const lvl = LEVEL_CONFIGS[lvlIdx];
+        setCurrentIncident(generateIncident(lvl));
+        setDispatched([]);
+        setTotalCapacity(0);
+        setTimeLeft(lvl.timeLimit);
+        setFeedbackMode(null);
+        setBoardShaking(false);
+      }, []);
+
+      /* start game */
+      const startGame = () => {
+        setLevelIndex(0);
+        setScore(0);
+        setLives(3);
+        setStreak(0);
+        setIncidentCount(0);
+        setSessionComplete(false);
+        setFeedbackMode(null);
+        spawnIncident(0);
+        setStarted(true);
+      };
+
+      /* timer */
+      useEffect(() => {
+        if (!started || feedbackRef.current !== null || sessionRef.current) return;
+        if (timeLeft <= 0) return;
+        const id = setTimeout(() => setTimeLeft(t => t - 1), 1000);
+        return () => clearTimeout(id);
+      }, [started, timeLeft, feedbackMode, sessionComplete]);
+
+      /* timeout handler */
+      useEffect(() => {
+        if (!started || timeLeft !== 0 || feedbackRef.current !== null || sessionRef.current) return;
+        // time ran out
+        setStreak(0);
+        setLives(prev => {
+          const next = prev - 1;
+          if (next <= 0) {
+            setSessionComplete(true);
+            setFeedbackMode('shift_end');
+          } else {
+            setFeedbackMode('timeout');
+          }
+          return next;
+        });
+      }, [started, timeLeft]);
+
+      /* auto-advance after timeout feedback */
+      useEffect(() => {
+        if (feedbackMode !== 'timeout') return;
+        const id = setTimeout(() => {
+          setLevelIndex(prev => {
+            spawnIncident(prev);
+            return prev;
+          });
+        }, TIMEOUT_MS);
+        return () => clearTimeout(id);
+      }, [feedbackMode]);
+
+      /* truck toggle */
+      const handleTruckToggle = useCallback((truckId) => {
+        if (feedbackRef.current !== null) return;
+        const truck = truckById(truckId);
+        if (!truck) return;
+
+        setDispatched(prev => {
+          if (prev.includes(truckId)) {
+            // deselect
+            const next = prev.filter(id => id !== truckId);
+            setTotalCapacity(next.reduce((sum, id) => sum + truckById(id).capacity, 0));
+            return next;
+          } else {
+            const tentative = prev.reduce((sum, id) => sum + truckById(id).capacity, 0) + truck.capacity;
+            const demand = currentIncident ? currentIncident.demandValue : 0;
+            if (tentative > demand) {
+              // overshoot prevention — shake truck
+              setShakingId(truckId);
+              setTimeout(() => setShakingId(null), 420);
+              return prev; // unchanged
+            }
+            const next = [...prev, truckId];
+            setTotalCapacity(tentative);
+            return next;
+          }
+        });
+      }, [currentIncident]);
+
+      /* dispatch */
+      const handleDispatch = useCallback(() => {
+        if (feedbackRef.current !== null) return;
+        if (dispatched.length === 0) return;
+        const demand = currentIncident ? currentIncident.demandValue : 0;
+        if (totalCapacity === demand) {
+          const pts = 10 + streak * 2;
+          setLastPoints(pts);
+          setScore(s => {
+            const newScore = s + pts;
+            return newScore;
+          });
+          const newStreak = streak + 1;
+          setStreak(newStreak);
+          const newCount = incidentCount + 1;
+          setIncidentCount(newCount);
+          setFeedbackMode('success');
+
+          setTimeout(() => {
+            setScore(prevScore => {
+              setLevelIndex(prevLevel => {
+                const lvl = LEVEL_CONFIGS[prevLevel];
+                let nextLevel = prevLevel;
+                if (prevScore + pts >= lvl.scoreThreshold && prevLevel < 4) {
+                  nextLevel = prevLevel + 1;
+                }
+                spawnIncident(nextLevel);
+                return nextLevel;
+              });
+              return prevScore; // score already updated above
+            });
+          }, SUCCESS_MS);
+        } else {
+          // partial dispatch — shake board
+          setBoardShaking(true);
+          setTimeout(() => setBoardShaking(false), 400);
+        }
+      }, [dispatched, totalCapacity, currentIncident, streak, incidentCount, spawnIncident]);
+
+      /* ── start screen ── */
+      if (!started) {
+        return (
+          <div className="fire-dispatch">
+            <div className="start-screen">
+              <div style={{ fontSize: 72 }}>🚒</div>
+              <h1>Fire Station<br/>Dispatch</h1>
+              <p>
+                Incidents are incoming! Select the right combination of trucks so their total capacity
+                matches the demand exactly. No overshooting allowed — plan carefully and dispatch fast!
+              </p>
+              <div style={{ fontSize: 13, color: '#64748b', lineHeight: 1.7 }}>
+                <strong style={{ color: '#f59e0b' }}>🚒 Hose</strong> = 5 &nbsp;
+                <strong style={{ color: '#f59e0b' }}>🪜 Ladder</strong> = 3 &nbsp;
+                <strong style={{ color: '#f59e0b' }}>🚑 Ambulance</strong> = 2
+                <br />
+                <strong style={{ color: '#f59e0b' }}>🚐 Command</strong> = 4 &nbsp;
+                <strong style={{ color: '#f59e0b' }}>🚛 Tanker</strong> = 6
+              </div>
+              <button className="start-btn" onClick={startGame}>Start Shift →</button>
+            </div>
+          </div>
+        );
+      }
+
+      const livesDisplay = Array.from({ length: 3 }, (_, i) => i < lives ? '❤️' : '🖤').join('');
+
+      return (
+        <div className="fire-dispatch">
+          {/* HUD */}
+          <div className="dispatch-hud">
+            <div>
+              <div className="hud-title">🚨 Dispatch</div>
+              <div className="hud-level">Level {levelIndex + 1} / 5</div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+              <div className="hud-lives">{livesDisplay}</div>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <div className="hud-score">Score: {score}</div>
+              {streak > 1 && (
+                <span className="streak-badge">🔥 {streak}x</span>
+              )}
+            </div>
+          </div>
+
+          {/* Timer */}
+          <div className="timer-bar">
+            <div
+              className={`timer-fill${timeLeft < 5 ? ' timer-urgent' : ''}`}
+              style={{ width: `${timePercent}%` }}
+            />
+          </div>
+
+          {/* Mission */}
+          {currentIncident && (
+            <MissionCard
+              incidentName={currentIncident.name}
+              incidentEmoji={currentIncident.emoji}
+              locationName={currentIncident.location}
+              demandValue={currentIncident.demandValue}
+              urgency={currentIncident.urgency}
+            />
+          )}
+
+          {/* Dispatch board */}
+          <DispatchBoard
+            selectedTrucks={selectedTrucks}
+            totalCapacity={totalCapacity}
+            demandValue={currentIncident ? currentIncident.demandValue : 0}
+            feedbackMode={feedbackMode}
+            boardShaking={boardShaking}
+          />
+
+          {/* Truck yard */}
+          <TruckYard
+            trucks={availableTrucks}
+            selectedIds={selectedIds}
+            dispatchEnabled={dispatchEnabled}
+            onTruckToggle={handleTruckToggle}
+            onDispatch={handleDispatch}
+            shakingId={shakingId}
+          />
+
+          {/* Dispatch button */}
+          <div className="dispatch-btn-wrap">
+            <button
+              className="dispatch-btn"
+              disabled={dispatched.length === 0 || !!feedbackMode}
+              onClick={handleDispatch}
+            >
+              {totalCapacity === (currentIncident ? currentIncident.demandValue : -1) && dispatched.length > 0
+                ? '✅ DISPATCH!'
+                : `DISPATCH  (${totalCapacity} / ${currentIncident ? currentIncident.demandValue : '?'})`
+              }
+            </button>
+          </div>
+
+          {/* Outcome overlay */}
+          <OutcomeOverlay
+            feedbackMode={sessionComplete ? 'shift_end' : feedbackMode === 'shift_end' ? 'shift_end' : feedbackMode}
+            summaryStats={{
+              incidentCount,
+              score,
+              levelIndex,
+              streak,
+              pointsEarned: lastPoints,
+            }}
+            onPlayAgain={startGame}
+          />
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<FireDispatchPrototype />);
+  </script>
+</body>
+</html>

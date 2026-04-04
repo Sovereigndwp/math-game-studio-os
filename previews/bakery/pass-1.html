@@ -3,457 +3,860 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Bakery Math — Pass 1</title>
+  <title>Bakery Rush — Pass 1 (Component Architecture)</title>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <style>
-    /* ── Reset ─────────────────────────────────────────────────────────────── */
-    *, *::before, *::after { box-sizing: border-box; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
     body {
-      margin: 0; padding: 0;
       background: #fdf6ec;
-      -webkit-font-smoothing: antialiased;
-      -moz-osx-font-smoothing: grayscale;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 16px;
     }
+
     #root {
-      width: 100%; height: 100dvh;
-      display: flex; flex-direction: column;
+      width: 100%;
+      max-width: 480px;
     }
 
-    /* ── Design tokens ──────────────────────────────────────────────────────── */
-    :root {
-      --bakery-bg:     #fdf6ec;
-      --bakery-brown:  #7b4f2e;
-      --bakery-warm:   #c8813a;
-      --bakery-cream:  #fef3dc;
-      --bakery-green:  #3a7d44;
-      --bakery-red:    #c0392b;
-      --bakery-text:   #3b2510;
-      --bakery-border: #d4a96a;
-      --radius:        12px;
-      --shadow:        0 2px 8px rgba(0,0,0,0.12);
+    /* ── Root container ── */
+    .bakery-rush {
+      max-width: 480px;
+      margin: 0 auto;
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 4px 24px rgba(123,79,46,0.13);
+      overflow: hidden;
+      position: relative;
     }
 
-    /* ── Layout ─────────────────────────────────────────────────────────────── */
-    .bakery-game {
-      display: flex; flex-direction: column;
-      height: 100dvh;
-      background: var(--bakery-bg);
-      font-family: 'Segoe UI', system-ui, sans-serif;
-      color: var(--bakery-text);
-      max-width: 480px; margin: 0 auto;
-      position: relative; overflow: hidden;
-    }
-    .game-shake { animation: game-shake 0.45s ease; }
-    @keyframes game-shake {
-      0%,100% { transform: translateX(0); }
-      20%      { transform: translateX(-8px); }
-      40%      { transform: translateX(8px); }
-      60%      { transform: translateX(-6px); }
-      80%      { transform: translateX(6px); }
+    /* ── ShiftHUD ── */
+    .shift-hud {
+      background: #7b4f2e;
+      color: #fff;
+      padding: 10px 16px 8px;
     }
 
-    /* ── Header ─────────────────────────────────────────────────────────────── */
-    .game-header {
-      height: 80px;
-      background: var(--bakery-brown); color: #fff;
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 0 20px; flex-shrink: 0;
-      box-shadow: var(--shadow); position: relative; z-index: 1;
-    }
-    .game-title { font-size: 1.3rem; font-weight: 700; letter-spacing: 0.02em; }
-
-    /* ── Play area ──────────────────────────────────────────────────────────── */
-    .game-play-area {
-      flex: 1; display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      padding: 20px; gap: 20px; position: relative;
+    .hud-top-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
     }
 
-    /* ── Footer ─────────────────────────────────────────────────────────────── */
-    .game-footer {
-      height: 140px;
-      background: var(--bakery-cream);
-      border-top: 2px solid var(--bakery-border);
-      flex-shrink: 0; display: flex;
-      align-items: center; justify-content: center;
-      position: relative; z-index: 1;
+    .hud-score-label {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      opacity: 0.75;
     }
 
-    /* ── Customer character ─────────────────────────────────────────────────── */
-    .ticket-row { display: flex; align-items: center; gap: 16px; }
+    .hud-score-value {
+      font-size: 1.6rem;
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    .hud-lives {
+      font-size: 1.3rem;
+      letter-spacing: 2px;
+    }
+
+    .hud-level-badge {
+      background: rgba(255,255,255,0.2);
+      border-radius: 20px;
+      padding: 3px 10px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+    }
+
+    .hud-queue {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+
+    .hud-queue-label {
+      font-size: 0.6rem;
+      opacity: 0.7;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+    }
+
+    .hud-queue-item {
+      background: rgba(255,255,255,0.15);
+      border-radius: 8px;
+      padding: 3px 8px;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+
+    .hud-patience-bar {
+      height: 5px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .hud-patience-fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 0.9s linear, background-color 0.4s ease;
+    }
+
+    /* ── OrderTicket ── */
+    .order-ticket {
+      padding: 14px 16px 10px;
+      border-bottom: 1px solid #f3e5d0;
+    }
+
+    .ticket-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
     .customer-character {
-      display: flex; flex-direction: column; align-items: center; gap: 4px;
-      transition: transform 0.2s ease;
-    }
-    .customer-character.customer-happy {
-      animation: character-bounce 0.4s cubic-bezier(0.17, 0.89, 0.32, 1.28);
-    }
-    @keyframes character-bounce {
-      0%   { transform: scale(1); }
-      50%  { transform: scale(1.25) translateY(-6px); }
-      100% { transform: scale(1); }
-    }
-    .customer-emoji { font-size: 3rem; line-height: 1; display: block; transition: all 0.2s ease; }
-    .customer-label {
-      font-size: 0.65rem; color: var(--bakery-warm);
-      font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
     }
 
-    /* ── Ticket card ─────────────────────────────────────────────────────────── */
-    .customer-ticket {
-      background: #fff; border: 3px solid var(--bakery-border);
-      border-radius: var(--radius); padding: 16px 28px;
-      text-align: center; box-shadow: var(--shadow); min-width: 140px;
-    }
-    .ticket-label {
-      font-size: 0.75rem; color: var(--bakery-warm); font-weight: 700;
-      text-transform: uppercase; letter-spacing: 0.06em;
-    }
-    .ticket-number {
-      font-size: 3.5rem; font-weight: 900; color: var(--bakery-brown);
-      line-height: 1; margin: 4px 0;
-    }
-    .ticket-sub { font-size: 0.75rem; color: #999; }
-
-    /* ── Running total ───────────────────────────────────────────────────────── */
-    .running-total { text-align: right; }
-    .total-label { font-size: 0.65rem; opacity: 0.8; text-transform: uppercase; letter-spacing: 0.05em; }
-    .total-number { font-size: 1.8rem; font-weight: 900; line-height: 1; }
-    .progress-bar {
-      width: 80px; height: 6px; background: rgba(255,255,255,0.3);
-      border-radius: 3px; margin-top: 4px; overflow: hidden;
-    }
-    .progress-fill { height: 100%; background: #f0c040; border-radius: 3px; transition: width 0.2s ease; }
-
-    /* ── Pastry box ──────────────────────────────────────────────────────────── */
-    .pastry-box {
-      background: var(--bakery-cream); border: 3px solid var(--bakery-border);
-      border-radius: var(--radius); padding: 16px; min-height: 100px; min-width: 220px;
-      text-align: center; position: relative; box-shadow: var(--shadow); transition: border-color 0.15s;
-    }
-    .pastry-box.box-success { border-color: var(--bakery-green); box-shadow: 0 0 0 4px rgba(58,125,68,0.2); }
-    .pastry-box.box-overshoot { border-color: var(--bakery-red); box-shadow: 0 0 0 4px rgba(192,57,43,0.2); }
-    .box-label {
-      font-size: 0.7rem; color: var(--bakery-warm); font-weight: 700;
-      text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px;
-    }
-    .box-items { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; min-height: 40px; }
-    .box-pastry { font-size: 1.6rem; animation: item-enter 0.2s ease; }
-    @keyframes item-enter {
-      from { transform: scale(0) translateY(-10px); opacity: 0; }
-      to   { transform: scale(1) translateY(0);     opacity: 1; }
-    }
-    .box-lid    { font-size: 2rem; margin-top: 8px; animation: lid-drop 0.3s ease; }
-    .box-bounce { font-size: 2rem; margin-top: 8px; }
-    @keyframes lid-drop {
-      from { transform: translateY(-20px); opacity: 0; }
-      to   { transform: translateY(0);     opacity: 1; }
+    .customer-emoji {
+      font-size: 2.2rem;
+      line-height: 1;
     }
 
-    /* ── Flying pastry ───────────────────────────────────────────────────────── */
-    .flying-pastry {
-      position: fixed; font-size: 1.8rem; pointer-events: none; z-index: 200;
-      transform: translate(-50%, -50%);
-      animation: fly-to-box linear forwards;
-      will-change: transform, opacity;
-    }
-    @keyframes fly-to-box {
-      0%   { transform: translate(-50%, -50%) scale(1); opacity: 1; }
-      50%  {
-        transform: translate(
-          calc(-50% + var(--dx) * 0.5 - 30px),
-          calc(-50% + var(--dy) * 0.5 - 60px)
-        ) scale(1.15);
-        opacity: 1;
-      }
-      100% {
-        transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(0.6);
-        opacity: 0;
-      }
+    .customer-name-label {
+      font-size: 0.58rem;
+      color: #7b4f2e;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
     }
 
-    /* ── Full-screen feedback overlay ────────────────────────────────────────── */
-    .feedback-fullscreen {
-      position: fixed; inset: 0; z-index: 100;
-      display: flex; align-items: center; justify-content: center;
+    .ticket-info {
+      flex: 1;
+    }
+
+    .order-target-label {
+      font-size: 0.65rem;
+      color: #9b7a5e;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      margin-bottom: 2px;
+    }
+
+    .order-target-value {
+      font-size: 2rem;
+      font-weight: 800;
+      color: #7b4f2e;
+      line-height: 1;
+    }
+
+    .order-message {
+      font-size: 0.78rem;
+      color: #a07850;
+      margin-top: 3px;
+    }
+
+    .patience-bar {
+      height: 6px;
+      background: #f3e5d0;
+      border-radius: 3px;
+      overflow: hidden;
+      margin-top: 8px;
+    }
+
+    .patience-fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 0.9s linear, background-color 0.4s ease;
+    }
+
+    /* ── ConveyorBelt ── */
+    .conveyor-belt {
+      height: 120px;
+      overflow: hidden;
+      border-top: 3px solid #d4a882;
+      border-bottom: 3px solid #d4a882;
+      background: repeating-linear-gradient(
+        90deg,
+        #e8d5be 0px,
+        #e8d5be 30px,
+        #d4c4aa 30px,
+        #d4c4aa 60px
+      );
+      display: flex;
+      align-items: center;
+      position: relative;
+    }
+
+    .belt-track {
+      display: flex;
+      gap: 16px;
+      padding: 0 16px;
+      animation: belt-scroll linear infinite;
+      animation-duration: var(--belt-duration, 4s);
+      width: max-content;
+    }
+
+    @keyframes belt-scroll {
+      from { transform: translateX(0); }
+      to   { transform: translateX(-50%); }
+    }
+
+    .belt-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      background: #fff;
+      border-radius: 12px;
+      padding: 8px 10px 6px;
+      cursor: pointer;
+      border: 2px solid transparent;
+      box-shadow: 0 2px 8px rgba(123,79,46,0.18);
+      transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
+      user-select: none;
+      -webkit-user-select: none;
+      min-width: 60px;
+    }
+
+    .belt-item:hover {
+      transform: scale(1.08) translateY(-3px);
+      box-shadow: 0 5px 16px rgba(123,79,46,0.28);
+      border-color: #7b4f2e;
+    }
+
+    .belt-item:active {
+      transform: scale(0.96);
+    }
+
+    .belt-item-disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
       pointer-events: none;
-      animation: overlay-scale-in 0.18s cubic-bezier(0.17, 0.89, 0.32, 1.2) forwards;
     }
-    @keyframes overlay-scale-in {
-      from { opacity: 0; transform: scale(0.88); }
-      to   { opacity: 1; transform: scale(1); }
+
+    .pastry-emoji {
+      font-size: 1.8rem;
+      line-height: 1;
     }
-    .feedback-fullscreen.feedback-success  { background: rgba(40, 120, 60, 0.92); }
-    .feedback-fullscreen.feedback-overshoot { background: rgba(180, 40, 30, 0.88); }
-    .feedback-inner { text-align: center; color: #fff; }
-    .feedback-emoji {
-      font-size: 5rem; line-height: 1; display: block;
-      animation: emoji-pop 0.25s cubic-bezier(0.17, 0.89, 0.32, 1.4) 0.1s both;
+
+    .pastry-value {
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: #7b4f2e;
     }
+
+    /* ── PastryBox ── */
+    .pastry-box {
+      padding: 12px 16px;
+      background: #fdf6ec;
+      border-bottom: 1px solid #f3e5d0;
+      transition: background-color 0.15s ease;
+    }
+
+    .pastry-box.box-success {
+      background: #f0fdf4;
+    }
+
+    .pastry-box.box-overshoot {
+      background: #fef2f2;
+    }
+
+    .box-items-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      min-height: 52px;
+      align-items: flex-start;
+      margin-bottom: 8px;
+    }
+
+    .box-item {
+      background: #fff;
+      border: 2px solid #e8d5be;
+      border-radius: 10px;
+      padding: 5px 8px;
+      font-size: 1.5rem;
+      line-height: 1;
+      animation: item-pop 0.2s cubic-bezier(0.17, 0.89, 0.32, 1.3) forwards;
+    }
+
+    @keyframes item-pop {
+      from { transform: scale(0.5); opacity: 0; }
+      to   { transform: scale(1);   opacity: 1; }
+    }
+
+    .box-item.box-item-error {
+      border-color: #fca5a5;
+    }
+
+    .box-empty-hint {
+      color: #c9a882;
+      font-size: 0.78rem;
+      font-style: italic;
+      padding: 12px 0;
+    }
+
+    .box-total-row {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+    }
+
+    .box-total-label {
+      font-size: 0.65rem;
+      color: #9b7a5e;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+    }
+
+    .box-total-value {
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: #7b4f2e;
+    }
+
+    .box-total-value.total-over {
+      color: #b91c1c;
+    }
+
+    .box-total-value.total-match {
+      color: #166534;
+    }
+
+    .box-target-label {
+      font-size: 0.75rem;
+      color: #9b7a5e;
+      margin-left: auto;
+    }
+
+    /* ── FeedbackOverlay ── */
+    .feedback-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: overlay-fade-in 0.18s ease forwards;
+    }
+
+    @keyframes overlay-fade-in {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+
+    .overlay-success   { background: rgba(22,101,52,0.93); }
+    .overlay-overshoot { background: rgba(153,27,27,0.90); }
+    .overlay-end       { background: rgba(30,20,10,0.94); }
+
+    .overlay-inner {
+      text-align: center;
+      color: #fff;
+      padding: 32px 24px;
+    }
+
+    .overlay-emoji {
+      font-size: 5rem;
+      line-height: 1;
+      display: block;
+      animation: emoji-pop 0.25s cubic-bezier(0.17, 0.89, 0.32, 1.4) 0.05s both;
+    }
+
     @keyframes emoji-pop {
       from { transform: scale(0.4); opacity: 0; }
       to   { transform: scale(1);   opacity: 1; }
     }
-    .feedback-text {
-      font-size: 1.6rem; font-weight: 800; margin-top: 16px;
-      letter-spacing: 0.01em; text-shadow: 0 2px 8px rgba(0,0,0,0.25);
+
+    .overlay-title {
+      font-size: 1.5rem;
+      font-weight: 800;
+      margin-top: 12px;
     }
 
-    /* ── Pastry tray ─────────────────────────────────────────────────────────── */
-    .pastry-tray { padding: 0 12px; width: 100%; }
-    .tray-label {
-      font-size: 0.7rem; color: var(--bakery-brown); font-weight: 700;
-      text-transform: uppercase; letter-spacing: 0.06em;
-      text-align: center; margin-bottom: 6px;
+    .overlay-subtitle {
+      font-size: 1rem;
+      opacity: 0.85;
+      margin-top: 6px;
     }
-    .tray-items { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
-    .tray-pastry {
-      font-size: 1.8rem; min-width: 44px; min-height: 44px;
-      background: #fff; border: 2px solid var(--bakery-border);
-      border-radius: 8px; cursor: pointer;
-      transition: transform 0.1s, background 0.1s;
-      display: flex; align-items: center; justify-content: center; padding: 0;
-    }
-    .tray-pastry:hover:not(.tray-disabled) { transform: scale(1.15); background: var(--bakery-cream); }
-    .tray-pastry:active:not(.tray-disabled) { transform: scale(0.92); }
-    .tray-pastry.tray-disabled { opacity: 0.35; cursor: not-allowed; }
 
-    /* ── Session complete ────────────────────────────────────────────────────── */
-    .session-complete {
-      flex: 1; display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      gap: 16px; padding: 40px; text-align: center;
+    .overlay-restart-btn {
+      margin-top: 20px;
+      background: #fff;
+      color: #7b4f2e;
+      border: none;
+      border-radius: 24px;
+      padding: 10px 28px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.1s ease;
     }
-    .complete-emoji { font-size: 4rem; animation: pop-in 0.4s cubic-bezier(0.17, 0.89, 0.32, 1.28); }
-    @keyframes pop-in {
-      from { transform: scale(0); opacity: 0; }
-      to   { transform: scale(1); opacity: 1; }
+
+    .overlay-restart-btn:hover  { transform: scale(1.04); }
+    .overlay-restart-btn:active { transform: scale(0.97); }
+
+    /* ── Game header strip ── */
+    .game-header {
+      background: #7b4f2e;
+      padding: 8px 16px 0;
+      color: rgba(255,255,255,0.55);
+      font-size: 0.58rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
     }
-    .session-complete h2 { font-size: 2rem; font-weight: 900; color: var(--bakery-brown); margin: 0; }
-    .session-complete p  { font-size: 1.1rem; color: #888; margin: 0; }
-    .replay-btn {
-      margin-top: 12px; padding: 14px 36px; font-size: 1.1rem; font-weight: 700;
-      background: var(--bakery-brown); color: #fff; border: none;
-      border-radius: var(--radius); cursor: pointer; min-height: 52px;
-      transition: background 0.15s, transform 0.1s;
-    }
-    .replay-btn:hover  { background: var(--bakery-warm); }
-    .replay-btn:active { transform: scale(0.97); }
   </style>
 </head>
 <body>
-<div id="root"></div>
+  <div id="root"></div>
 
-<script>
-// ── Constants ─────────────────────────────────────────────────────────────────
-const TARGET_SEQUENCE = [3, 5, 4, 7, 6];
-const STATES = { ACTIVE: 'active', SUCCESS: 'success', OVERSHOOT: 'overshoot', COMPLETE: 'complete' };
-const SUCCESS_MS   = 1500;
-const OVERSHOOT_MS = 700;
-const FLY_MS       = 380;
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useCallback } = React;
 
-// ── State ─────────────────────────────────────────────────────────────────────
-let targets      = [];
-let roundIndex   = 0;
-let currentTotal = 0;
-let roundState   = STATES.ACTIVE;
-let isAnimating  = false;
-let trayEl       = null;
-let boxEl        = null;
+    /* ─────────────────────────── DATA ─────────────────────────── */
 
-function getTargets() {
-  return [...TARGET_SEQUENCE].sort(() => Math.random() - 0.5).slice(0, 5);
-}
+    const PASTRY_VALUES = { '🥐': 1, '🍩': 2, '🧁': 3, '🍰': 4, '🎂': 5 };
+    const PASTRY_EMOJIS = Object.keys(PASTRY_VALUES);
 
-// ── Render ────────────────────────────────────────────────────────────────────
-function render() {
-  const root = document.getElementById('root');
-  root.innerHTML = '';
+    const LEVEL_CONFIGS = [
+      { beltDuration: 5,   targetPool: [4,5,6,7,8],         patience: 20, scoreThreshold: 30   },
+      { beltDuration: 4,   targetPool: [5,6,7,8,10,12],      patience: 18, scoreThreshold: 70   },
+      { beltDuration: 3,   targetPool: [5,7,9,12,15],         patience: 15, scoreThreshold: 120  },
+      { beltDuration: 2.5, targetPool: [6,8,10,14,18],        patience: 12, scoreThreshold: 180  },
+      { beltDuration: 2,   targetPool: [8,10,12,16,20],        patience: 10, scoreThreshold: 9999 },
+    ];
 
-  if (roundState === STATES.COMPLETE) { renderComplete(root); return; }
+    const SUCCESS_MS   = 1200;
+    const OVERSHOOT_MS = 700;
 
-  const target      = targets[roundIndex];
-  const totalRounds = targets.length;
-  const isSuccess   = roundState === STATES.SUCCESS;
-  const isOvershoot = roundState === STATES.OVERSHOOT;
-  const trayDisabled = isAnimating || roundState !== STATES.ACTIVE;
+    const CUSTOMERS = [
+      { name: 'Maya', emoji: '👩'    },
+      { name: 'Leo',  emoji: '👦'    },
+      { name: 'Sam',  emoji: '🧑'    },
+      { name: 'Zara', emoji: '👧'    },
+      { name: 'Alex', emoji: '👩‍🦱' },
+      { name: 'Nori', emoji: '🧒'    },
+    ];
 
-  const game = el('div', `bakery-game${isOvershoot ? ' game-shake' : ''}`);
+    /* ─────────────────────────── HELPERS ─────────────────────── */
 
-  // Full-screen feedback overlay
-  if (isSuccess || isOvershoot) {
-    const overlay = el('div', `feedback-fullscreen ${isSuccess ? 'feedback-success' : 'feedback-overshoot'}`);
-    const inner   = el('div', 'feedback-inner');
-    const emoji   = el('div', 'feedback-emoji'); emoji.textContent = isSuccess ? '😊' : '↩️';
-    const text    = el('div', 'feedback-text');  text.textContent  = isSuccess ? 'Perfect order!' : 'Too many! One bounced back.';
-    inner.append(emoji, text);
-    overlay.appendChild(inner);
-    game.appendChild(overlay);
-  }
-
-  // Header
-  const header   = el('div', 'game-header');
-  const title    = el('span', 'game-title'); title.textContent = '🍞 Bakery Math';
-  const rt       = el('div', 'running-total');
-  const rtLabel  = el('div', 'total-label');  rtLabel.textContent  = 'In the box';
-  const rtNumber = el('div', 'total-number'); rtNumber.textContent = currentTotal;
-  const pct = target > 0 ? Math.min(currentTotal / target, 1) : 0;
-  const pBar = el('div', 'progress-bar');
-  const pFill = el('div', 'progress-fill'); pFill.style.width = `${pct * 100}%`;
-  pBar.appendChild(pFill);
-  rt.append(rtLabel, rtNumber, pBar);
-  header.append(title, rt);
-  game.appendChild(header);
-
-  // Play area
-  const playArea  = el('div', 'game-play-area');
-  const ticketRow = el('div', 'ticket-row');
-
-  // Customer character
-  const customer   = el('div', `customer-character${isSuccess ? ' customer-happy' : ''}`);
-  const custEmoji  = el('span', 'customer-emoji'); custEmoji.textContent = isSuccess ? '😊' : '👩‍🍳';
-  const custLabel  = el('span', 'customer-label'); custLabel.textContent = 'Customer';
-  customer.append(custEmoji, custLabel);
-
-  // Ticket
-  const ticket = el('div', 'customer-ticket');
-  const tLabel = el('div', 'ticket-label'); tLabel.textContent = 'Order';
-  const tNum   = el('div', 'ticket-number'); tNum.textContent  = target;
-  const tSub   = el('div', 'ticket-sub');   tSub.textContent  = `${roundIndex + 1} / ${totalRounds}`;
-  ticket.append(tLabel, tNum, tSub);
-  ticketRow.append(customer, ticket);
-  playArea.appendChild(ticketRow);
-
-  // Pastry box
-  const boxWrap = el('div', '');
-  boxEl = boxWrap;
-  const box      = el('div', `pastry-box${isSuccess ? ' box-success' : ''}${isOvershoot ? ' box-overshoot' : ''}`);
-  const boxLbl   = el('div', 'box-label'); boxLbl.textContent = 'Pastry box';
-  const boxItems = el('div', 'box-items');
-  for (let i = 0; i < currentTotal; i++) {
-    const p = el('span', 'box-pastry'); p.textContent = '🥐'; boxItems.appendChild(p);
-  }
-  box.append(boxLbl, boxItems);
-  if (isSuccess)   { const lid = el('div', 'box-lid');    lid.textContent = '✅'; box.appendChild(lid); }
-  if (isOvershoot) { const bnc = el('div', 'box-bounce'); bnc.textContent = '↩';  box.appendChild(bnc); }
-  boxWrap.appendChild(box);
-  playArea.appendChild(boxWrap);
-  game.appendChild(playArea);
-
-  // Footer tray
-  const footer = el('div', 'game-footer');
-  trayEl = footer;
-  const tray      = el('div', 'pastry-tray');
-  const trayLbl   = el('div', 'tray-label'); trayLbl.textContent = 'Tap a pastry to add it';
-  const trayItems = el('div', 'tray-items');
-  for (let i = 0; i < 12; i++) {
-    const btn = el('button', `tray-pastry${trayDisabled ? ' tray-disabled' : ''}`);
-    btn.textContent = '🥐';
-    btn.setAttribute('aria-label', 'Add one pastry to box');
-    btn.disabled = trayDisabled;
-    if (!trayDisabled) btn.addEventListener('click', handleTap);
-    trayItems.appendChild(btn);
-  }
-  tray.append(trayLbl, trayItems);
-  footer.appendChild(tray);
-  game.appendChild(footer);
-
-  root.appendChild(game);
-
-  if (isOvershoot) {
-    game.addEventListener('animationend', () => game.classList.remove('game-shake'), { once: true });
-  }
-}
-
-function renderComplete(root) {
-  const game   = el('div', 'bakery-game');
-  const header = el('div', 'game-header');
-  const title  = el('span', 'game-title'); title.textContent = '🍞 Bakery Math';
-  header.appendChild(title);
-  game.appendChild(header);
-
-  const sc  = el('div', 'session-complete');
-  const ce  = el('div', 'complete-emoji'); ce.textContent = '🎉';
-  const h2  = document.createElement('h2'); h2.textContent = 'All orders filled!';
-  const p   = document.createElement('p');  p.textContent  = 'Great job at the bakery!';
-  const btn = el('button', 'replay-btn');   btn.textContent = 'Play again';
-  btn.addEventListener('click', handleReplay);
-  sc.append(ce, h2, p, btn);
-  game.appendChild(sc);
-  root.appendChild(game);
-}
-
-// ── Handlers ──────────────────────────────────────────────────────────────────
-function handleTap() {
-  if (isAnimating || roundState !== STATES.ACTIVE) return;
-  isAnimating = true;
-  spawnFlyingPastry();
-
-  setTimeout(() => {
-    const next   = currentTotal + 1;
-    currentTotal = next;
-    const target = targets[roundIndex];
-
-    if (next === target) {
-      roundState = STATES.SUCCESS; render();
-      setTimeout(() => {
-        if (roundIndex + 1 >= targets.length) {
-          roundState = STATES.COMPLETE;
-        } else {
-          roundIndex++; currentTotal = 0; roundState = STATES.ACTIVE;
-        }
-        isAnimating = false; render();
-      }, SUCCESS_MS);
-
-    } else if (next > target) {
-      roundState = STATES.OVERSHOOT; render();
-      setTimeout(() => {
-        currentTotal--; roundState = STATES.ACTIVE; isAnimating = false; render();
-      }, OVERSHOOT_MS);
-
-    } else {
-      isAnimating = false; render();
+    function randomFrom(arr) {
+      return arr[Math.floor(Math.random() * arr.length)];
     }
-  }, FLY_MS);
-}
 
-function handleReplay() {
-  targets = getTargets(); roundIndex = 0; currentTotal = 0;
-  roundState = STATES.ACTIVE; isAnimating = false; render();
-}
+    let _idCounter = 0;
+    function uid() { return ++_idCounter; }
 
-// ── Flying pastry arc ─────────────────────────────────────────────────────────
-function spawnFlyingPastry() {
-  if (!trayEl || !boxEl) return;
-  const trayRect = trayEl.getBoundingClientRect();
-  const boxRect  = boxEl.getBoundingClientRect();
-  const startX = trayRect.left + trayRect.width  / 2;
-  const startY = trayRect.top  + trayRect.height / 2;
-  const dx = (boxRect.left + boxRect.width  / 2) - startX;
-  const dy = (boxRect.top  + boxRect.height / 2) - startY;
+    function generateConveyorItems() {
+      return Array.from({ length: 12 }, () => {
+        const emoji = randomFrom(PASTRY_EMOJIS);
+        return { id: uid(), emoji, value: PASTRY_VALUES[emoji] };
+      });
+    }
 
-  const span = document.createElement('span');
-  span.className   = 'flying-pastry';
-  span.textContent = '🥐';
-  span.setAttribute('aria-hidden', 'true');
-  span.style.setProperty('--dx', `${dx}px`);
-  span.style.setProperty('--dy', `${dy}px`);
-  span.style.left              = `${startX}px`;
-  span.style.top               = `${startY}px`;
-  span.style.animationDuration = `${FLY_MS}ms`;
-  span.addEventListener('animationend', () => span.remove(), { once: true });
-  document.body.appendChild(span);
-}
+    function buildCustomerQueue(levelConfig, count = 5) {
+      return Array.from({ length: count }, (_, i) => ({
+        ...CUSTOMERS[i % CUSTOMERS.length],
+        target: randomFrom(levelConfig.targetPool),
+      }));
+    }
 
-// ── Utility ───────────────────────────────────────────────────────────────────
-function el(tag, className) {
-  const e = document.createElement(tag);
-  if (className) e.className = className.trim();
-  return e;
-}
+    function patienceColor(pct) {
+      if (pct > 0.55) return '#22c55e';
+      if (pct > 0.25) return '#f59e0b';
+      return '#ef4444';
+    }
 
-// ── Boot ──────────────────────────────────────────────────────────────────────
-targets = getTargets();
-render();
-</script>
+    /* ─────────────────────────── COMPONENTS ─────────────────── */
+
+    /* ShiftHUD */
+    function ShiftHUD({ score, lives, patiencePercent, levelIndex, queue }) {
+      const heartStr = '❤️'.repeat(lives) + '🖤'.repeat(Math.max(0, 3 - lives));
+      const fillColor = patienceColor(patiencePercent);
+      return (
+        <div className="shift-hud">
+          <div className="hud-top-row">
+            <div>
+              <div className="hud-score-label">Score</div>
+              <div className="hud-score-value">{score}</div>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div className="hud-lives">{heartStr}</div>
+            </div>
+            <div className="hud-level-badge">Level {levelIndex + 1}</div>
+          </div>
+
+          {queue && queue.length > 0 && (
+            <div className="hud-queue">
+              <span className="hud-queue-label">Next:</span>
+              {queue.map((t, i) => (
+                <span key={i} className="hud-queue-item">🎯 {t}</span>
+              ))}
+            </div>
+          )}
+
+          <div className="hud-patience-bar">
+            <div
+              className="hud-patience-fill"
+              style={{ width: `${Math.max(0, patiencePercent * 100)}%`, backgroundColor: fillColor }}
+            />
+          </div>
+        </div>
+      );
+    }
+
+    /* OrderTicket */
+    function OrderTicket({ currentTarget, customerName, customerEmoji, patiencePercent, message }) {
+      const fillColor = patienceColor(patiencePercent);
+      return (
+        <div className="order-ticket">
+          <div className="ticket-row">
+            <div className="customer-character">
+              <span className="customer-emoji">{customerEmoji}</span>
+              <span className="customer-name-label">{customerName}</span>
+            </div>
+            <div className="ticket-info">
+              <div className="order-target-label">Order total</div>
+              <div className="order-target-value">{currentTarget}</div>
+              {message && <div className="order-message">{message}</div>}
+            </div>
+          </div>
+          <div className="patience-bar">
+            <div
+              className="patience-fill"
+              style={{ width: `${Math.max(0, patiencePercent * 100)}%`, backgroundColor: fillColor }}
+            />
+          </div>
+        </div>
+      );
+    }
+
+    /* ConveyorBelt */
+    function ConveyorBelt({ items, beltDuration, interactionEnabled, onPastrySelect }) {
+      const doubled = items.concat(items);
+      return (
+        <div className="conveyor-belt">
+          <div
+            className="belt-track"
+            style={{ '--belt-duration': `${beltDuration}s` }}
+          >
+            {doubled.map((item, idx) => (
+              <div
+                key={`${item.id}-${idx}`}
+                className={`belt-item${interactionEnabled ? '' : ' belt-item-disabled'}`}
+                onClick={() => interactionEnabled && onPastrySelect(item)}
+              >
+                <span className="pastry-emoji">{item.emoji}</span>
+                <span className="pastry-value">+{item.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    /* PastryBox */
+    function PastryBox({ boxItems, currentTotal, currentTarget, feedbackMode }) {
+      let boxClass = 'pastry-box';
+      if (feedbackMode === 'success')   boxClass += ' box-success';
+      if (feedbackMode === 'overshoot') boxClass += ' box-overshoot';
+
+      let totalClass = 'box-total-value';
+      if (currentTotal > currentTarget)                           totalClass += ' total-over';
+      else if (currentTotal === currentTarget && currentTotal > 0) totalClass += ' total-match';
+
+      return (
+        <div className={boxClass}>
+          <div className="box-items-grid">
+            {boxItems.length === 0
+              ? <span className="box-empty-hint">Tap pastries on the belt to fill the order…</span>
+              : boxItems.map((item, i) => (
+                  <div
+                    key={item.id}
+                    className={`box-item${feedbackMode === 'overshoot' && i === boxItems.length - 1 ? ' box-item-error' : ''}`}
+                  >
+                    {item.emoji}
+                  </div>
+                ))
+            }
+          </div>
+          <div className="box-total-row">
+            <span className="box-total-label">Running total</span>
+            <span className={totalClass}>{currentTotal}</span>
+            <span className="box-target-label">of {currentTarget}</span>
+          </div>
+        </div>
+      );
+    }
+
+    /* FeedbackOverlay */
+    function FeedbackOverlay({ feedbackMode, customerReaction, score, onRestart }) {
+      if (!feedbackMode) return null;
+
+      if (feedbackMode === 'success') {
+        return (
+          <div className="feedback-overlay overlay-success">
+            <div className="overlay-inner">
+              <span className="overlay-emoji">😊</span>
+              <div className="overlay-title">Perfect order!</div>
+              <div className="overlay-subtitle">{customerReaction}</div>
+            </div>
+          </div>
+        );
+      }
+
+      if (feedbackMode === 'overshoot') {
+        return (
+          <div className="feedback-overlay overlay-overshoot">
+            <div className="overlay-inner">
+              <span className="overlay-emoji">↩️</span>
+              <div className="overlay-title">Too many!</div>
+              <div className="overlay-subtitle">One slipped back.</div>
+            </div>
+          </div>
+        );
+      }
+
+      if (feedbackMode === 'end_of_shift') {
+        return (
+          <div className="feedback-overlay overlay-end">
+            <div className="overlay-inner">
+              <span className="overlay-emoji">🏁</span>
+              <div className="overlay-title">Shift over!</div>
+              <div className="overlay-subtitle">Score: {score}</div>
+              <button className="overlay-restart-btn" onClick={onRestart}>
+                Play Again
+              </button>
+            </div>
+          </div>
+        );
+      }
+
+      return null;
+    }
+
+    /* ─────────────────────────── ROOT ─────────────────────────── */
+
+    function BakeryRushPrototype() {
+      const cfg0 = LEVEL_CONFIGS[0];
+
+      /* State */
+      const [levelIndex,    setLevelIndex]    = useState(0);
+      const [score,         setScore]          = useState(0);
+      const [lives,         setLives]          = useState(3);
+      const [feedbackMode,  setFeedbackMode]   = useState(null);
+      const [streak,        setStreak]         = useState(0);
+      const [boxItems,      setBoxItems]       = useState([]);
+      const [currentTotal,  setCurrentTotal]   = useState(0);
+      const [conveyorItems, setConveyorItems]  = useState(() => generateConveyorItems());
+      const [customerQueue, setCustomerQueue]  = useState(() => buildCustomerQueue(cfg0));
+      const [customerIndex, setCustomerIndex]  = useState(0);
+      const [patienceLeft,  setPatienceLeft]   = useState(cfg0.patience);
+
+      /* Derived */
+      const currentLevelConfig = LEVEL_CONFIGS[levelIndex];
+      const patiencePercent    = patienceLeft / currentLevelConfig.patience;
+      const customer           = customerQueue[customerIndex % customerQueue.length];
+      const currentTarget      = customer ? customer.target : 0;
+
+      /* Next-2 queue preview targets */
+      const queue = [1, 2].map(offset => {
+        const c = customerQueue[(customerIndex + offset) % customerQueue.length];
+        return c ? c.target : '?';
+      });
+
+      /* Keep feedbackMode accessible in timer callbacks without re-subscribing */
+      const feedbackRef = useRef(feedbackMode);
+      feedbackRef.current = feedbackMode;
+      const livesRef = useRef(lives);
+      livesRef.current = lives;
+      const levelIndexRef = useRef(levelIndex);
+      levelIndexRef.current = levelIndex;
+
+      /* ── Patience countdown ── */
+      useEffect(() => {
+        if (feedbackMode !== null) return; // pause during overlays
+
+        const id = setInterval(() => {
+          if (feedbackRef.current !== null) return;
+          setPatienceLeft(prev => Math.max(0, prev - 1));
+        }, 1000);
+
+        return () => clearInterval(id);
+      }, [feedbackMode, customerIndex, levelIndex]);
+
+      /* ── Handle patience expiry ── */
+      useEffect(() => {
+        if (patienceLeft === 0 && feedbackMode === null) {
+          const nextLives = livesRef.current - 1;
+          setLives(nextLives);
+          if (nextLives <= 0) {
+            setFeedbackMode('end_of_shift');
+          } else {
+            doAdvanceCustomer(levelIndexRef.current);
+          }
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+      }, [patienceLeft]);
+
+      /* ── Helpers ── */
+      function doAdvanceCustomer(lvlIdx) {
+        const cfg = LEVEL_CONFIGS[lvlIdx];
+        setCustomerIndex(prev => prev + 1);
+        setBoxItems([]);
+        setCurrentTotal(0);
+        setPatienceLeft(cfg.patience);
+        setFeedbackMode(null);
+        if (Math.random() < 0.4) setConveyorItems(generateConveyorItems());
+      }
+
+      function doCheckLevelAdvance(newScore, lvlIdx) {
+        const cfg = LEVEL_CONFIGS[lvlIdx];
+        if (newScore >= cfg.scoreThreshold && lvlIdx < LEVEL_CONFIGS.length - 1) {
+          const nextLvl = lvlIdx + 1;
+          const nextCfg = LEVEL_CONFIGS[nextLvl];
+          setLevelIndex(nextLvl);
+          setCustomerQueue(buildCustomerQueue(nextCfg));
+          setCustomerIndex(0);
+          setPatienceLeft(nextCfg.patience);
+          setConveyorItems(generateConveyorItems());
+          return nextLvl;
+        }
+        return lvlIdx;
+      }
+
+      /* ── Pastry selection ── */
+      const handlePastrySelect = useCallback((item) => {
+        if (feedbackRef.current !== null) return;
+
+        setBoxItems(prevBox => {
+          setCurrentTotal(prevTotal => {
+            const newTotal = prevTotal + item.value;
+
+            if (newTotal === currentTarget) {
+              /* Success */
+              setStreak(prevStreak => {
+                const newStreak = prevStreak + 1;
+                setScore(prevScore => {
+                  const newScore = prevScore + 10 + prevStreak;
+                  setFeedbackMode('success');
+                  setTimeout(() => {
+                    const nextLvl = doCheckLevelAdvance(newScore, levelIndexRef.current);
+                    doAdvanceCustomer(nextLvl);
+                    setStreak(newStreak);
+                  }, SUCCESS_MS);
+                  return newScore;
+                });
+                return newStreak;
+              });
+              return newTotal;
+            }
+
+            if (newTotal > currentTarget) {
+              /* Overshoot */
+              setStreak(0);
+              setFeedbackMode('overshoot');
+              setTimeout(() => {
+                setBoxItems(b => b.slice(0, -1));
+                setCurrentTotal(prevTotal); // revert
+                setFeedbackMode(null);
+              }, OVERSHOOT_MS);
+              return newTotal; // briefly show the overshoot value
+            }
+
+            /* Normal addition */
+            return newTotal;
+          });
+          return [...prevBox, { id: uid(), emoji: item.emoji }];
+        });
+      }, [currentTarget]);
+
+      /* ── Restart ── */
+      function handleRestart() {
+        const cfg = LEVEL_CONFIGS[0];
+        setLevelIndex(0);
+        setScore(0);
+        setLives(3);
+        setFeedbackMode(null);
+        setStreak(0);
+        setBoxItems([]);
+        setCurrentTotal(0);
+        setConveyorItems(generateConveyorItems());
+        setCustomerQueue(buildCustomerQueue(cfg));
+        setCustomerIndex(0);
+        setPatienceLeft(cfg.patience);
+      }
+
+      /* ── Customer speech ── */
+      function customerSpeech() {
+        const remaining = currentTarget - currentTotal;
+        if (remaining === currentTarget) return `"I'd like ${currentTarget} points worth, please!"`;
+        if (remaining <= 0)              return '"Thank you so much!"';
+        return `"Just ${remaining} more to go…"`;
+      }
+
+      return (
+        <div className="bakery-rush">
+          <div className="game-header">
+            Bakery Rush — Pass 1 (Component Architecture)
+          </div>
+
+          <ShiftHUD
+            score={score}
+            lives={lives}
+            patiencePercent={patiencePercent}
+            levelIndex={levelIndex}
+            queue={queue}
+          />
+
+          <OrderTicket
+            currentTarget={currentTarget}
+            customerName={customer ? customer.name : ''}
+            customerEmoji={customer ? customer.emoji : '🧑'}
+            patiencePercent={patiencePercent}
+            message={customerSpeech()}
+          />
+
+          <ConveyorBelt
+            items={conveyorItems}
+            beltDuration={currentLevelConfig.beltDuration}
+            interactionEnabled={feedbackMode === null}
+            onPastrySelect={handlePastrySelect}
+          />
+
+          <PastryBox
+            boxItems={boxItems}
+            currentTotal={currentTotal}
+            currentTarget={currentTarget}
+            feedbackMode={feedbackMode}
+          />
+
+          <FeedbackOverlay
+            feedbackMode={feedbackMode}
+            customerReaction={customer ? `${customer.emoji}  ${customer.name} is happy!` : ''}
+            score={score}
+            onRestart={handleRestart}
+          />
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<BakeryRushPrototype />);
+  </script>
 </body>
 </html>

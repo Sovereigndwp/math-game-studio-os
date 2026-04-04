@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Unit Circle Pizza Lab — Pass 1</title>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #fdf6ec; }
+
+    .pizza-lab {
+      background: #fdf6ec;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 16px 12px 24px;
+      gap: 12px;
+    }
+
+    .lab-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #92400e;
+      letter-spacing: 0.02em;
+    }
+
+    /* HUD */
+    .session-hud {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      background: #fff7ed;
+      border: 1.5px solid #fed7aa;
+      border-radius: 999px;
+      padding: 6px 20px;
+      font-size: 0.85rem;
+      color: #7c3aed;
+    }
+    .round-counter { color: #92400e; font-weight: 600; }
+    .session-score { color: #16a34a; font-weight: 700; }
+    .streak-badge {
+      color: #d97706;
+      font-weight: 700;
+    }
+
+    /* Order Panel */
+    .order-panel {
+      background: #fff;
+      border: 2px solid #fbbf24;
+      border-radius: 16px;
+      padding: 14px 28px;
+      text-align: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+      min-width: 220px;
+    }
+    .order-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #b45309;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 4px;
+    }
+    .order-spec {
+      font-size: 2rem;
+      font-weight: 800;
+      color: #1e1b4b;
+      line-height: 1.1;
+    }
+
+    /* Wheel Container */
+    .pizza-wheel-container {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .unit-circle-svg {
+      cursor: crosshair;
+      filter: drop-shadow(0 4px 16px rgba(0,0,0,0.12));
+      border-radius: 50%;
+    }
+
+    /* Angle Readout */
+    .angle-readout {
+      display: flex;
+      gap: 16px;
+      background: #fff;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 8px 20px;
+      font-size: 0.9rem;
+    }
+    .angle-deg {
+      font-weight: 700;
+      color: #374151;
+    }
+    .angle-rad {
+      font-weight: 600;
+      color: #6b7280;
+    }
+    .angle-label {
+      color: #9ca3af;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+
+    /* Coordinate Display */
+    .coord-display {
+      display: flex;
+      gap: 16px;
+      background: #f0fdf4;
+      border: 1.5px solid #86efac;
+      border-radius: 12px;
+      padding: 8px 20px;
+      font-size: 0.88rem;
+    }
+    .coord-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1px;
+    }
+    .coord-label {
+      font-size: 0.7rem;
+      color: #6b7280;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .coord-value {
+      font-weight: 700;
+      color: #166534;
+      font-variant-numeric: tabular-nums;
+    }
+    .coord-exact {
+      font-size: 0.75rem;
+      color: #15803d;
+      font-weight: 600;
+      min-height: 1em;
+    }
+
+    /* Feedback Panel */
+    .feedback-panel {
+      border-radius: 14px;
+      padding: 12px 24px;
+      text-align: center;
+      min-width: 260px;
+      border: 2px solid transparent;
+      transition: all 0.2s;
+    }
+    .feedback-correct {
+      background: #f0fdf4;
+      border-color: #4ade80;
+    }
+    .feedback-close {
+      background: #fffbeb;
+      border-color: #fbbf24;
+    }
+    .feedback-miss {
+      background: #fef2f2;
+      border-color: #fca5a5;
+    }
+    .feedback-verdict {
+      font-size: 1.3rem;
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+    .feedback-correct .feedback-verdict { color: #16a34a; }
+    .feedback-close   .feedback-verdict { color: #d97706; }
+    .feedback-miss    .feedback-verdict { color: #dc2626; }
+    .feedback-delta {
+      font-size: 0.85rem;
+      color: #374151;
+      margin-bottom: 4px;
+    }
+    .feedback-answer {
+      font-size: 0.82rem;
+      color: #374151;
+      font-weight: 600;
+      background: #fff;
+      border-radius: 8px;
+      padding: 4px 10px;
+      margin-top: 4px;
+      display: inline-block;
+    }
+
+    /* Submit Button */
+    .submit-btn {
+      background: #6366f1;
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 700;
+      border: none;
+      border-radius: 999px;
+      padding: 12px 40px;
+      cursor: pointer;
+      letter-spacing: 0.04em;
+      box-shadow: 0 2px 10px rgba(99,102,241,0.35);
+      transition: background 0.15s, opacity 0.15s, transform 0.1s;
+    }
+    .submit-btn:hover:not(:disabled) {
+      background: #4f46e5;
+      transform: translateY(-1px);
+    }
+    .submit-btn:active:not(:disabled) {
+      transform: translateY(0);
+    }
+    .submit-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    /* Session Complete */
+    .session-complete {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      background: #fff;
+      border-radius: 24px;
+      padding: 40px 48px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.1);
+      text-align: center;
+      max-width: 360px;
+    }
+    .session-complete h2 {
+      font-size: 2rem;
+      font-weight: 800;
+      color: #1e1b4b;
+    }
+    .session-complete p {
+      color: #6b7280;
+      font-size: 1rem;
+    }
+    .session-complete .final-score {
+      font-size: 3rem;
+      font-weight: 900;
+      color: #6366f1;
+    }
+    .restart-btn {
+      background: #6366f1;
+      color: #fff;
+      border: none;
+      border-radius: 999px;
+      padding: 12px 36px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+    .restart-btn:hover { background: #4f46e5; }
+
+    .hint-text {
+      font-size: 0.78rem;
+      color: #9ca3af;
+      margin-top: -4px;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useCallback } = React;
+
+    // ─── Data ────────────────────────────────────────────────────────────────
+
+    const ROUND_CONFIGS = [
+      // Tier 1: quadrant angles, wide tolerance
+      { targetAngleDeg: 0,   toleranceDeg: 15, label: '0°',   specType: 'angle',   displaySpec: '0°' },
+      { targetAngleDeg: 90,  toleranceDeg: 15, label: '90°',  specType: 'angle',   displaySpec: '90°' },
+      { targetAngleDeg: 180, toleranceDeg: 15, label: '180°', specType: 'angle',   displaySpec: '180°' },
+      { targetAngleDeg: 270, toleranceDeg: 15, label: '270°', specType: 'angle',   displaySpec: '270°' },
+      // Tier 2: common angles, medium tolerance
+      { targetAngleDeg: 45,  toleranceDeg: 10, label: '45°',  specType: 'angle',   displaySpec: '45°' },
+      { targetAngleDeg: 30,  toleranceDeg: 10, label: '30°',  specType: 'radians', displaySpec: 'π/6' },
+      { targetAngleDeg: 60,  toleranceDeg: 10, label: '60°',  specType: 'radians', displaySpec: 'π/3' },
+      { targetAngleDeg: 135, toleranceDeg: 10, label: '135°', specType: 'angle',   displaySpec: '135°' },
+      { targetAngleDeg: 150, toleranceDeg: 10, label: '150°', specType: 'radians', displaySpec: '5π/6' },
+      { targetAngleDeg: 120, toleranceDeg: 10, label: '120°', specType: 'coords',  displaySpec: '(−½, √3/2)' },
+      // Tier 3: all standard, tight tolerance
+      { targetAngleDeg: 225, toleranceDeg: 8,  label: '225°', specType: 'angle',   displaySpec: '225°' },
+      { targetAngleDeg: 240, toleranceDeg: 8,  label: '240°', specType: 'radians', displaySpec: '4π/3' },
+      { targetAngleDeg: 300, toleranceDeg: 8,  label: '300°', specType: 'coords',  displaySpec: '(½, −√3/2)' },
+      { targetAngleDeg: 315, toleranceDeg: 8,  label: '315°', specType: 'radians', displaySpec: '7π/4' },
+      { targetAngleDeg: 330, toleranceDeg: 5,  label: '330°', specType: 'coords',  displaySpec: '(√3/2, −½)' },
+    ];
+
+    const COMMON_ANGLES = {
+      0:   { cos: '1',      sin: '0',      rad: '0' },
+      30:  { cos: '√3/2',   sin: '½',      rad: 'π/6' },
+      45:  { cos: '√2/2',   sin: '√2/2',   rad: 'π/4' },
+      60:  { cos: '½',      sin: '√3/2',   rad: 'π/3' },
+      90:  { cos: '0',      sin: '1',       rad: 'π/2' },
+      120: { cos: '−½',     sin: '√3/2',   rad: '2π/3' },
+      135: { cos: '−√2/2',  sin: '√2/2',   rad: '3π/4' },
+      150: { cos: '−√3/2',  sin: '½',      rad: '5π/6' },
+      180: { cos: '−1',     sin: '0',       rad: 'π' },
+      210: { cos: '−√3/2',  sin: '−½',     rad: '7π/6' },
+      225: { cos: '−√2/2',  sin: '−√2/2',  rad: '5π/4' },
+      240: { cos: '−½',     sin: '−√3/2',  rad: '4π/3' },
+      270: { cos: '0',      sin: '−1',      rad: '3π/2' },
+      300: { cos: '½',      sin: '−√3/2',  rad: '5π/3' },
+      315: { cos: '√2/2',   sin: '−√2/2',  rad: '7π/4' },
+      330: { cos: '√3/2',   sin: '−½',     rad: '11π/6' },
+      360: { cos: '1',      sin: '0',       rad: '2π' },
+    };
+
+    const ADVANCE_MS = 1800;
+    const ROUNDS_PER_SESSION = ROUND_CONFIGS.length;
+
+    // ─── Helpers ─────────────────────────────────────────────────────────────
+
+    function svgClickToAngle(e, svgElement) {
+      const rect = svgElement.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      const dx = e.clientX - cx;
+      const dy = e.clientY - cy;
+      const radians = Math.atan2(-dy, dx);
+      let degrees = radians * 180 / Math.PI;
+      if (degrees < 0) degrees += 360;
+      return degrees;
+    }
+
+    function deltaAngle(a, b) {
+      const diff = Math.abs(a - b) % 360;
+      return Math.min(diff, 360 - diff);
+    }
+
+    function toRad(deg) {
+      return deg * Math.PI / 180;
+    }
+
+    function fmt2(n) {
+      return n.toFixed(2);
+    }
+
+    function closestCommonAngle(deg) {
+      const keys = Object.keys(COMMON_ANGLES).map(Number);
+      let best = keys[0];
+      let bestDist = deltaAngle(deg, keys[0]);
+      for (const k of keys) {
+        const d = deltaAngle(deg, k);
+        if (d < bestDist) { bestDist = d; best = k; }
+      }
+      return bestDist <= 2 ? best : null;
+    }
+
+    // ─── OrderPanel ──────────────────────────────────────────────────────────
+
+    function OrderPanel({ targetSpec, specType, roundIndex }) {
+      const typeLabel = {
+        angle: 'Place the topping at angle',
+        radians: 'Place the topping at',
+        coords: 'Place the topping at coordinates',
+      }[specType] || 'Place the topping at';
+
+      return (
+        <div className="order-panel">
+          <div className="order-label">{typeLabel}</div>
+          <div className="order-spec">{targetSpec}</div>
+        </div>
+      );
+    }
+
+    // ─── AngleReadout ─────────────────────────────────────────────────────────
+
+    function AngleReadout({ angleDeg }) {
+      const radVal = (angleDeg * Math.PI / 180).toFixed(3);
+      return (
+        <div className="angle-readout">
+          <div>
+            <span className="angle-label">Angle: </span>
+            <span className="angle-deg">{angleDeg.toFixed(1)}°</span>
+          </div>
+          <div>
+            <span className="angle-label">Rad: </span>
+            <span className="angle-rad">{radVal}</span>
+          </div>
+        </div>
+      );
+    }
+
+    // ─── CoordinateDisplay ───────────────────────────────────────────────────
+
+    function CoordinateDisplay({ angleDeg }) {
+      const cosVal = Math.cos(toRad(angleDeg));
+      const sinVal = Math.sin(toRad(angleDeg));
+      const nearest = closestCommonAngle(angleDeg);
+      const exact = nearest !== null ? COMMON_ANGLES[nearest] : null;
+
+      return (
+        <div className="coord-display">
+          <div className="coord-item">
+            <span className="coord-label">cos θ</span>
+            <span className="coord-value">{fmt2(cosVal)}</span>
+            <span className="coord-exact">{exact ? exact.cos : ''}</span>
+          </div>
+          <div style={{ color: '#d1fae5', alignSelf: 'center', fontSize: '1.2rem' }}>,</div>
+          <div className="coord-item">
+            <span className="coord-label">sin θ</span>
+            <span className="coord-value">{fmt2(sinVal)}</span>
+            <span className="coord-exact">{exact ? exact.sin : ''}</span>
+          </div>
+        </div>
+      );
+    }
+
+    // ─── FeedbackPanel ───────────────────────────────────────────────────────
+
+    function FeedbackPanel({ feedbackMode, deltaAngleDeg, correctAngleDeg }) {
+      if (!feedbackMode) return null;
+
+      const exact = COMMON_ANGLES[correctAngleDeg];
+      const rad = exact ? exact.rad : null;
+
+      let panelClass = 'feedback-panel ';
+      let verdict = '';
+      if (feedbackMode === 'correct') { panelClass += 'feedback-correct'; verdict = '🎯 Perfect!'; }
+      else if (feedbackMode === 'close')  { panelClass += 'feedback-close';   verdict = '🟡 Close! Try again.'; }
+      else                                { panelClass += 'feedback-miss';    verdict = '❌ Not quite.'; }
+
+      return (
+        <div className={panelClass}>
+          <div className="feedback-verdict">{verdict}</div>
+          {feedbackMode !== 'correct' && (
+            <>
+              <div className="feedback-delta">
+                You were <strong>{deltaAngleDeg.toFixed(1)}°</strong> off.
+              </div>
+              {exact && (
+                <span className="feedback-answer">
+                  {correctAngleDeg}° = {rad} rad → ({exact.cos}, {exact.sin})
+                </span>
+              )}
+            </>
+          )}
+        </div>
+      );
+    }
+
+    // ─── PizzaWheel ──────────────────────────────────────────────────────────
+
+    function PizzaWheel({ currentAngleDeg, toppingPlaced, correctAngleDeg, showCorrectPosition, onAngleChange }) {
+      const svgRef = useRef(null);
+
+      // Slice reference lines (every 30°)
+      const sliceLines = [];
+      for (let a = 0; a < 360; a += 30) {
+        const rad = toRad(a);
+        sliceLines.push(
+          <line
+            key={a}
+            x1={0} y1={0}
+            x2={Math.cos(rad)} y2={-Math.sin(rad)}
+            stroke="#f59e0b"
+            strokeWidth={0.008}
+            strokeDasharray="0.03 0.04"
+            opacity={0.5}
+          />
+        );
+      }
+
+      // Angle labels at quadrant positions
+      const quadLabels = [
+        { deg: 0,   x: 1.15,  y: 0.05,  text: '0°' },
+        { deg: 90,  x: 0.02,  y: -1.18, text: '90°' },
+        { deg: 180, x: -1.22, y: 0.05,  text: '180°' },
+        { deg: 270, x: 0.02,  y: 1.25,  text: '270°' },
+      ];
+
+      // Common angle tick marks
+      const tickAngles = [30, 45, 60, 120, 135, 150, 210, 225, 240, 300, 315, 330];
+      const ticks = tickAngles.map(a => {
+        const r = toRad(a);
+        const x1 = 0.88 * Math.cos(r);
+        const y1 = -0.88 * Math.sin(r);
+        const x2 = Math.cos(r);
+        const y2 = -Math.sin(r);
+        return <line key={a} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#d97706" strokeWidth={0.018} opacity={0.45} />;
+      });
+
+      // Topping position
+      const toppingX = Math.cos(toRad(currentAngleDeg));
+      const toppingY = -Math.sin(toRad(currentAngleDeg));
+
+      // Correct position
+      const correctX = Math.cos(toRad(correctAngleDeg));
+      const correctY = -Math.sin(toRad(correctAngleDeg));
+
+      function handleClick(e) {
+        if (!svgRef.current) return;
+        const deg = svgClickToAngle(e, svgRef.current);
+        onAngleChange(deg);
+      }
+
+      function handleMove(e) {
+        // No-op for now, just click-to-place
+      }
+
+      return (
+        <div className="pizza-wheel-container">
+          <svg
+            ref={svgRef}
+            className="unit-circle-svg"
+            viewBox="-1.3 -1.3 2.6 2.6"
+            width="320"
+            height="320"
+            onClick={handleClick}
+          >
+            {/* Pizza background */}
+            <circle r={1} fill="#fff8e7" stroke="#d97706" strokeWidth={0.04} />
+
+            {/* Slice reference lines */}
+            {sliceLines}
+
+            {/* Tick marks at standard angles */}
+            {ticks}
+
+            {/* Axis lines */}
+            <line x1={-1} y1={0} x2={1} y2={0} stroke="#78716c" strokeWidth={0.018} />
+            <line x1={0} y1={-1} x2={0} y2={1} stroke="#78716c" strokeWidth={0.018} />
+
+            {/* Angle labels */}
+            {quadLabels.map(q => (
+              <text
+                key={q.deg}
+                x={q.x} y={q.y}
+                fontSize={0.1}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                fill="#92400e"
+                fontWeight="600"
+              >{q.text}</text>
+            ))}
+
+            {/* Unit circle circumference dot at 0 */}
+            <circle cx={1} cy={0} r={0.025} fill="#d97706" opacity={0.7} />
+
+            {/* Correct ghost (when showCorrectPosition) */}
+            {showCorrectPosition && (
+              <>
+                <line
+                  x1={0} y1={0}
+                  x2={correctX} y2={correctY}
+                  stroke="#16a34a"
+                  strokeWidth={0.022}
+                  strokeDasharray="0.06 0.04"
+                  opacity={0.7}
+                />
+                <circle
+                  cx={correctX} cy={correctY}
+                  r={0.11}
+                  fill="none"
+                  stroke="#16a34a"
+                  strokeWidth={0.03}
+                  strokeDasharray="0.07 0.05"
+                  opacity={0.9}
+                />
+                <circle
+                  cx={correctX} cy={correctY}
+                  r={0.035}
+                  fill="#16a34a"
+                  opacity={0.5}
+                />
+              </>
+            )}
+
+            {/* Player topping */}
+            {toppingPlaced && (
+              <>
+                <line
+                  x1={0} y1={0}
+                  x2={toppingX} y2={toppingY}
+                  stroke="#f97316"
+                  strokeWidth={0.018}
+                  opacity={0.55}
+                />
+                <circle
+                  cx={toppingX} cy={toppingY}
+                  r={0.09}
+                  fill="#f97316"
+                  stroke="#ea580c"
+                  strokeWidth={0.02}
+                />
+              </>
+            )}
+
+            {/* Center dot */}
+            <circle cx={0} cy={0} r={0.04} fill="#78716c" />
+          </svg>
+        </div>
+      );
+    }
+
+    // ─── UnitCirclePrototype (root) ──────────────────────────────────────────
+
+    function UnitCirclePrototype() {
+      const [roundIndex,      setRoundIndex]      = useState(0);
+      const [currentAngleDeg, setCurrentAngleDeg] = useState(0);
+      const [toppingPlaced,   setToppingPlaced]   = useState(false);
+      const [submitted,       setSubmitted]        = useState(false);
+      const [feedbackMode,    setFeedbackMode]     = useState(null);
+      const [score,           setScore]            = useState(0);
+      const [streak,          setStreak]           = useState(0);
+      const [sessionComplete, setSessionComplete]  = useState(false);
+
+      const currentRound   = ROUND_CONFIGS[roundIndex];
+      const targetAngleDeg = currentRound.targetAngleDeg;
+      const toleranceDeg   = currentRound.toleranceDeg;
+
+      const delta = deltaAngle(currentAngleDeg, targetAngleDeg);
+      const showCorrectPosition = submitted && feedbackMode !== 'correct';
+
+      const handleAngleChange = useCallback((deg) => {
+        if (submitted) return;
+        setCurrentAngleDeg(deg);
+        setToppingPlaced(true);
+      }, [submitted]);
+
+      const handleSubmit = useCallback(() => {
+        if (!toppingPlaced || submitted) return;
+
+        const d = deltaAngle(currentAngleDeg, targetAngleDeg);
+        let mode;
+        if (d <= toleranceDeg) {
+          mode = 'correct';
+          setScore(s => s + 1);
+          setStreak(s => s + 1);
+        } else if (d <= toleranceDeg * 2.5) {
+          mode = 'close';
+          setStreak(0);
+        } else {
+          mode = 'miss';
+          setStreak(0);
+        }
+        setSubmitted(true);
+        setFeedbackMode(mode);
+
+        setTimeout(() => {
+          if (roundIndex < ROUNDS_PER_SESSION - 1) {
+            setRoundIndex(i => i + 1);
+            setCurrentAngleDeg(0);
+            setToppingPlaced(false);
+            setSubmitted(false);
+            setFeedbackMode(null);
+          } else {
+            setSessionComplete(true);
+          }
+        }, ADVANCE_MS);
+      }, [toppingPlaced, submitted, currentAngleDeg, targetAngleDeg, toleranceDeg, roundIndex]);
+
+      const handleRestart = () => {
+        setRoundIndex(0);
+        setCurrentAngleDeg(0);
+        setToppingPlaced(false);
+        setSubmitted(false);
+        setFeedbackMode(null);
+        setScore(0);
+        setStreak(0);
+        setSessionComplete(false);
+      };
+
+      if (sessionComplete) {
+        return (
+          <div className="pizza-lab" style={{ justifyContent: 'center' }}>
+            <div className="session-complete">
+              <div style={{ fontSize: '2.5rem' }}>🍕</div>
+              <h2>Pizza Lab Complete!</h2>
+              <div className="final-score">{score}/{ROUNDS_PER_SESSION}</div>
+              <p>You placed {score} toppings correctly across {ROUNDS_PER_SESSION} rounds.</p>
+              <button className="restart-btn" onClick={handleRestart}>Play Again</button>
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div className="pizza-lab">
+          <div className="lab-title">🍕 Unit Circle Pizza Lab — Pass 1</div>
+
+          {/* HUD */}
+          <div className="session-hud">
+            <span className="round-counter">Round {roundIndex + 1} / {ROUNDS_PER_SESSION}</span>
+            <span className="session-score">Score: {score}</span>
+            {streak >= 2 && <span className="streak-badge">🔥 {streak} streak</span>}
+          </div>
+
+          {/* Order */}
+          <OrderPanel
+            targetSpec={currentRound.displaySpec}
+            specType={currentRound.specType}
+            roundIndex={roundIndex}
+          />
+
+          {/* Pizza Wheel */}
+          <PizzaWheel
+            currentAngleDeg={currentAngleDeg}
+            toppingPlaced={toppingPlaced}
+            correctAngleDeg={targetAngleDeg}
+            showCorrectPosition={showCorrectPosition}
+            onAngleChange={handleAngleChange}
+          />
+
+          {!toppingPlaced && !submitted && (
+            <p className="hint-text">Click on the circle to place your topping</p>
+          )}
+
+          {/* Live readouts */}
+          <AngleReadout angleDeg={currentAngleDeg} />
+          <CoordinateDisplay angleDeg={currentAngleDeg} />
+
+          {/* Feedback */}
+          {submitted && (
+            <FeedbackPanel
+              feedbackMode={feedbackMode}
+              deltaAngleDeg={delta}
+              correctAngleDeg={targetAngleDeg}
+            />
+          )}
+
+          {/* Submit */}
+          {!submitted && (
+            <button
+              className="submit-btn"
+              disabled={!toppingPlaced || submitted}
+              onClick={handleSubmit}
+            >
+              Confirm Topping ✓
+            </button>
+          )}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<UnitCirclePrototype />);
+  </script>
+</body>
+</html>
