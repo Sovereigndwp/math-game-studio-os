@@ -1,0 +1,41 @@
+{
+  "pass_name": "bakery-rush-pass-3",
+  "game_name": "Bakery Rush",
+  "pass_number": 3,
+  "timestamp": "2026-04-05T00:00:00Z",
+  "what_this_pass_proved": [
+    "The misconception library covers all six error categories with specific, implementable detection signals — each signal uses only in-game telemetry (tap timing, item counts, running total state) with no external annotation required.",
+    "Every misconception entry has a structurally distinct clean replay task that isolates the exact confusion without repeating the failing level — clean replays remove one pressure axis at a time (belt frozen, patience removed, items constrained).",
+    "Reflection prompts are tied to the planning/monitoring/evaluation metacognition framework and are specific to the detected error, not generic 'try again' messages.",
+    "The reflection beat can be specified as a brief-level design element connecting existing detection signals to existing reflection prompts — no new detection logic or prompt content was needed.",
+    "The Misconception Architect workflow reaches a stable fixed point: after writing revised entries back to the library, re-running the architect produces zero additional revisions."
+  ],
+  "open_questions": [
+    "Does the 2-consecutive-orders trigger threshold produce reflection beats at the right frequency? Too sensitive means constant interruption; too conservative means missing teachable moments. Needs observation at L2–L3 where misconceptions concentrate.",
+    "Does pausing the belt for the reflection prompt break flow enough to frustrate players, or does the pause feel like a natural breathing moment? The speech-bubble delivery needs playtesting to determine whether it reads as helpful or as a penalty.",
+    "When clean replay escalation triggers (same category across 2 levels), do players choose to enter the side-track voluntarily? If not, the escalation path is dead weight — it should either become mandatory or be removed.",
+    "The frequency cap (max 2 reflection beats per level) may be too low for L1 where multiple misconceptions surface simultaneously, or too high for L4–L5 where players who reach that level are mostly past the reflection-triggering errors.",
+    "At L3 with targets up to 12, do overshoot errors cluster on high-value targets (10, 12) specifically? This was the open question from pass 2 and remains unanswered — the reflection beat specification does not address target composition."
+  ],
+  "bugs_fixed": [
+    {
+      "description": "Loop brief and family brief both noted 'Reflection beat not yet implemented' — the game had misconception detection signals and reflection prompts but no specified mechanism to deliver them. Added a reflection_beat section to the loop brief specifying trigger, delivery, prompt selection, frequency cap, and clean replay escalation.",
+      "impact": "teaching"
+    }
+  ],
+  "known_limits": [
+    "The reflection beat is specified in the brief but not yet built into the playable prototype. This pass is a design pass, not an implementation pass.",
+    "The 2-consecutive-orders trigger threshold is a design hypothesis — it has not been validated against real play data. The threshold may need per-level tuning.",
+    "Clean replay escalation is voluntary — if the learner declines, the game continues without addressing the repeated misconception. No fallback mechanism exists for persistent misconceptions beyond the escalation offer.",
+    "Belt solvability is still not guaranteed — the 7% unsolvable-batch probability from pass 1 remains. A reflection beat triggered during an unsolvable batch could confuse the feedback signal.",
+    "Session diagnostic persistence is still limited to a single run (React ref, no cross-session storage). Reflection beat frequency and effectiveness cannot be tracked across sessions."
+  ],
+  "auditor_results": {
+    "curve_verdict": "smooth_ramp",
+    "weighted_severity": 0.0,
+    "severity_label": "clean",
+    "flagged_parameters": [],
+    "notes": "Belt ramp [18, 13, 9, 6, 4] unchanged from pass 2. Reflection beat does not affect difficulty parameters. Auditor results carried forward."
+  },
+  "next_pass_first_obligation": "Build the reflection beat into the playable prototype and observe whether the 2-consecutive-orders trigger threshold produces reflection prompts at a frequency that helps without disrupting flow — if reflection beats fire on more than 30% of levels in a session, the threshold is too sensitive and should be raised to 3 consecutive orders."
+}
