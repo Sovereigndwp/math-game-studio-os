@@ -651,6 +651,10 @@
       const [retryState,      setRetryState]      = useState(null);
       const submittedRef = useRef(false);
 
+      // P2A: round log for debrief
+      const [roundLog, setRoundLog] = useState([]); // [{specType, targetAngle, outcome, delta, timeUsed}]
+      const roundStartTime = useRef(Date.now());
+
       const currentRound   = ROUND_CONFIGS[roundIndex];
       const targetAngleDeg = currentRound.targetAngleDeg;
       const toleranceDeg   = currentRound.toleranceDeg;
@@ -669,7 +673,15 @@
       useEffect(() => {
         if (screen !== 'playing' || submitted || retryState === 'offered') return;
         if (timeLeft <= 0) {
-          // Timeout = miss
+          // Timeout = miss — log it
+          setRoundLog(prev => [...prev, {
+            specType: currentRound.specType,
+            targetAngle: targetAngleDeg,
+            displaySpec: currentRound.displaySpec,
+            outcome: 'timeout',
+            delta: null,
+            timeUsed: getTimeLimit(roundIndex),
+          }]);
           setLives(prev => {
             const next = prev - 1;
             if (next <= 0) {
@@ -708,6 +720,7 @@
           setFeedbackMode(null);
           setRetryState(null);
           setTimeLeft(getTimeLimit(nextIdx));
+          roundStartTime.current = Date.now();
         } else {
           setSessionComplete(true);
           setScreen('complete');
@@ -737,6 +750,16 @@
         }
         setSubmitted(true);
         setFeedbackMode(mode);
+
+        // Log for debrief
+        setRoundLog(prev => [...prev, {
+          specType: currentRound.specType,
+          targetAngle: targetAngleDeg,
+          displaySpec: currentRound.displaySpec,
+          outcome: mode,
+          delta: d,
+          timeUsed: Math.round((Date.now() - roundStartTime.current) / 1000),
+        }]);
 
         if (mode === 'close' && retryState === null) {
           // first close: pause here and offer one retry; ghost appears as guide
@@ -768,6 +791,8 @@
         setRetryState(null);
         setLives(MAX_LIVES);
         setTimeLeft(getTimeLimit(0));
+        setRoundLog([]);
+        roundStartTime.current = Date.now();
         setScreen('playing');
       };
 
@@ -796,31 +821,122 @@
         );
       }
 
-      // ── Game Over ──
-      if (screen === 'gameover') {
-        return (
-          <div className="pizza-lab" style={{ justifyContent: 'center' }}>
-            <div className="session-complete">
-              <div style={{ fontSize: '2.5rem' }}>😔</div>
-              <h2>Out of Lives!</h2>
-              <div className="final-score">{score}/{roundIndex + 1}</div>
-              <p>You reached round {roundIndex + 1} and placed {score} toppings correctly.</p>
-              <button className="restart-btn" onClick={handleRestart}>Try Again</button>
-            </div>
-          </div>
-        );
+      // ── Debrief builder ──
+      function buildDebrief() {
+        if (roundLog.length === 0) return null;
+        const correct = roundLog.filter(r => r.outcome === 'correct').length;
+        const close = roundLog.filter(r => r.outcome === 'close').length;
+        const misses = roundLog.filter(r => r.outcome === 'miss' || r.outcome === 'timeout').length;
+        const timeouts = roundLog.filter(r => r.outcome === 'timeout').length;
+
+        // Stars
+        let stars = 1;
+        if (misses === 0) stars = 3;
+        else if (misses <= 2 && correct >= roundLog.length * 0.5) stars = 2;
+        const starText = stars === 3 ? '★★★ Perfect!' : stars === 2 ? '★★ Good Run' : '★ Completed';
+        const starColor = stars === 3 ? '#fbbf24' : stars === 2 ? '#d1d5db' : '#9ca3af';
+
+        // By spec type
+        const byType = {};
+        roundLog.forEach(r => {
+          if (!byType[r.specType]) byType[r.specType] = { total: 0, correct: 0, missed: 0 };
+          byType[r.specType].total++;
+          if (r.outcome === 'correct') byType[r.specType].correct++;
+          else byType[r.specType].missed++;
+        });
+
+        // Hardest angles
+        const hardest = roundLog
+          .filter(r => r.outcome !== 'correct')
+          .map(r => r.displaySpec)
+          .slice(0, 4);
+
+        // Avg delta on correct
+        const correctDeltas = roundLog.filter(r => r.outcome === 'correct' && r.delta != null);
+        const avgDelta = correctDeltas.length > 0
+          ? (correctDeltas.reduce((s, r) => s + r.delta, 0) / correctDeltas.length).toFixed(1)
+          : null;
+
+        // Takeaway
+        let tip;
+        const typeNames = { angle: 'degree angles', radians: 'radian prompts', coords: 'coordinate prompts' };
+        const worstType = Object.entries(byType).sort((a, b) => (b[1].missed / b[1].total) - (a[1].missed / a[1].total))[0];
+        if (timeouts > 2) {
+          tip = 'You ran out of time often. Try placing quickly near the right area first, then refine before confirming.';
+        } else if (worstType && worstType[1].missed > worstType[1].correct) {
+          tip = `${typeNames[worstType[0]] || worstType[0]} were your hardest. Practice converting between representations before placing.`;
+        } else if (avgDelta && parseFloat(avgDelta) > 8) {
+          tip = 'Your placements were in the right area but not precise. Use the tick marks at 30° intervals as guides.';
+        } else {
+          tip = 'Strong placing! Aim for ★★★ — zero misses, tight precision on every angle.';
+        }
+
+        return { correct, close, misses, timeouts, stars, starText, starColor, byType, hardest, avgDelta, tip };
       }
 
-      // ── Complete ──
-      if (screen === 'complete' || sessionComplete) {
+      // ── End screen (shared by gameover + complete) ──
+      if (screen === 'gameover' || screen === 'complete' || sessionComplete) {
+        const isComplete = screen === 'complete' || sessionComplete;
+        const db = buildDebrief();
         return (
           <div className="pizza-lab" style={{ justifyContent: 'center' }}>
-            <div className="session-complete">
-              <div style={{ fontSize: '2.5rem' }}>🍕</div>
-              <h2>Pizza Lab Complete!</h2>
-              <div className="final-score">{score}/{ROUNDS_PER_SESSION}</div>
-              <p>You placed {score} toppings correctly across {ROUNDS_PER_SESSION} rounds.</p>
-              <p style={{ fontSize: '0.85rem', color: '#6b7280' }}>Lives remaining: {'❤️'.repeat(lives) + '🖤'.repeat(MAX_LIVES - lives)}</p>
+            <div className="session-complete" style={{ maxWidth: 400 }}>
+              <div style={{ fontSize: '2.5rem' }}>{isComplete ? '🍕' : '😔'}</div>
+              <h2>{isComplete ? 'Pizza Lab Complete!' : 'Out of Lives!'}</h2>
+              <div className="final-score">{score}/{isComplete ? ROUNDS_PER_SESSION : roundIndex + 1}</div>
+
+              {/* Star rating */}
+              {db && <div style={{ fontSize: '1.5rem', fontWeight: 800, color: db.starColor }}>{db.starText}</div>}
+
+              {/* Debrief */}
+              {db && (
+                <div style={{ width: '100%', textAlign: 'left', background: '#f8fafc', borderRadius: 12, padding: '12px 16px', border: '1px solid #e5e7eb', marginTop: 8 }}>
+                  <div style={{ fontSize: 11, color: '#6366f1', fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 }}>📋 Session Debrief</div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '3px 0', borderBottom: '1px solid #f1f5f9' }}>
+                    <span style={{ color: '#6b7280' }}>Correct</span>
+                    <span style={{ fontWeight: 700, color: '#16a34a' }}>{db.correct}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '3px 0', borderBottom: '1px solid #f1f5f9' }}>
+                    <span style={{ color: '#6b7280' }}>Close (retry given)</span>
+                    <span style={{ fontWeight: 700, color: '#d97706' }}>{db.close}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '3px 0', borderBottom: '1px solid #f1f5f9' }}>
+                    <span style={{ color: '#6b7280' }}>Missed / timed out</span>
+                    <span style={{ fontWeight: 700, color: db.misses > 0 ? '#dc2626' : '#16a34a' }}>{db.misses}{db.timeouts > 0 ? ` (${db.timeouts} timeout)` : ''}</span>
+                  </div>
+                  {db.avgDelta && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '3px 0', borderBottom: '1px solid #f1f5f9' }}>
+                      <span style={{ color: '#6b7280' }}>Avg precision</span>
+                      <span style={{ fontWeight: 700, color: parseFloat(db.avgDelta) <= 5 ? '#16a34a' : '#d97706' }}>{db.avgDelta}° off</span>
+                    </div>
+                  )}
+
+                  {/* By type */}
+                  <div style={{ marginTop: 8, fontSize: 12, color: '#374151' }}>
+                    <div style={{ fontWeight: 600, marginBottom: 4 }}>By prompt type:</div>
+                    {Object.entries(db.byType).map(([type, data]) => (
+                      <div key={type} style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}>
+                        <span style={{ color: '#6b7280' }}>{type === 'angle' ? '📐 Degrees' : type === 'radians' ? '📏 Radians' : '📍 Coordinates'}</span>
+                        <span><span style={{ color: '#16a34a' }}>{data.correct}✓</span> / <span style={{ color: data.missed > 0 ? '#dc2626' : '#16a34a' }}>{data.missed}✗</span></span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {db.hardest.length > 0 && (
+                    <div style={{ marginTop: 8, fontSize: 12 }}>
+                      <span style={{ color: '#6b7280' }}>Hardest: </span>
+                      <span style={{ fontWeight: 700, color: '#dc2626' }}>{db.hardest.join(', ')}</span>
+                    </div>
+                  )}
+
+                  <div style={{ marginTop: 10, padding: '8px 12px', background: '#eef2ff', borderRadius: 8, border: '1px solid #c7d2fe', fontSize: 12, color: '#4338ca', lineHeight: 1.6 }}>
+                    <strong>💡 Next time: </strong>{db.tip}
+                  </div>
+                </div>
+              )}
+
+              <p style={{ fontSize: '0.85rem', color: '#6b7280', marginTop: 8 }}>Lives: {'❤️'.repeat(Math.max(0, lives)) + '🖤'.repeat(MAX_LIVES - Math.max(0, lives))}</p>
               <button className="restart-btn" onClick={handleRestart}>Play Again</button>
             </div>
           </div>
