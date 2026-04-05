@@ -561,3 +561,55 @@ any future game with discrete selection can import. The pattern is now confirmed
 Bakery (trivially solvable — any combo of any value works) and Fire Dispatch (non-trivially
 solvable — subset sum of fixed options). The helper would have caught the Fire Dispatch
 bug before Pass 1 was ever built.
+
+
+---
+
+## Proof-Case Review Session — 2026-04-04
+
+Source: improvements made to all three pass-1 previews based on direct playthrough of the live HTML files.
+
+### Rules extracted
+
+**Rule: Every visible element in a game UI must have mechanical consequence, or be removed.**
+
+Not cosmetic tolerance — removed. Flavor is permitted (character names, incident locations, bakery theme). But any label that describes a game state or attribute — urgency levels, priority badges, status indicators — implies a mechanical difference to the player. If the system does not back that difference with behavior, the label is a lie. Urgency in Fire Dispatch was showing 🔴 HIGH / 🟢 LOW with identical point values and identical time limits. Fix: HIGH = 1.5×, MED = 1.0×, LOW = 0.8× points. Four lines. This rule applies at proof-case review, before any gate stage.
+
+**Rule: Every state transition that penalizes the player requires a visible feedback window.**
+
+If the player loses something (a life, a customer, time), the game must show *why* for long enough to perceive. 900ms minimum. The Bakery patience timer expired silently — the UI reset instantly with no indication that a customer had left as a penalty. A learner has no way to connect the patience bar emptying to the customer disappearing without a bridging moment. This is not polish. It is the cause-and-effect chain that teaching depends on.
+
+**Rule: Feedback language implies a contract with the player.**
+
+If feedback text contains an action verb the player can take ("Try again", "Retry", "Continue"), the system must support that action in the current state. If it does not, cut the verb. Unit Circle showed "Close! Try again." while auto-advancing after 1800ms with no retry mechanism. This is worse than silence — it sets an expectation, then violates it. Fix: either remove the verb or implement the action. The retry system was implemented.
+
+**Rule (implementation discipline): Avoid nested cross-state updater logic when simpler sequencing is possible.**
+
+Using `setScore(prevScore => { setLevelIndex(...); })` — reading one piece of state inside another state's updater to drive a third update — is technically valid React but produces silent correctness bugs under batching. The Fire Dispatch level-advancement check used `prevScore + pts >= threshold` inside such a nesting, which double-counted `pts` because `prevScore` was already post-update. The correct fix is to compute the outcome first, then apply it, or to use a `useEffect` that watches the score. The bug was subtle enough to ship in a playable preview and survive code review.
+
+**Rule (teaching principle): Make cause-and-effect explicit at every state change in teaching games.**
+
+This generalizes the patience feedback and the urgency badge rules. A learner builds a mental model of how a game works by observing what happens when they act or fail to act. Every state change that has a consequence — a penalty, a reward, a difficulty increase — needs a perceivable moment that names what happened. Silent transitions teach nothing. Instant transitions teach the wrong thing.
+
+### Patterns documented for future use
+
+**Retry-state machine (precision games):**
+Three states: `null → 'offered' → 'active'`. First close result pauses the round and offers retry. Ghost position stays visible during 'offered' and 'active' states as a placement guide. Second attempt always auto-advances. This pattern is local to Unit Circle now but is portable to any game where spatial or temporal precision is the core challenge. Extract when a second precision game needs it.
+
+**pass_record artifact:**
+A lightweight JSON artifact written at the end of each pass. Shape: `pass_name`, `game_name`, `pass_number`, `timestamp`, `what_this_pass_proved`, `open_questions`, `bugs_fixed` (with `impact` dimension), `known_limits`, optional `auditor_results`, and `next_pass_first_obligation`. Schema at `artifacts/schemas/pass_record.schema.json`. This is an evidence bridge between passes — makes Pass N+1 start from proof rather than memory. Not a new pipeline stage.
+
+### Classification
+
+| Finding | Classification |
+|---------|---------------|
+| Visible labels must have mechanical consequence | `fix_now` — applied to urgency in Fire Dispatch |
+| Penalty transitions need feedback windows | `fix_now` — applied to customer_left in Bakery |
+| Feedback language implies contract | `fix_now` — applied to "Try again" in Unit Circle |
+| Nested cross-state updater risk | `fix_now` — applied to level advancement bug in Fire Dispatch |
+| Retry-state pattern | `document_now` — local to Unit Circle; extract when second precision game needs it |
+| pass_record schema | `fix_now` — schema written; actual pass records to be created at start of Pass 2 |
+
+### Single most justified next architectural improvement
+
+Define and write the three `pass_record` artifacts (one per game, one per pass) before beginning Pass 2 on any of them. This costs one short document per game and makes the OS's understanding of each game's current state explicit and queryable, rather than reconstructed from commit history each session.

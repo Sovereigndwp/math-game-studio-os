@@ -1,0 +1,107 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Pass Record",
+  "description": "Lightweight evidence bridge written at the end of each game pass. Captures what was proved, what was broken and fixed, what remains open, and what Pass N+1 must address first. Not a new pipeline stage — written during proof-case review.",
+  "type": "object",
+  "required": [
+    "pass_name",
+    "game_name",
+    "pass_number",
+    "timestamp",
+    "what_this_pass_proved",
+    "open_questions",
+    "bugs_fixed",
+    "known_limits",
+    "next_pass_first_obligation"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "pass_name": {
+      "type": "string",
+      "description": "Unique slug for this pass. Recommended: '<game>-pass-<n>' e.g. 'bakery-rush-pass-1'.",
+      "pattern": "^[a-z0-9-]+$"
+    },
+    "game_name": {
+      "type": "string",
+      "description": "Human-readable game title. e.g. 'Bakery Rush'."
+    },
+    "pass_number": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Sequential pass index, starting at 1."
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 timestamp when this record was written."
+    },
+    "what_this_pass_proved": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string" },
+      "description": "Specific things the playable preview demonstrated to be true. Each item should be a falsifiable claim, not a wish. e.g. 'The core loop is learnable without instruction overlay.'"
+    },
+    "open_questions": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Questions this pass raised but did not answer. Carried forward to Pass N+1."
+    },
+    "bugs_fixed": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["description", "impact"],
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "type": "string",
+            "description": "What was broken and what was done to fix it."
+          },
+          "impact": {
+            "type": "string",
+            "enum": ["teaching", "correctness", "honesty", "polish"],
+            "description": "Which quality dimension the fix addressed. teaching=learning loop; correctness=logic/state; honesty=visible but nonfunctional element; polish=language/presentation."
+          }
+        }
+      },
+      "description": "Bugs caught and fixed during this pass. Evidence that the proof case was used, not just built."
+    },
+    "known_limits": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Things intentionally left incomplete or deferred. Distinguishes deliberate scope from unfinished work."
+    },
+    "auditor_results": {
+      "type": "object",
+      "description": "Optional. Output from difficulty_ramp_auditor.py if it was run against this pass.",
+      "additionalProperties": false,
+      "properties": {
+        "curve_verdict": {
+          "type": "string",
+          "enum": ["smooth_ramp", "spike", "flat", "mixed"]
+        },
+        "weighted_severity": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0
+        },
+        "severity_label": {
+          "type": "string",
+          "enum": ["clean", "advisory", "concern", "flag"]
+        },
+        "flagged_parameters": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "next_pass_first_obligation": {
+      "type": "string",
+      "minLength": 10,
+      "description": "Single sentence stating what Pass N+1 must address before anything else. Not a wish list — one specific claim or fix. e.g. 'Prove the selection constraint is learnable by a player who has never played a subset-sum game.'"
+    }
+  }
+}
