@@ -30,7 +30,103 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
-from agents.misconception_architect.agent import apply_library_writeback  # noqa: E402
+from agents.misconception_architect.agent import apply_library_writeback, revert_library_writeback  # noqa: E402
+
+PENDING_DIR = REPO_ROOT / "artifacts" / "misconception_library" / "pending"
+
+
+def list_pending() -> None:
+    """List all pending write-back files with summary info."""
+    if not PENDING_DIR.is_dir():
+        print("No pending directory found.")
+        return
+
+    files = sorted(PENDING_DIR.glob("*.json"))
+    if not files:
+        print("No pending write-back files.")
+        return
+
+    print(f"{'File':<50s} {'Status':<20s} {'Game':<18s} {'Job ID':<30s} {'Pending'}")
+    print("-" * 145)
+
+    for path in files:
+        try:
+            with open(path) as f:
+                wb = json.load(f)
+        except (json.JSONDecodeError, OSError):
+            print(f"{path.name:<50s} (unreadable)")
+            continue
+
+        status = wb.get("status", "?")
+        game = wb.get("game_name", "?")
+        job_id = wb.get("source_job_id", "?")
+        entries = wb.get("entries_to_update", [])
+        pending_count = sum(1 for e in entries if not e.get("applied"))
+        total_count = len(entries)
+
+        print(f"{path.name:<50s} {status:<20s} {game:<18s} {job_id:<30s} {pending_count}/{total_count}")
+
+    print()
+    print(f"Directory: {PENDING_DIR.relative_to(REPO_ROOT)}")
+
+
+BACKUP_DIR = REPO_ROOT / "artifacts" / "misconception_library" / "backups"
+
+
+def prune_backups(keep: int = 3, do_delete: bool = False) -> None:
+    """List and optionally prune old backup files, keeping the N most recent per game."""
+    if not BACKUP_DIR.is_dir():
+        print("No backups directory found.")
+        return
+
+    # Group backups by base library filename (everything before the timestamp)
+    from collections import defaultdict
+    groups: dict[str, list[Path]] = defaultdict(list)
+    for path in sorted(BACKUP_DIR.glob("*.bak")):
+        # Format: <library-name>.json.<timestamp>.bak
+        # Extract base name: everything up to and including .json
+        name = path.name  # e.g. fire-dispatch-misconceptions.json.20260405T124806.bak
+        parts = name.split(".json.")
+        if len(parts) == 2:
+            base = parts[0] + ".json"
+        else:
+            base = name
+        groups[base].append(path)
+
+    if not groups:
+        print("No backup files found.")
+        return
+
+    total_prunable = 0
+    total_kept = 0
+
+    for base, paths in sorted(groups.items()):
+        # Sort by modification time (newest last)
+        paths.sort(key=lambda p: p.stat().st_mtime)
+        to_keep = paths[-keep:] if keep > 0 else []
+        to_prune = [p for p in paths if p not in to_keep]
+
+        print(f"{base}: {len(paths)} backups, keeping {len(to_keep)}, pruning {len(to_prune)}")
+        for p in paths:
+            marker = "  PRUNE" if p in to_prune else "  keep "
+            size_kb = p.stat().st_size / 1024
+            print(f"  {marker}  {p.name} ({size_kb:.1f} KB)")
+
+        if do_delete:
+            for p in to_prune:
+                p.unlink()
+                print(f"    deleted: {p.name}")
+
+        total_prunable += len(to_prune)
+        total_kept += len(to_keep)
+
+    print()
+    if do_delete:
+        print(f"Pruned {total_prunable} backups, kept {total_kept}.")
+    else:
+        print(f"Dry run: {total_prunable} would be pruned, {total_kept} would be kept.")
+        if total_prunable > 0:
+            print(f"To prune: python scripts/apply_library_writeback.py --prune-backups --keep {keep} --apply")
 
 
 def _print_field_diff(field: str, diff: dict, indent: str = "    ") -> None:
@@ -239,6 +335,84 @@ def apply(pending_path: Path, git_stage: bool = True, only_categories: list = No
         _stage_and_diff(library_path, pending_path, wb.get("source_job_id", "unknown"))
 
 
+def revert(pending_path: Path, do_revert: bool = False, git_stage: bool = True) -> None:
+    """Show revert dry-run or execute revert from backup."""
+    with open(pending_path) as f:
+        wb = json.load(f)
+
+    status = wb.get("status")
+    if status not in ("applied", "partially_applied"):
+        print(f"  Status is '{status}' — nothing to revert.")
+        return
+
+    library_filename = wb["library_file"]
+    library_file = REPO_ROOT / "artifacts" / "misconception_library" / library_filename
+    backup_dir = REPO_ROOT / "artifacts" / "misconception_library" / "backups"
+
+    # Find the most recent backup
+    pattern = f"{library_filename}.*.bak"
+    backups = sorted(backup_dir.glob(pattern), key=lambda p: p.stat().st_mtime, reverse=True) if backup_dir.is_dir() else []
+
+    if not backups:
+        print(f"  ERROR: No backups found for {library_filename}")
+        return
+
+    backup_to_use = backups[0]
+
+    entries_applied = [e["category"] for e in wb.get("entries_to_update", []) if e.get("applied")]
+
+    print(f"Revert write-back: {pending_path.name}")
+    print(f"  Game       : {wb['game_name']}")
+    print(f"  Source job : {wb['source_job_id']}")
+    print(f"  Status     : {status}")
+    print(f"  Library    : {library_filename}")
+    print(f"  Backup     : {backup_to_use.name}")
+    print(f"  Entries to revert: {len(entries_applied)} ({', '.join(entries_applied)})")
+    print()
+
+    # Show diff: current library vs backup (what would change)
+    if library_file.exists():
+        current = library_file.read_text(encoding="utf-8")
+        backup_text = backup_to_use.read_text(encoding="utf-8")
+
+        if current == backup_text:
+            print("  Library already matches backup — nothing to revert.")
+            return
+
+        # Use a simple line-count comparison for the dry-run summary
+        current_lines = current.splitlines()
+        backup_lines = backup_text.splitlines()
+        changed = sum(1 for a, b in zip(current_lines, backup_lines) if a != b)
+        extra = abs(len(current_lines) - len(backup_lines))
+        print(f"  Diff: ~{changed + extra} lines differ between current library and backup")
+
+    if not do_revert:
+        print()
+        print("Dry run complete. Library was NOT modified.")
+        print(f"To revert: python scripts/apply_library_writeback.py {pending_path} --revert --apply")
+        return
+
+    # Execute revert
+    print()
+    print("=" * 60)
+    print("REVERTING")
+    print("=" * 60)
+
+    result = revert_library_writeback(pending_path, REPO_ROOT, dry_run=False)
+
+    if not result.get("reverted"):
+        print(f"  ERROR: {result.get('error', 'unknown error')}")
+        return
+
+    print(f"  Library restored from: {Path(result['backup_used']).name}")
+    print(f"  Entries reverted: {len(result['entries_reverted'])} ({', '.join(result['entries_reverted'])})")
+    print(f"  Pending status  : reverted")
+
+    if git_stage:
+        print()
+        _stage_and_diff(result["library_file"], pending_path, wb.get("source_job_id", "unknown"))
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Apply a pending library write-back from the Misconception Architect.",
@@ -257,8 +431,28 @@ def main():
     )
     parser.add_argument(
         "pending_file",
+        nargs="?",
         type=Path,
-        help="Path to the pending write-back JSON file",
+        default=None,
+        help="Path to the pending write-back JSON file (not needed with --list)",
+    )
+    parser.add_argument(
+        "--list",
+        action="store_true",
+        default=False,
+        help="List all pending write-back files with summary info",
+    )
+    parser.add_argument(
+        "--prune-backups",
+        action="store_true",
+        default=False,
+        help="Show (dry-run) or delete (with --apply) old backups. Use --keep N to set retention.",
+    )
+    parser.add_argument(
+        "--keep",
+        type=int,
+        default=3,
+        help="Number of most recent backups to keep per game file (default: 3). Used with --prune-backups.",
     )
     parser.add_argument(
         "--apply",
@@ -273,6 +467,12 @@ def main():
         help="Comma-separated list of categories to apply (e.g., representation_mismatch,strategic_overload). Others are left pending.",
     )
     parser.add_argument(
+        "--revert",
+        action="store_true",
+        default=False,
+        help="Revert an applied write-back from its backup. Dry-run by default; use --apply to execute.",
+    )
+    parser.add_argument(
         "--no-git",
         action="store_true",
         default=False,
@@ -280,9 +480,24 @@ def main():
     )
     args = parser.parse_args()
 
+    if args.list:
+        list_pending()
+        return 0
+
+    if args.prune_backups:
+        prune_backups(keep=args.keep, do_delete=args.apply)
+        return 0
+
+    if args.pending_file is None:
+        parser.error("pending_file is required (use --list to see available files)")
+
     if not args.pending_file.exists():
         print(f"ERROR: File not found: {args.pending_file}")
         sys.exit(1)
+
+    if args.revert:
+        revert(args.pending_file, do_revert=args.apply, git_stage=not args.no_git)
+        return 0
 
     only_categories = None
     if args.only:

@@ -1811,6 +1811,79 @@ def apply_library_writeback(
     return result
 
 
+def revert_library_writeback(
+    writeback_path: Path,
+    repo_root: Path,
+    dry_run: bool = True,
+) -> Dict[str, Any]:
+    """Revert an applied write-back by restoring the library from its backup.
+
+    Finds the most recent backup for the library file named in the pending
+    write-back, then either reports (dry_run=True) or restores it.
+
+    Returns a dict with:
+      - "reverted": bool
+      - "library_file": path to the library file
+      - "backup_used": path to the backup file used
+      - "entries_reverted": list of category names that were rolled back
+    """
+    with open(writeback_path) as f:
+        writeback = json.load(f)
+
+    status = writeback.get("status")
+    if status not in ("applied", "partially_applied"):
+        return {"reverted": False, "error": f"Status is '{status}' — nothing to revert"}
+
+    library_filename = writeback["library_file"]
+    library_file = repo_root / "artifacts" / "misconception_library" / library_filename
+    backup_dir = repo_root / "artifacts" / "misconception_library" / "backups"
+
+    if not backup_dir.is_dir():
+        return {"reverted": False, "error": "No backups directory found"}
+
+    # Find backups for this library file, sorted newest-first
+    pattern = f"{library_filename}.*.bak"
+    backups = sorted(backup_dir.glob(pattern), key=lambda p: p.stat().st_mtime, reverse=True)
+
+    if not backups:
+        return {"reverted": False, "error": f"No backups found matching {pattern}"}
+
+    # Use the most recent backup
+    backup_to_use = backups[0]
+
+    # Determine which entries would be reverted
+    entries_reverted = [
+        e["category"] for e in writeback.get("entries_to_update", [])
+        if e.get("applied")
+    ]
+
+    result: Dict[str, Any] = {
+        "reverted": not dry_run,
+        "library_file": str(library_file),
+        "backup_used": str(backup_to_use),
+        "entries_reverted": entries_reverted,
+    }
+
+    if not dry_run:
+        # Read backup content
+        backup_content = backup_to_use.read_text(encoding="utf-8")
+
+        # Write it over the current library
+        library_file.write_text(backup_content, encoding="utf-8")
+
+        # Update pending file status
+        writeback["status"] = "reverted"
+        writeback["reverted_at"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        writeback["reverted_from_backup"] = str(backup_to_use)
+        # Clear per-entry applied flags
+        for e in writeback.get("entries_to_update", []):
+            e.pop("applied", None)
+        with open(writeback_path, "w") as f:
+            json.dump(writeback, f, indent=2, ensure_ascii=False)
+
+    return result
+
+
 # ---------------------------------------------------------------------------
 # Pipeline wiring
 # ---------------------------------------------------------------------------
