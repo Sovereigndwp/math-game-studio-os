@@ -1,6 +1,21 @@
 # Pass/Fail Scorecard
 
-Use after every pass to decide: pass, fail, hold, or split.
+## Purpose
+Make every pass easier to judge as pass / fail / hold / split.
+
+## Use this when
+After every pass — before starting the next one.
+
+## Controls
+- A pass is not complete until the player-feeling change is named
+- Every field in the template must be filled before deciding
+- "Hold" means the pass had partial effect and needs one more focused attempt
+- "Split" means the pass was trying to fix two problems — separate them
+
+## Do not use this for
+- Deciding which pass to do next (use `pass_system.md`)
+- Diagnosing what is wrong (use `engagement_failure_modes.md`)
+- Implementation guidance
 
 ---
 

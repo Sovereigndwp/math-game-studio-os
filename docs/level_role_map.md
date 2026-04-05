@@ -1,8 +1,21 @@
 # Level Role Map
 
-Every level must have one job. This document defines that job.
+## Purpose
+Force every level to have one job. Catch progression walls and overloaded levels.
 
-Use before or during P2B to catch progression mistakes.
+## Use this when
+Before or during P2B. Also when a playtest reveals a "wall" or "unfair spike."
+
+## Controls
+- Every level must have one primary job
+- New cognitive demands require lowering speed, clutter, penalty, or simultaneous choices
+- If a level feels like a wall, define its role before tuning it
+- No level should add more than one new demand
+
+## Do not use this for
+- Visual or personality decisions (those are P3)
+- Replay or variation decisions (those are P4)
+- Deciding whether the game concept works (that is P0)
 
 ---
 

@@ -1,6 +1,21 @@
 # Engagement Failure Modes
 
-Common ways games fail to engage. Use at the start of every audit.
+## Purpose
+Give a shared vocabulary for sticky-game failures so diagnosis is fast and repeatable.
+
+## Use this when
+At the start of every audit. When a playtest feels wrong but you cannot name why. When choosing the next pass.
+
+## Controls
+- Match symptoms to failure mode numbers before proposing a fix
+- Name the primary failure mode (not three)
+- Use the pass-to-fix column to pick the right pass type
+- Add new failure modes only when a genuinely new pattern is observed
+
+## Do not use this for
+- Implementation details
+- Level-specific tuning (use `level_role_map.md`)
+- Deciding pass/fail on completed work (use `pass_fail_scorecard.md`)
 
 Instead of reinventing the diagnosis each time, say: "this is failure mode 4 and 9."
 

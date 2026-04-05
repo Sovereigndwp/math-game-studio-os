@@ -1,8 +1,20 @@
 # Player Feeling Targets
 
-What the player should feel at each pass and at each phase of a run.
+## Purpose
+Define what the player should feel at each pass type and during each phase of a run.
 
-Use before implementation to set the target. Use after playtest to check if you hit it.
+## Use this when
+Before implementation — to set the target feeling. After playtest — to check if you hit it.
+
+## Controls
+- Every pass must name one target feeling before starting
+- After playtest, complete the sentence: "Before this pass the player felt ___. After, they feel ___."
+- If you cannot fill in both blanks, the pass is probably not done
+
+## Do not use this for
+- Deciding which pass type to do (use `pass_system.md`)
+- Diagnosing what is broken (use `engagement_failure_modes.md`)
+- Level-specific tuning (use `level_role_map.md`)
 
 ---
 
