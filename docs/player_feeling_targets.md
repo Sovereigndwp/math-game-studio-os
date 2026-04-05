@@ -12,7 +12,7 @@ Before implementation — to set the target feeling. After playtest — to check
 - If you cannot fill in both blanks, the pass is probably not done
 
 ## Do not use this for
-- Deciding which pass type to do (use `pass_system.md`)
+- Deciding which pass type to do (use `pass_rules.md`)
 - Diagnosing what is broken (use `engagement_failure_modes.md`)
 - Level-specific tuning (use `level_role_map.md`)
 

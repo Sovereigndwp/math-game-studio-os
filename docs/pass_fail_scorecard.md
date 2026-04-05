@@ -13,7 +13,7 @@ After every pass — before starting the next one.
 - "Split" means the pass was trying to fix two problems — separate them
 
 ## Do not use this for
-- Deciding which pass to do next (use `pass_system.md`)
+- Deciding which pass to do next (use `pass_rules.md`)
 - Diagnosing what is wrong (use `engagement_failure_modes.md`)
 - Implementation guidance
 

@@ -83,6 +83,12 @@ playing within 3 seconds. Single file or instant load.
 The role (air traffic controller, baker, shopper) must make the math feel
 purposeful. "Clear the plane" > "solve 7×8." "Feed 6 guests" > "compute ⌈12/6⌉."
 
+### Rule 11 — Distractors Must Test Understanding, Not Just Memory
+Wrong options, shelved items, or alternate paths must require the player to
+cross-reference and reason, not just pattern-match from memory.
+
+*Grocery Dash: distractor items on shelves look identical to real ingredients — player must check the recipe card. ATC: color-coded runways require remembering which direction matches which color.*
+
 ---
 
 ## 3. Urgency and Pressure Patterns
@@ -125,6 +131,24 @@ Use at least two. Games with all five feel the most alive.
 | 3. Numeric | Score increment visible | Fast (200-500ms) |
 | 4. Streak | Counter or multiplier | On the beat (500ms) |
 | 5. Emotional | Character reaction, celebration | After confirm (500-900ms) |
+
+### Failure Feedback Stack
+
+| Layer | What | Timing | Example |
+|-------|------|--------|---------|
+| 1. Visual warning | Color shift or flash | Instant | Box border flashes red |
+| 2. Motion consequence | Shake, bounce-back | Immediate (100-400ms) | Item wobbles and retreats |
+| 3. Resource cost | Visible drain | During animation | Patience bar drops 3 seconds |
+| 4. Character reaction | Mood shift | After drain | Customer frowns |
+| 5. Recovery path | Clear next action | After all above | "Your total is now X — keep going" |
+
+Never punish without showing the recovery path. The player must always know
+what to do next.
+
+### Near-Miss Feedback
+The most engaging moment is when the player is one step from success.
+Near-miss feedback (approaching-target glow, threshold proximity indicator)
+creates anticipation and teaches precision. Design for the "one more step" feeling.
 
 ### Errors get specific diagnosis
 - Wrong answer: name what was wrong ("you were at 9, you needed 3 more")
@@ -188,7 +212,24 @@ A teacher must be able to glance at a student's screen and understand:
 
 ---
 
-## 8. What Future Games Must Avoid
+## 8. Delight, Surprise, and Physical Consequence Patterns
+
+### The "Waste Shame" Moment
+When a player makes an avoidable error, a physical consequence (walking back,
+returning items, waiting) is stronger feedback than a numeric penalty. Grocery
+Dash's checkout blocks on avoidable overshoot — the player walks back to the
+shelf and rethinks. The walk of shame is more memorable than "-20 points."
+Reusable anywhere a player can overshoot or waste.
+
+### Physical Comedy and Spatial Humor
+Games with a spatial component can add ambient NPCs that create mild physical
+comedy (bumping shoppers, screen shake on collision). Shoppers teleport away
+after collision so they stay funny, not frustrating. This pattern turns
+navigation from dead time into engagement.
+
+---
+
+## 9. What Future Games Must Avoid
 
 | Anti-Pattern | Why It Kills Engagement |
 |-------------|----------------------|
@@ -205,7 +246,7 @@ A teacher must be able to glance at a student's screen and understand:
 
 ---
 
-## 9. Release Readiness Checklist
+## 10. Release Readiness Checklist
 
 Every game must pass ALL of these before shipping.
 

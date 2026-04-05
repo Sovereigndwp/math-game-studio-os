@@ -23,11 +23,8 @@ Tell the workflow which OS document to consult for which kind of task.
 
 ## Document Router
 
-### "What pass am I in?"
-→ `docs/pass_system.md` — pass labels and quick diagnostic
-
-### "What are the rules for this pass?"
-→ `docs/pass_rules.md` — non-negotiable constraints, exit criteria, per-pass rules
+### "What pass am I in?" / "What are the rules for this pass?"
+→ `docs/pass_rules.md` — pass labels, diagnostic table, non-negotiable constraints, exit criteria, per-pass rules
 
 ### "Did this pass work?"
 → `docs/pass_fail_scorecard.md` — pass/fail/hold/split decision template
@@ -52,9 +49,6 @@ Tell the workflow which OS document to consult for which kind of task.
 
 ### "What did the ATC / Grocery Dash audit teach?"
 → `docs/atc_math_tower_audit.md` or `docs/grocery_dash_audit.md`
-
-### "What engagement patterns exist across all games?"
-→ `docs/game_engagement_playbook.md`
 
 ---
 
