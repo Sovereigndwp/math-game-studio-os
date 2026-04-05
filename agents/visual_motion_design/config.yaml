@@ -1,0 +1,12 @@
+agent_name: visual_motion_design_agent
+expected_output_artifact: game_feel_pass
+expected_produced_by: Visual and Motion Design Agent
+allowed_reads:
+  - lowest_viable_loop_brief
+allowed_writes:
+  - game_feel_pass
+max_revision_count: 1
+retry_policy: revise_once_then_escalate
+model_profile: high_reasoning
+requires_gate_pass_from:
+  - lowest_viable_loop_brief
