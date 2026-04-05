@@ -1,0 +1,102 @@
+{
+  "artifact_name": "misconception_map",
+  "version": 1,
+  "produced_by": "Misconception Architect",
+  "timestamp": "2026-04-05T11:26:46Z",
+  "status": "pass",
+  "game_family": "Bakery Rush",
+  "interaction_type": "combine_and_build",
+  "source_confusion_risks": [
+    "Belt speed triggers tap-before-thinking at early levels",
+    "Running total not tracked \u2014 learner loses count near target",
+    "Pastry icon selected by preference rather than +N label",
+    "Target number confused with item count rather than sum",
+    "Overshoot auto-correct mechanic misread as failure",
+    "Combined belt + arithmetic pressure causes strategic freeze at L3+"
+  ],
+  "library_reference_used": true,
+  "gate_threshold_met": true,
+  "valid_misconception_count": 6,
+  "misconceptions": [
+    {
+      "id": "bakery_impulsive_tap",
+      "category": "impulsive_guess",
+      "label": "Tap before tracking",
+      "description": "Learner taps items rapidly without computing or estimating a running total first. Treats the game as a reaction task rather than an arithmetic task.",
+      "likely_cause": "Transfer from arcade-style games where speed is the primary skill. Learner has not yet built the habit of mental addition before action. The moving belt may trigger urgency before it actually becomes urgent.",
+      "how_it_appears_in_play": "Three or more consecutive taps under 500ms apart, multiple overshoot events per order, no visible pause before the final item, same overshoot pattern repeated across multiple orders.",
+      "detection_signal": "Three or more tap events within 1500ms total with at least one overshoot in the same order. Overshoot occurs on first or second tap of an order.",
+      "best_feedback_response": "Stop and add. Running total is X \u2014 how many more do you need before you tap again?",
+      "best_clean_replay_task": "Belt frozen (static display). Target \u2264 5. Only +1 and +2 items visible. Player must tap one item at a time with a 1-second forced pause between taps. Success requires exact match.",
+      "reflection_prompt": "Before you tapped, did you know how much you still needed? What would you check first next time?",
+      "change_rationale": "Revised: library entry existed but brief confusion risk introduces changed context: \"Belt speed triggers tap-before-thinking at early levels\". Fields that may need LLM update: description, how_it_appears_in_play, detection_signal."
+    },
+    {
+      "id": "bakery_running_total_loss",
+      "category": "procedure_slip",
+      "label": "Lost count near target",
+      "description": "Learner understands the task and is adding correctly, but loses track of the running total during the final item or two \u2014 overshoots by 1 or 2 despite the correct strategy.",
+      "likely_cause": "Working memory limit. Maintaining a running sum while also scanning a moving belt requires parallel tracking that exceeds the learner's current working memory span, especially as targets grow (\u2265 10).",
+      "how_it_appears_in_play": "Correct strategy visible for first 3\u20134 items. Overshoot happens on the last item only. Overshoot amount is small (1\u20133). Player's pace is measured, not impulsive. Pattern repeats near high-value targets.",
+      "detection_signal": "Overshoot on final tap only (order total already \u2265 target \u2212 2 before the tap). Time between second-to-last and last tap is > 1000ms (deliberate, not impulsive).",
+      "best_feedback_response": "You were at X \u2014 you only needed Y more. Check the running total before the last tap.",
+      "best_clean_replay_task": "Belt frozen. Target \u2264 8. Running total shown in large font with explicit 'need X more' label. One item at a time. Player confirms each item before it counts.",
+      "reflection_prompt": "What was your running total right before you tapped the last item? Could you see it clearly?",
+      "change_rationale": "Kept from library. Brief confusion risk aligns with existing entry: \"Running total not tracked \u2014 learner loses count near target\""
+    },
+    {
+      "id": "bakery_emoji_not_value",
+      "category": "representation_mismatch",
+      "label": "Picks by pastry type, not value",
+      "description": "Learner selects items based on pastry emoji preference or visual salience rather than the +N numeric value label. Believes or ignores that different pastries have different values.",
+      "likely_cause": "The emoji is visually larger and more salient than the +N label. If the learner has not connected the icon to the number, they may treat all pastries as equivalent units. Common in learners who are early readers or have not yet automated symbol-to-quantity mapping.",
+      "how_it_appears_in_play": "Consistent selection of one emoji type regardless of value. Running total does not approach target in a predictable pattern. Player seems surprised by overshoot. Favorite-emoji selection even when a different emoji would complete the order.",
+      "detection_signal": "Player selects the same emoji type \u2265 70% of the time across 3+ orders. Overshoot rate is high (> 40%) compared to orders without preference pattern.",
+      "best_feedback_response": "Every pastry has a number. The \ud83e\udd50 is worth 1, the \ud83c\udf70 is worth 4. Check the +N label before you tap.",
+      "best_clean_replay_task": "All items same emoji (\ud83e\udd50). +N label changes each round (1, 2, 3, 4, or 5). Target \u2264 6. Player must match target using only the number, not the icon.",
+      "reflection_prompt": "Which number on the belt mattered most for filling this order? How did you use it?",
+      "change_rationale": "Kept from library. Brief confusion risk aligns with existing entry: \"Pastry icon selected by preference rather than +N label\""
+    },
+    {
+      "id": "bakery_count_not_sum",
+      "category": "concept_confusion",
+      "label": "Confuses item count with order total",
+      "description": "Learner believes the target means the number of items to add, not the sum of their values. Adds exactly N items and confirms, regardless of their values.",
+      "likely_cause": "Without explicit instruction, 'give me 8 pastries' can mean '8 items' in natural language. The additive-value mechanic is the precise concept being taught \u2014 it is not obvious without the teaching frame. Common in Grade 1\u20132 learners new to the concept of value-weighted objects.",
+      "how_it_appears_in_play": "Player fills order to exactly N items (where N = target number) then stops. Running total does not match target. Player appears confused by failure when they 'did it right'. Orders with target 4 produce 4 items of any value.",
+      "detection_signal": "Number of items in box equals target number but running total does not match. Occurs on \u2265 2 consecutive orders.",
+      "best_feedback_response": "The numbers need to add up to 8, not 8 pastries. A \ud83c\udf70 (+4) plus a \ud83c\udf70 (+4) equals 8 \u2014 that's just 2 pastries!",
+      "best_clean_replay_task": "Two-item order only. Target = 8. Only +4 items available. Player cannot add more than 2 items. Success when 4 + 4 = 8. Teaches sum-not-count with zero ambiguity.",
+      "reflection_prompt": "What were the numbers on the pastries you picked? Did they add up to what the customer wanted?",
+      "change_rationale": "Kept from library. Brief confusion risk aligns with existing entry: \"Target number confused with item count rather than sum\""
+    },
+    {
+      "id": "bakery_overshoot_confusion",
+      "category": "rule_misunderstanding",
+      "label": "Does not understand overshoot auto-correct",
+      "description": "After an overshoot, the learner continues tapping or stops playing entirely, believing the order is failed or the auto-correction is a bug. Does not understand that one item is automatically returned.",
+      "likely_cause": "The auto-correct mechanic (last item slips back) is novel and has no real-world analogy. Without a clear animation and feedback moment, the mechanic reads as a glitch. Learner may also confuse an overshoot with a life loss.",
+      "how_it_appears_in_play": "After overshoot feedback, player taps more items during the error overlay (interaction should be blocked). Or player stops tapping and waits for patience to expire. Or player deliberately goes over on every order expecting a full reset.",
+      "detection_signal": "Tap event occurs during overshoot feedback window (within 700ms of overshoot). Or order ends in timeout immediately after an overshoot event (0 subsequent taps after overlay clears).",
+      "best_feedback_response": "One item automatically slips back when you go over. Your total is now X \u2014 keep going!",
+      "best_clean_replay_task": "Forced overshoot tutorial: target = 3. Only +4 items visible. Player must tap, see the slip-back, then tap a +1 to correct. Three repetitions.",
+      "reflection_prompt": "When the item slipped back, what was your total? What did you need to do next?",
+      "change_rationale": "Kept from library. Brief confusion risk aligns with existing entry: \"Overshoot auto-correct mechanic misread as failure\""
+    },
+    {
+      "id": "bakery_belt_overload",
+      "category": "strategic_overload",
+      "label": "Freezes under combined belt + target pressure",
+      "description": "Learner understands both the arithmetic and the belt mechanic in isolation, but cannot manage both simultaneously. Freezes, picks random items, or ignores the patience bar under combined pressure.",
+      "likely_cause": "Cognitive load of tracking running total AND scanning a moving belt AND monitoring patience bar simultaneously exceeds working memory capacity. Typically appears at L3+ when belt speed increases and target complexity grows together.",
+      "how_it_appears_in_play": "Pause of > 5 seconds mid-order with no taps. Rapid random tapping under pressure (reverts to impulsive pattern). Multiple overshoots in single order after previously controlled play. Performance degrades specifically at level transitions.",
+      "detection_signal": "Order contains \u2265 5 second gap between taps without overshoot or success. Or performance at new level is \u2265 40% worse than performance at previous level on first 3 orders.",
+      "best_feedback_response": "Focus on the running total number first \u2014 ignore the belt for a moment. What number do you need to reach?",
+      "best_clean_replay_task": "Static belt (no movement). Target \u2264 6. Patience bar removed. One pressure axis only. Player demonstrates arithmetic competence without time pressure before pressure reintroduced.",
+      "reflection_prompt": "What made it harder this level? Was it the speed, the numbers, or trying to do both at once?",
+      "change_rationale": "Kept from library. Brief confusion risk aligns with existing entry: \"Combined belt + arithmetic pressure causes strategic freeze at L3+\""
+    }
+  ],
+  "notes": "Library entry found for 'Bakery Rush'. Diff-and-extend: kept 5, revised 1, added 0. Entries were diffed against brief confusion risks \u2014 not blindly copied. Confusion risks from loop brief (6 items) informed diff decisions. Gate threshold met: 6/6 entries have all required fields.",
+  "job_id": "bakery-rush-pass2"
+}

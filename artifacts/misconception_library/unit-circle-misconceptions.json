@@ -1,0 +1,81 @@
+{
+  "game_name": "Unit Circle",
+  "game_family": "navigate_and_position",
+  "concept": "Angular position on the unit circle — placing a point at a given angle expressed in degrees or radians",
+  "age_band": "13-17",
+  "math_domain": "Geometry and Trigonometry — Unit Circle, Angle Measurement",
+  "misconceptions": [
+    {
+      "id": "uc_impulsive_place",
+      "category": "impulsive_guess",
+      "label": "Places without computing",
+      "description": "Learner places the point quickly at an approximate visual center of a zone rather than computing or estimating the angle position. Treats the task as a visual-match problem rather than an angle-reasoning problem.",
+      "likely_cause": "The unit circle is a visual tool — learners may approach it as they would an estimation or drawing task. Without the habit of anchoring to known angles (0°, 90°, 180°, 270°) and reasoning to the target, all positions look equally plausible from a distance.",
+      "how_it_appears_in_play": "Very fast placements (under 1500ms). Placements cluster around quadrant centers (45°, 135°, 225°, 315°) regardless of actual prompt. Symmetric placement pattern across angles. Low accuracy on non-standard angles (e.g., 30°, 150°, 210°, 330°).",
+      "detection_signal": "Placement time < 1500ms. Placement error > 20° on angles that are not multiples of 90°. Pattern across ≥ 3 consecutive rounds.",
+      "best_feedback_response": "Slow down and anchor first. Where is 0°? Where is 90°? Now count from there to where your angle should be.",
+      "best_clean_replay_task": "Anchor-point mode: only 0°, 90°, 180°, 270° prompts. Player must place exactly on axis. Once accurate, introduce 45° as halfway between axes. Step toward non-multiple angles only after axes are solid.",
+      "reflection_prompt": "Before you placed your point, did you figure out which direction to go? What angle were you anchoring from?"
+    },
+    {
+      "id": "uc_degree_radian_swap",
+      "category": "representation_mismatch",
+      "label": "Confuses degree and radian representations",
+      "description": "Learner places the point correctly for one representation but the prompt is in the other. Knows where 90° is but places π/2 at the wrong position (or vice versa). The notations are not yet connected in the learner's mental model.",
+      "likely_cause": "Degrees and radians are two names for the same thing but they look and feel completely different. 'π/2 radians' has no inherent visual magnitude for a learner who has not yet built the π/2 = 90° mapping. This is a representational bridge not yet crossed.",
+      "how_it_appears_in_play": "Correct placements when prompts are in degrees; wrong placements when prompts switch to radians (or vice versa). Error is often systematic: the radian placement is close to the wrong axis (e.g., π/2 placed near 0° because 1/2 suggests 'halfway through a semicircle from the origin').",
+      "detection_signal": "Accuracy drops ≥ 30% when representation switches from degrees to radians within the same session. Error direction is consistent (not random).",
+      "best_feedback_response": "π/2 is the same place as 90° — they're two names for the same angle. Think of π as 180°, so π/2 is half of that.",
+      "best_clean_replay_task": "Side-by-side comparison: two unit circles shown simultaneously — one with degrees label, one with radians label. Player places same angle in both. The two points snap to the same position to show equivalence.",
+      "reflection_prompt": "When you see π/2, what degree does that remind you of? How do you convert between them?"
+    },
+    {
+      "id": "uc_axis_swap",
+      "category": "concept_confusion",
+      "label": "Swaps sine and cosine axes",
+      "description": "Learner places the point at the correct distance from the origin and correct magnitude but on the wrong axis. 90° goes on the x-axis instead of the y-axis, or the player conflates 'sine = vertical' with 'sine = horizontal'.",
+      "likely_cause": "The mapping of cosine to x and sine to y is a convention that must be explicitly learned. Without regular use of the (cos θ, sin θ) coordinate pair, the axes feel arbitrary. Learners who learned 'SOH-CAH-TOA' in a right-triangle context may not have transferred the axis convention to the unit circle.",
+      "how_it_appears_in_play": "Placements for 90° appear near (1, 0) instead of (0, 1). Placements for 0° appear near (0, 1) instead of (1, 0). The error is a 90° rotation of the correct answer — systematic, not random. Quadrant identification is often correct but axis assignment is wrong.",
+      "detection_signal": "Placement error is consistently near 90° away from correct position across ≥ 3 rounds. Error direction is clockwise or counterclockwise rotation, not radial distance error.",
+      "best_feedback_response": "Cosine controls left-right (x-axis), sine controls up-down (y-axis). At 90°, cosine = 0 so you're on the y-axis, not the x.",
+      "best_clean_replay_task": "Axis-labeling mode: unit circle with explicit 'cosine →' label on x-axis and '← sine →' label on y-axis. Only 0°, 90°, 180°, 270° prompts. Player confirms axis before placing.",
+      "reflection_prompt": "Which axis is cosine and which is sine? How can you remember which is which?"
+    },
+    {
+      "id": "uc_quadrant_near_miss",
+      "category": "procedure_slip",
+      "label": "Correct quadrant, wrong position within it",
+      "description": "Learner correctly identifies the quadrant for the angle but places the point too early, too late, or at the wrong arc distance within the quadrant. Knows the general direction but lacks precision for non-standard angles.",
+      "likely_cause": "The learner has learned quadrant identification but not angular interpolation. Placing 120° requires knowing it is 30° past the y-axis in Quadrant II — this compositional reasoning (anchor + offset) is the precise skill being trained. The close-miss pattern shows the anchor is found but the offset is not computed.",
+      "how_it_appears_in_play": "Placement is within the correct quadrant but off by 10°–25°. No systematic axis-swap error. Close-miss rate high on angles that are not multiples of 30° or 45°. Performance is better on 30° and 45° family angles than on composite angles like 150°, 210°.",
+      "detection_signal": "Placement error > 10° and < 30°. Placement is within the correct quadrant in ≥ 80% of cases. Error size increases for composite angles (150°, 210°, 240°, 300°) vs. simple angles (30°, 45°, 90°).",
+      "best_feedback_response": "Good quadrant — adjust your position along the arc. 120° is 30° past the top (90°), so move a little further counterclockwise.",
+      "best_clean_replay_task": "Ghost-position retry (implemented in pass-1): after close miss, green ghost shows correct position, player can retry once. Anchor visualization shows nearest reference angle and offset.",
+      "reflection_prompt": "Which reference angle were you measuring from? How far past it should your angle be?"
+    },
+    {
+      "id": "uc_clockwise_confusion",
+      "category": "rule_misunderstanding",
+      "label": "Confuses clockwise and counterclockwise convention",
+      "description": "Learner places angles in the clockwise direction, treating the unit circle like a clock face. 30° is placed at the position of a clock's 11 (330° counterclockwise) rather than 1 (30° counterclockwise).",
+      "likely_cause": "Clocks go clockwise; most visual rotation metaphors in everyday life are clockwise. The mathematical convention of counterclockwise-as-positive is a specific convention the learner must explicitly learn and has no everyday-life reinforcement.",
+      "how_it_appears_in_play": "30° is placed at approximately 330°. 45° is placed at approximately 315°. All placements are reflections across the x-axis. The error is exact and systematic — not a magnitude error but a direction reversal. Works correctly for 0°, 180° (same both ways).",
+      "detection_signal": "Placement for angle θ is consistently within 10° of (360° − θ). Pattern across ≥ 3 rounds for non-symmetric angles.",
+      "best_feedback_response": "Angles on the unit circle go counterclockwise — the opposite direction of a clock. 30° moves up and to the right, not down and to the right.",
+      "best_clean_replay_task": "Direction-only tutorial: animated arrow shows 0° → 90° counterclockwise. Player watches, then places 90°. Three repetitions with visual direction cue present. Then cue fades and player places independently.",
+      "reflection_prompt": "Which direction did you go from 0°? Which direction does the unit circle count up in?"
+    },
+    {
+      "id": "uc_radian_fraction_overload",
+      "category": "strategic_overload",
+      "label": "Cannot convert radian fraction to spatial position",
+      "description": "Learner places simple radian angles correctly (π/2, π, 3π/2) but cannot handle composite radian angles (2π/3, 5π/6, 7π/4). The fraction-to-arc-position conversion requires simultaneous fraction reasoning and spatial reasoning that overloads working memory.",
+      "likely_cause": "5π/6 requires: (1) recognizing it as a fraction of 2π, (2) converting to degrees (150°), OR (3) decomposing as π − π/6 and reasoning to 30° before the y-axis. All three paths require multi-step reasoning under spatial pressure. Each step is learnable in isolation but the combination is demanding.",
+      "how_it_appears_in_play": "High accuracy on π/2, π, 3π/2 (axis angles). Sudden drop in accuracy for 2π/3, 5π/6, 4π/3, 7π/6, 7π/4. Pattern is specific to non-axis radian angles. Learner may perform better when the same angle is expressed in degrees.",
+      "detection_signal": "Accuracy gap ≥ 30% between axis-multiple angles (π/2, π, 3π/2, 2π) and non-axis radian angles in same session.",
+      "best_feedback_response": "Break it apart: 2π/3 is two-thirds of the way from 0 to π. Find where π is, then count two-thirds of that arc.",
+      "best_clean_replay_task": "Fraction decomposition scaffold: visual arc divided into thirds/sixths/quarters with fraction labels. Player matches 2π/3 to the labeled segment first, then places without the scaffold. Three rounds with scaffold, three without.",
+      "reflection_prompt": "When you see 5π/6, what simpler angle do you start from? How do you break the fraction into a position?"
+    }
+  ]
+}

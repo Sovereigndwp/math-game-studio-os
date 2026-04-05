@@ -1,0 +1,15 @@
+agent_name: misconception_architect
+expected_output_artifact: misconception_map
+expected_produced_by: Misconception Architect
+allowed_reads:
+  - lowest_viable_loop_brief
+  - family_architecture_brief
+  - interaction_decision_memo
+allowed_writes:
+  - misconception_map
+max_revision_count: 2
+retry_policy: revise_once_then_escalate
+model_profile: high_reasoning
+requires_gate_pass_from:
+  - lowest_viable_loop_brief
+  - family_architecture_brief

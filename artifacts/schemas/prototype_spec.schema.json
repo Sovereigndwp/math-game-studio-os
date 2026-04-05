@@ -54,6 +54,24 @@
           "type": "array",
           "items": { "type": "string", "minLength": 1 },
           "minItems": 1
+        },
+        "learning_skills": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "pattern_notice",
+              "error_diagnosis",
+              "strategy_selection",
+              "representation_switching",
+              "planning_under_pressure",
+              "self_monitoring",
+              "revision_after_feedback",
+              "transfer_to_new_context"
+            ]
+          },
+          "minItems": 1,
+          "description": "Learning skills (metacognitive) this game trains. Required per OS spec 2026 Section 5. Pick at least 3."
         }
       },
       "required": ["age_band", "grade_band", "math_domain", "target_skills"],
@@ -444,6 +462,216 @@
         "overshoot_recovery",
         "exact_match_required"
       ],
+      "additionalProperties": false
+    },
+    "thinking_layer": {
+      "type": "object",
+      "description": "The ninth required design layer (OS spec 2026 Section 3). Defines the metacognitive dimension of the learning loop — what the learner must notice, predict, monitor, and revise. This is the bridge between a good game loop and a good learning loop.",
+      "properties": {
+        "what_to_notice": {
+          "type": "string",
+          "minLength": 10,
+          "description": "Which features of the presented problem are mathematically relevant? What should the learner look at before acting?"
+        },
+        "what_to_predict": {
+          "type": "string",
+          "minLength": 10,
+          "description": "Before selecting or acting, what should the learner mentally compute or estimate? What does the game ask them to anticipate?"
+        },
+        "what_to_monitor": {
+          "type": "string",
+          "minLength": 10,
+          "description": "During action, what running state must the learner track? What changes as they act that they must stay aware of?"
+        },
+        "what_to_revise": {
+          "type": "string",
+          "minLength": 10,
+          "description": "After feedback, what belief or strategy should change? What is the cleaner version of their attempt?"
+        }
+      },
+      "required": ["what_to_notice", "what_to_predict", "what_to_monitor", "what_to_revise"],
+      "additionalProperties": false
+    },
+    "learning_design": {
+      "type": "object",
+      "description": "Defines how the game detects misconceptions, recognizes understanding, and structures reflection. Required for Approval Gates 3–5 (OS spec 2026 Section 10).",
+      "properties": {
+        "misconception_detection_logic": {
+          "type": "string",
+          "minLength": 10,
+          "description": "How the game detects and classifies learner errors into the six required error categories. Must be implementable without audio or camera."
+        },
+        "error_category_map": {
+          "type": "array",
+          "minItems": 1,
+          "description": "One entry per detectable error category. Should cover at least 3 of the 6 required categories.",
+          "items": {
+            "type": "object",
+            "required": ["category", "detection_signal", "play_appearance"],
+            "additionalProperties": false,
+            "properties": {
+              "category": {
+                "type": "string",
+                "enum": [
+                  "procedure_slip",
+                  "concept_confusion",
+                  "representation_mismatch",
+                  "impulsive_guess",
+                  "rule_misunderstanding",
+                  "strategic_overload"
+                ]
+              },
+              "detection_signal": {
+                "type": "string",
+                "description": "Observable, measurable signal the game can log to classify this error."
+              },
+              "play_appearance": {
+                "type": "string",
+                "description": "What an observer would see when this error is occurring."
+              }
+            }
+          }
+        },
+        "evidence_of_understanding_signals": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Observable behaviors that indicate the learner has internalized the concept — not just performed correctly once."
+        },
+        "guessing_risk_signals": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Observable behaviors that suggest the player is guessing or pattern-matching rather than reasoning mathematically."
+        },
+        "reflection_prompt_plan": {
+          "type": "object",
+          "description": "One prompt for each metacognitive phase. See OS spec 2026 Section 4.2 and Rule D.",
+          "properties": {
+            "planning_prompt":    { "type": "string" },
+            "monitoring_prompt":  { "type": "string" },
+            "evaluation_prompt":  { "type": "string" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "adaptation_design": {
+      "type": "object",
+      "description": "Defines how the game responds when different confusion patterns are detected. Adaptation is a distinct design layer — not mere difficulty scaling. See OS spec 2026 Section 4.3 and Approval Gate 4.",
+      "properties": {
+        "hint_trigger_logic": {
+          "type": "string",
+          "description": "What event or pattern triggers a hint, and what the hint shows. e.g. 'after 2 consecutive overshoot events, show running-total label in large font'."
+        },
+        "adaptation_trigger_logic": {
+          "type": "string",
+          "description": "What event or pattern triggers a difficulty reduction or representation shift."
+        },
+        "alternate_representation_mode": {
+          "type": "string",
+          "description": "Description of the simpler or alternative representation available when the primary one causes confusion."
+        },
+        "misconception_specific_review_mode": {
+          "type": "string",
+          "description": "How review mode targets the detected error category specifically. A good retry is not the same level again — it is a cleaner version of the exact misunderstanding."
+        }
+      },
+      "additionalProperties": false
+    },
+    "difficulty_and_adaptation_levers": {
+      "type": "object",
+      "description": "Replaces and extends the concept of a single difficulty axis. Challenge and adaptation must be declared separately — they are independent design dimensions. See OS spec 2026 Section 4.3.",
+      "properties": {
+        "challenge_levers": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "pace",
+              "item_count",
+              "rule_count",
+              "representation_shift",
+              "planning_horizon",
+              "competing_demands",
+              "symbolic_complexity"
+            ]
+          },
+          "description": "Which pressure axes are active in this game."
+        },
+        "adaptation_levers": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "hint_timing",
+              "misconception_specific_replay",
+              "simplified_representation",
+              "slower_pressure",
+              "alternate_explanation_mode",
+              "guided_comparison_mode"
+            ]
+          },
+          "description": "Which adaptation responses are implemented or planned."
+        }
+      },
+      "additionalProperties": false
+    },
+    "transfer_target": {
+      "type": "string",
+      "minLength": 10,
+      "description": "What later topic, representation, or context this game is preparing the learner for. Required per OS spec 2026 Rule G and Approval Gate 6. e.g. 'Two-digit addition with regrouping; multi-step word problems'."
+    },
+    "transfer_echo_design": {
+      "type": "string",
+      "description": "How the next game in the sequence should echo this game's mechanic or representation to support transfer. e.g. 'The grouping mechanic in the multiplication game should use the same running-total display'."
+    },
+    "teacher_dashboard_outputs": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "What a teacher can see about student performance. Required for Approval Gate 7. Each item names one visible output. e.g. ['misconception frequency by category', 'students likely guessing', 'accuracy by level']."
+    },
+    "validation_targets": {
+      "type": "object",
+      "description": "Measurable targets for the Validation and Measurement block. Defines success criteria beyond 'did the prototype build'.",
+      "properties": {
+        "misconception_capture_rate": {
+          "type": "string",
+          "description": "Target percentage of error events correctly classified by category. e.g. '≥ 70% of impulsive_guess events detected within the session'."
+        },
+        "reduction_in_guessing_signals": {
+          "type": "string",
+          "description": "Measurable reduction in impulsive-behavior signals over the course of a session. e.g. 'tap interval < 400ms rate drops by ≥ 20% from first 5 orders to last 5 orders'."
+        },
+        "quality_of_transfer_performance": {
+          "type": "string",
+          "description": "How performance on a transfer task is measured. e.g. 'accuracy on two-digit addition problems ≥ 10% higher after Bakery session than before'."
+        },
+        "teacher_interpretation_speed": {
+          "type": "string",
+          "description": "Time limit for a teacher to identify the most confused student or most common misconception. e.g. '≤ 60 seconds with the dashboard visible'."
+        },
+        "revision_after_feedback_rate": {
+          "type": "string",
+          "description": "Percentage of feedback events that produce a measurable strategy change on the next order. e.g. '≥ 40% of impulsive_guess feedback events followed by longer inter-tap interval'."
+        }
+      },
+      "additionalProperties": false
+    },
+    "approval_gates_2026": {
+      "type": "object",
+      "description": "Explicit pass/fail declaration for each of the ten 2026 approval gates (OS spec 2026 Section 10). A game is not ready unless all ten are true.",
+      "properties": {
+        "gate_1_role_needs_math":          { "type": "boolean" },
+        "gate_2_action_performs_math":     { "type": "boolean" },
+        "gate_3_detects_3_misconceptions": { "type": "boolean" },
+        "gate_4_adapts_to_1_misconception":{ "type": "boolean" },
+        "gate_5_reflection_beat_present":  { "type": "boolean" },
+        "gate_6_transfer_target_named":    { "type": "boolean" },
+        "gate_7_teacher_evidence_visible": { "type": "boolean" },
+        "gate_8_cleaner_replay_available": { "type": "boolean" },
+        "gate_9_simplest_version_works":   { "type": "boolean" },
+        "gate_10_excitement_serves_learning": { "type": "boolean" }
+      },
       "additionalProperties": false
     },
     "difficulty_profile": {

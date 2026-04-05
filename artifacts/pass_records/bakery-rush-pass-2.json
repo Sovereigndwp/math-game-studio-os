@@ -1,0 +1,43 @@
+{
+  "pass_name": "bakery-rush-pass-2",
+  "game_name": "Bakery Rush",
+  "pass_number": 2,
+  "timestamp": "2026-04-04T00:00:00Z",
+  "what_this_pass_proved": [
+    "Level 1 belt at 18s (half the pass-1 speed) is no longer the dominant barrier — players have ample time to identify, select, and sum items before patience expires.",
+    "The full belt ramp [18, 13, 9, 6, 4] preserves ≤35% step reduction at every level, keeping the difficulty curve smooth per the auditor spec.",
+    "Session diagnostics built into the end screen (per-level timeout / overshoot counts, auto-verdict) make the Pass 2 question answerable from a single playthrough without external tooling.",
+    "Max belt speed moved from 2s to 4s — 2s was unreadable; 4s is the new upper bound pending further evidence."
+  ],
+  "open_questions": [
+    "Does removing time pressure at L1–L2 reveal that targets ≥12 at L3 are actually a choice-difficulty wall, or do players still lose primarily to patience expiry at L3?",
+    "At L3 with a 9s belt and targets [5,7,9,10,12], do overshoot errors cluster on the high-value targets (10, 12) specifically?",
+    "Does the 4s max belt at Level 5 feel appropriately challenging, or has the speed reduction made the game too easy to max out?",
+    "Is the 5-customer queue per level the right length to produce meaningful diagnostic signal before the session ends?"
+  ],
+  "bugs_fixed": [
+    {
+      "description": "Level 1 belt at 9s was consistently the primary failure reason even for players who could do the arithmetic — time pressure masked arithmetic difficulty. Belt halved to 18s; full ramp recalculated to [18, 13, 9, 6, 4] to preserve smooth steps.",
+      "impact": "teaching"
+    },
+    {
+      "description": "No way to distinguish time-pressure failures from choice-error failures after a session ended. Added per-order diagnostic logging (outcome, hadItems, overshoots) written to a ref, surfaced in the end-screen overlay with a plain-language auto-verdict.",
+      "impact": "honesty"
+    }
+  ],
+  "known_limits": [
+    "Diagnostic log lives in a React ref and resets on Play Again — no persistence across sessions. Observing the question requires reading the end screen in a single run.",
+    "The auto-verdict heuristic (choice error = overshoots + partial timeouts) may misclassify an overshoot-then-recover-then-timeout order — it attributes partial fault to choice when the ultimate cause was time.",
+    "Target pool values are unchanged from pass-1; whether the specific numbers [5,7,9,10,12] at L3 are appropriately spaced has not been validated.",
+    "Belt solvability not guaranteed — 7% chance any given conveyor batch contains no 1-value items, which can make low-target orders unsolvable regardless of time. Unchanged from pass-1.",
+    "Subtraction mechanic not introduced — deferred as a possible future experiment, not a committed extension."
+  ],
+  "auditor_results": {
+    "curve_verdict": "smooth_ramp",
+    "weighted_severity": 0.0,
+    "severity_label": "clean",
+    "flagged_parameters": [],
+    "notes": "New beltDuration ramp [18, 13, 9, 6, 4] passes all auditor thresholds. Steps: 28%, 31%, 33%, 33% — all ≤ 35% max. targetPoolMax and patience sequences unchanged from pass-1; both previously audited as clean."
+  },
+  "next_pass_first_obligation": "Observe at least one full session of pass-2 play and confirm whether Level 3 (9s belt, targets up to 12) produces choice errors (overshoots or partial timeouts) — if yes, arithmetic is the new wall and Pass 3 should address target composition; if no, patience values need reduction before target complexity increases."
+}

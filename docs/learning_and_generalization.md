@@ -613,3 +613,70 @@ A lightweight JSON artifact written at the end of each pass. Shape: `pass_name`,
 ### Single most justified next architectural improvement
 
 Define and write the three `pass_record` artifacts (one per game, one per pass) before beginning Pass 2 on any of them. This costs one short document per game and makes the OS's understanding of each game's current state explicit and queryable, rather than reconstructed from commit history each session.
+
+---
+
+## OS 2026 Revision — 2026-04-04
+
+The OS operating principle was upgraded from:
+
+> Role + interaction + pressure + points
+
+to:
+
+> Role + interaction + misconception detection + adaptive feedback + reflection + transfer
+
+This is not a cosmetic rename. It reflects what the three proof-case games already revealed:
+- The difficulty ramp auditor proved that pressure without diagnosis is incomplete
+- The pass record artifacts proved that honest documentation of what was proved vs. assumed matters
+- The retry-state machine in Unit Circle proved that adaptation (even one-shot) changes the learning outcome
+
+### New operating principle grounding
+
+The upgrade is grounded in:
+- EEF metacognition guidance: plan → monitor → evaluate as high-value classroom moves
+- IES formative assessment framing: gather and use evidence during learning, not only at the end
+- Current platform ecosystems (Games for Change, Code.org, Minecraft Education, Roblox Education, ISTE): all reward creation, standards alignment, and educator usability — not shallow point-chasing
+
+### What changed structurally
+
+| Change | Location | Status |
+|---|---|---|
+| Full OS spec | `docs/os_spec_2026.md` | Written |
+| Ninth required layer (Thinking) | `prototype_spec.schema.json` → `thinking_layer` | Schema added |
+| Six required error categories | `prototype_spec.schema.json` → `learning_design.error_category_map` | Schema added |
+| Reflection beat requirement | `prototype_spec.schema.json` → `learning_design.reflection_prompt_plan` | Schema added |
+| Adaptation design layer | `prototype_spec.schema.json` → `adaptation_design` | Schema added |
+| Challenge vs. adaptation levers (separate) | `prototype_spec.schema.json` → `difficulty_and_adaptation_levers` | Schema added |
+| Transfer target (required) | `prototype_spec.schema.json` → `transfer_target` | Schema added |
+| Teacher evidence (required) | `prototype_spec.schema.json` → `teacher_dashboard_outputs` | Schema added |
+| Ten approval gates | `prototype_spec.schema.json` → `approval_gates_2026` | Schema added |
+| Learning skills (metacognitive) | `prototype_spec.schema.json` → `target_player.learning_skills` | Schema added |
+| Misconception Library — Bakery Rush | `artifacts/misconception_library/bakery-rush-misconceptions.json` | Written |
+| Misconception Library — Fire Dispatch | `artifacts/misconception_library/fire-dispatch-misconceptions.json` | Written |
+| Misconception Library — Unit Circle | `artifacts/misconception_library/unit-circle-misconceptions.json` | Written |
+| Misconception Library schema | `artifacts/schemas/misconception_library_entry.schema.json` | Written |
+| Loop Purity Auditor | `utils/loop_purity_auditor.py` | Written |
+| Teacher Evidence Dashboard schema | `artifacts/schemas/teacher_evidence_dashboard.schema.json` | Written |
+
+### Reusable rules from this revision
+
+**Rule: Challenge levers and adaptation levers are not the same axis.**
+The original OS treated difficulty as one dial (harder/easier). The 2026 revision separates making the game harder (challenge levers) from responding to confusion (adaptation levers). A game can be at L3 difficulty and still offer a simplified-representation adaptation. These are independent.
+
+**Rule: Misconception classification is the minimum evidence threshold.**
+Right/wrong is not enough. The OS now requires every game to classify error events into at least 3 of 6 categories. This is what separates diagnostic games from scoring games.
+
+**Rule: The Thinking Layer is the missing design piece.**
+The strongest games already implicitly define what to notice, predict, monitor, and revise. Making it explicit as Layer 9 prevents loops that are mechanically correct but cognitively opaque — loops where the player acts correctly without understanding why.
+
+**Rule: Teacher evidence is not an add-on.**
+Approval Gate 7 now makes teacher interpretability a first-class requirement. A game that cannot surface confused students within 60 seconds is not classroom-ready regardless of how good the loop is.
+
+### What remains out of scope (not changed by this revision)
+
+- The pipeline stages 0–8 are unchanged in their gate logic
+- The V2 boundary document is superseded by the new approval gates where they conflict
+- The ten new agents are defined as interface contracts only — implementation follows priority build order
+- Platform integrations (Minecraft Education, Roblox Education, Bloxels, etc.) are named in the routing spec but not wired to any existing stage
+- Subtraction mechanic in Bakery Rush remains a possible future experiment, not a decided extension

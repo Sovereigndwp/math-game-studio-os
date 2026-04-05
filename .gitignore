@@ -32,3 +32,9 @@ Master Gaming App and OS/
 
 # Debug payloads written by shared_agent_runner on validation failure
 memory/**/*.INVALID_DEBUG.*.json
+
+# Ephemeral job snapshot outputs (generated per run, not source)
+artifacts/jobs/
+
+# Library backups (safety net from write-back applies, not source)
+artifacts/misconception_library/backups/
