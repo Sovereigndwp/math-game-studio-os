@@ -271,26 +271,51 @@
 
     // ─── Data ────────────────────────────────────────────────────────────────
 
-    const ROUND_CONFIGS = [
-      // Tier 1: quadrant angles, wide tolerance
-      { targetAngleDeg: 0,   toleranceDeg: 15, label: '0°',   specType: 'angle',   displaySpec: '0°' },
-      { targetAngleDeg: 90,  toleranceDeg: 15, label: '90°',  specType: 'angle',   displaySpec: '90°' },
-      { targetAngleDeg: 180, toleranceDeg: 15, label: '180°', specType: 'angle',   displaySpec: '180°' },
-      { targetAngleDeg: 270, toleranceDeg: 15, label: '270°', specType: 'angle',   displaySpec: '270°' },
-      // Tier 2: common angles, medium tolerance
-      { targetAngleDeg: 45,  toleranceDeg: 10, label: '45°',  specType: 'angle',   displaySpec: '45°' },
-      { targetAngleDeg: 30,  toleranceDeg: 10, label: '30°',  specType: 'radians', displaySpec: 'π/6' },
-      { targetAngleDeg: 60,  toleranceDeg: 10, label: '60°',  specType: 'radians', displaySpec: 'π/3' },
-      { targetAngleDeg: 135, toleranceDeg: 10, label: '135°', specType: 'angle',   displaySpec: '135°' },
-      { targetAngleDeg: 150, toleranceDeg: 10, label: '150°', specType: 'radians', displaySpec: '5π/6' },
-      { targetAngleDeg: 120, toleranceDeg: 10, label: '120°', specType: 'coords',  displaySpec: '(−½, √3/2)' },
-      // Tier 3: all standard, tight tolerance
-      { targetAngleDeg: 225, toleranceDeg: 8,  label: '225°', specType: 'angle',   displaySpec: '225°' },
-      { targetAngleDeg: 240, toleranceDeg: 8,  label: '240°', specType: 'radians', displaySpec: '4π/3' },
-      { targetAngleDeg: 300, toleranceDeg: 8,  label: '300°', specType: 'coords',  displaySpec: '(½, −√3/2)' },
-      { targetAngleDeg: 315, toleranceDeg: 8,  label: '315°', specType: 'radians', displaySpec: '7π/4' },
-      { targetAngleDeg: 330, toleranceDeg: 5,  label: '330°', specType: 'coords',  displaySpec: '(√3/2, −½)' },
+    // Round pools per tier — shuffled at session start
+    const TIER_1_POOL = [
+      // Quadrant angles, degrees only, 12° tolerance
+      { targetAngleDeg: 0,   toleranceDeg: 12, specType: 'angle',   displaySpec: '0°' },
+      { targetAngleDeg: 90,  toleranceDeg: 12, specType: 'angle',   displaySpec: '90°' },
+      { targetAngleDeg: 180, toleranceDeg: 12, specType: 'angle',   displaySpec: '180°' },
+      { targetAngleDeg: 270, toleranceDeg: 12, specType: 'angle',   displaySpec: '270°' },
     ];
+    const TIER_2_POOL = [
+      // Common angles, degrees + radians (no coords yet), 9° tolerance
+      { targetAngleDeg: 45,  toleranceDeg: 9,  specType: 'angle',   displaySpec: '45°' },
+      { targetAngleDeg: 30,  toleranceDeg: 9,  specType: 'radians', displaySpec: 'π/6' },
+      { targetAngleDeg: 60,  toleranceDeg: 9,  specType: 'radians', displaySpec: 'π/3' },
+      { targetAngleDeg: 135, toleranceDeg: 9,  specType: 'angle',   displaySpec: '135°' },
+      { targetAngleDeg: 150, toleranceDeg: 9,  specType: 'radians', displaySpec: '5π/6' },
+      { targetAngleDeg: 120, toleranceDeg: 9,  specType: 'radians', displaySpec: '2π/3' },
+    ];
+    const TIER_3_POOL = [
+      // All standard angles, all three representations, progressive tightening
+      { targetAngleDeg: 225, toleranceDeg: 8,  specType: 'angle',   displaySpec: '225°' },
+      { targetAngleDeg: 240, toleranceDeg: 7,  specType: 'radians', displaySpec: '4π/3' },
+      { targetAngleDeg: 300, toleranceDeg: 7,  specType: 'coords',  displaySpec: '(½, −√3/2)' },
+      { targetAngleDeg: 315, toleranceDeg: 6,  specType: 'radians', displaySpec: '7π/4' },
+      { targetAngleDeg: 330, toleranceDeg: 6,  specType: 'coords',  displaySpec: '(√3/2, −½)' },
+    ];
+
+    function shuffleArray(arr) {
+      const a = [...arr];
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    }
+
+    function buildRoundConfigs() {
+      return [
+        ...shuffleArray(TIER_1_POOL),
+        ...shuffleArray(TIER_2_POOL),
+        ...shuffleArray(TIER_3_POOL),
+      ];
+    }
+
+    // Initial build — will be rebuilt on restart
+    let ROUND_CONFIGS = buildRoundConfigs();
 
     const COMMON_ANGLES = {
       0:   { cos: '1',      sin: '0',      rad: '0' },
@@ -317,14 +342,19 @@
     const MAX_LIVES = 3;
 
     // Per-tier time limits (seconds)
-    const TIER_TIME = { 1: 20, 2: 15, 3: 10 };
+    const TIER_TIME = { 1: 18, 2: 14, 3: 10 };
+    const TIER_BOUNDARIES = [0, 4, 10]; // round indices where each tier starts
     function getTier(roundIndex) {
       if (roundIndex < 4) return 1;
       if (roundIndex < 10) return 2;
       return 3;
     }
+    function isFirstOfTier(roundIndex) {
+      return TIER_BOUNDARIES.includes(roundIndex);
+    }
     function getTimeLimit(roundIndex) {
-      return TIER_TIME[getTier(roundIndex)];
+      const base = TIER_TIME[getTier(roundIndex)];
+      return isFirstOfTier(roundIndex) ? base + 3 : base; // +3s warm-up on first round of each tier
     }
 
     // Tutorial steps
@@ -736,7 +766,7 @@
           mode = 'correct';
           setScore(s => s + 1);
           setStreak(s => s + 1);
-        } else if (d <= toleranceDeg * 2.5) {
+        } else if (d <= toleranceDeg * 2) {
           mode = 'close';
           setStreak(0);
         } else {
@@ -793,6 +823,7 @@
         setTimeLeft(getTimeLimit(0));
         setRoundLog([]);
         roundStartTime.current = Date.now();
+        ROUND_CONFIGS = buildRoundConfigs(); // re-shuffle for new session
         setScreen('playing');
       };
 
