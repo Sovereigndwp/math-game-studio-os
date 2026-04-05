@@ -261,6 +261,44 @@
       color: #9ca3af;
       margin-top: -4px;
     }
+
+    /* P3: Chef feedback line */
+    .feedback-chef-line {
+      font-size: 0.8rem;
+      color: #6b7280;
+      font-style: italic;
+      margin-top: 3px;
+    }
+
+    /* P3: Lab status strip */
+    .lab-status-strip {
+      text-align: center;
+      font-size: 0.78rem;
+      padding: 5px 16px;
+      border-radius: 999px;
+      background: #fff7ed;
+      border: 1px solid #fed7aa;
+      font-weight: 600;
+      min-height: 26px;
+      margin: 4px 0;
+    }
+
+    /* P3: Flawless verdict */
+    .verdict-flawless {
+      background: linear-gradient(135deg, #7c3aed, #f59e0b);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      font-size: 1.4rem;
+      font-weight: 900;
+    }
+
+    /* P3: Star pop animation */
+    @keyframes starPop {
+      0% { transform: scale(0.5); opacity: 0; }
+      60% { transform: scale(1.15); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .star-pop { animation: starPop 0.5s ease-out; }
   </style>
 </head>
 <body>
@@ -355,6 +393,82 @@
     function getTimeLimit(roundIndex) {
       const base = TIER_TIME[getTier(roundIndex)];
       return isFirstOfTier(roundIndex) ? base + 3 : base; // +3s warm-up on first round of each tier
+    }
+
+    // ─── P3: Chef Cosina ─────────────────────────────────────────────────────
+
+    const CHEF = {
+      name: 'Chef Cosina',
+      emoji: '👩‍🍳',
+      perfect: [
+        'Perfetto! Right on the mark.',
+        "That's a chef's placement.",
+        'Exactly where it belongs.',
+        'Textbook. You feel it now.',
+        'Clean as a fresh pie.',
+        'Nailed it. No hesitation.',
+      ],
+      close: [
+        'Almost — feel the angle, don\'t guess.',
+        'Close! You\'re in the neighborhood.',
+        'Not bad, but not sharp enough yet.',
+        'You see it — now trust your hand.',
+      ],
+      miss: [
+        'Way off. Eyes on the tick marks.',
+        'That topping\'s lost. Regroup.',
+        'Missed it. Focus on the landmarks.',
+        'Not even close. Slow down, look first.',
+      ],
+      timeout: [
+        'The oven waits for no one!',
+        'Too slow — pizza\'s burning!',
+        'Time\'s up! Commit faster.',
+      ],
+      streak: [
+        'Three in a row — that\'s a chef\'s hand!',
+        'You\'re in the zone! Keep that rhythm.',
+        'Streak! The kitchen is humming.',
+      ],
+    };
+
+    function getChefLine(outcome, currentStreak) {
+      const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+      if (outcome === 'correct' && currentStreak >= 3 && Math.random() < 0.5) return pick(CHEF.streak);
+      if (outcome === 'correct') return pick(CHEF.perfect);
+      if (outcome === 'close')   return pick(CHEF.close);
+      if (outcome === 'timeout') return pick(CHEF.timeout);
+      return pick(CHEF.miss);
+    }
+
+    // ─── P3: Lab status strip ────────────────────────────────────────────────
+
+    function getLabStatus(roundIndex, streak, lives, tier) {
+      if (lives === 1)   return { text: '🚨 Last life — measure twice, place once!', color: '#dc2626' };
+      if (streak >= 4)   return { text: '🔥 Kitchen is ON FIRE! Flawless precision!', color: '#16a34a' };
+      if (streak >= 2)   return { text: '👩‍🍳 Chef Cosina nods — nice rhythm.', color: '#d97706' };
+      if (tier === 3)    return { text: '🧪 Advanced lab — coordinates in play.', color: '#7c3aed' };
+      if (tier === 2)    return { text: '📐 Radians unlocked. Think in π.', color: '#2563eb' };
+      if (roundIndex >= 1) return { text: '🍕 Pizza Lab is open. Place with confidence.', color: '#92400e' };
+      return { text: '🍕 First order up! Show what you know.', color: '#78716c' };
+    }
+
+    // ─── P3: Tiered celebration ──────────────────────────────────────────────
+
+    function getCelebration(outcome, tier, currentStreak) {
+      if (outcome !== 'correct') return null;
+      if (tier === 3) return { verdict: '💎 FLAWLESS', className: 'verdict-flawless' };
+      if (currentStreak >= 3) return { verdict: '🎉 On a Roll!', className: '' };
+      return null; // use default "🎯 Perfect!"
+    }
+
+    // ─── P3: End screen chef reaction ────────────────────────────────────────
+
+    function getEndScreenChef(stars, isComplete) {
+      if (!isComplete) return { emoji: '👩‍🍳', line: "We lost some pies, but you'll be back stronger." };
+      if (stars === 3)  return { emoji: '👩‍🍳🏆', line: "Perfection! You've earned your chef's hat." };
+      if (stars === 2)  return { emoji: '👩‍🍳👍', line: "Solid work. A few more reps and you'll master it." };
+      return { emoji: '👩‍🍳', line: "You finished! Room to sharpen up." };
     }
 
     // Tutorial steps
@@ -464,7 +578,7 @@
 
     // ─── FeedbackPanel ───────────────────────────────────────────────────────
 
-    function FeedbackPanel({ feedbackMode, deltaAngleDeg, correctAngleDeg, onRetry, retryAvailable }) {
+    function FeedbackPanel({ feedbackMode, deltaAngleDeg, correctAngleDeg, onRetry, retryAvailable, chefLine, celebration }) {
       if (!feedbackMode) return null;
 
       const exact = COMMON_ANGLES[correctAngleDeg];
@@ -472,13 +586,21 @@
 
       let panelClass = 'feedback-panel ';
       let verdict = '';
-      if (feedbackMode === 'correct') { panelClass += 'feedback-correct'; verdict = '🎯 Perfect!'; }
+      if (feedbackMode === 'correct') {
+        panelClass += 'feedback-correct';
+        verdict = celebration ? celebration.verdict : '🎯 Perfect!';
+      }
       else if (feedbackMode === 'close')  { panelClass += 'feedback-close';   verdict = '🟡 Close — adjust your aim'; }
       else                                { panelClass += 'feedback-miss';    verdict = '❌ Not quite.'; }
 
+      const verdictClass = celebration && celebration.className
+        ? `feedback-verdict ${celebration.className}`
+        : 'feedback-verdict';
+
       return (
         <div className={panelClass}>
-          <div className="feedback-verdict">{verdict}</div>
+          <div className={verdictClass}>{verdict}</div>
+          {chefLine && <div className="feedback-chef-line">"{chefLine}" — Chef Cosina</div>}
           {feedbackMode !== 'correct' && (
             <>
               <div className="feedback-delta">
@@ -681,6 +803,9 @@
       const [retryState,      setRetryState]      = useState(null);
       const submittedRef = useRef(false);
 
+      // P3: chef feedback line
+      const [chefLine, setChefLine] = useState('');
+
       // P2A: round log for debrief
       const [roundLog, setRoundLog] = useState([]); // [{specType, targetAngle, outcome, delta, timeUsed}]
       const roundStartTime = useRef(Date.now());
@@ -722,6 +847,7 @@
           setStreak(0);
           setSubmitted(true);
           setFeedbackMode('miss');
+          setChefLine(getChefLine('timeout', 0));
           setRetryState(null);
           setTimeout(advanceRound, ADVANCE_MS);
           return;
@@ -780,6 +906,7 @@
         }
         setSubmitted(true);
         setFeedbackMode(mode);
+        setChefLine(getChefLine(mode, mode === 'correct' ? streak + 1 : 0));
 
         // Log for debrief
         setRoundLog(prev => [...prev, {
@@ -909,15 +1036,17 @@
       if (screen === 'gameover' || screen === 'complete' || sessionComplete) {
         const isComplete = screen === 'complete' || sessionComplete;
         const db = buildDebrief();
+        const chefEnd = db ? getEndScreenChef(db.stars, isComplete) : getEndScreenChef(0, isComplete);
         return (
           <div className="pizza-lab" style={{ justifyContent: 'center' }}>
             <div className="session-complete" style={{ maxWidth: 400 }}>
-              <div style={{ fontSize: '2.5rem' }}>{isComplete ? '🍕' : '😔'}</div>
+              <div style={{ fontSize: '2.5rem' }}>{chefEnd.emoji}</div>
               <h2>{isComplete ? 'Pizza Lab Complete!' : 'Out of Lives!'}</h2>
+              <div style={{ fontSize: '0.9rem', color: '#92400e', fontStyle: 'italic', margin: '4px 0 8px' }}>"{chefEnd.line}"</div>
               <div className="final-score">{score}/{isComplete ? ROUNDS_PER_SESSION : roundIndex + 1}</div>
 
               {/* Star rating */}
-              {db && <div style={{ fontSize: '1.5rem', fontWeight: 800, color: db.starColor }}>{db.starText}</div>}
+              {db && <div className="star-pop" style={{ fontSize: '1.5rem', fontWeight: 800, color: db.starColor }}>{db.starText}</div>}
 
               {/* Debrief */}
               {db && (
@@ -1003,6 +1132,12 @@
           </div>
           {timerUrgent && <div style={{ fontSize: 11, color: '#ef4444', fontWeight: 700 }}>⏱️ {timeLeft}s remaining!</div>}
 
+          {/* P3: Lab status strip */}
+          {(() => {
+            const status = getLabStatus(roundIndex, streak, lives, getTier(roundIndex));
+            return <div className="lab-status-strip" style={{ color: status.color }}>{status.text}</div>;
+          })()}
+
           {/* Order */}
           <OrderPanel
             targetSpec={currentRound.displaySpec}
@@ -1038,6 +1173,8 @@
               correctAngleDeg={targetAngleDeg}
               onRetry={handleRetry}
               retryAvailable={retryState === 'offered'}
+              chefLine={chefLine}
+              celebration={feedbackMode === 'correct' ? getCelebration('correct', getTier(roundIndex), streak) : null}
             />
           )}
 
