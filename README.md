@@ -87,7 +87,7 @@ For LLM mode, see RUNBOOK.md.
 Cases 1 through 3 test the full pipeline through Stage 8. Cases 4 and 5 test
 early rejection at the kill gate. All five pass in both stub and LLM modes.
 
-## Repository structure
+## Repository structure (pipeline)
 
 ```
 pipeline.py                  Main entry point — runs stages 0–8 in sequence
@@ -169,6 +169,108 @@ gaps are fixable and should revise.
 | docs/benchmark_rubric.md | Six-dimension concept scoring criteria |
 | docs/benchmark_review_v1.md | Qualitative review of the three approved concepts |
 
+## Misconception Architect
+
+A post-pipeline component that predicts what learners will get wrong before
+the game is built. It cross-references a seeded misconception library
+against the game's brief and produces a misconception map with one entry
+per error category.
+
+For known games with existing library entries, the architect uses a
+diff-and-extend strategy:
+
+- **Kept entries** stay deterministic (zero API cost)
+- **Revised entries** are rewritten by Sonnet when the brief changes the
+  confusion risk
+- **Unmatched risks** are evaluated by Sonnet for new entry generation or
+  justified rejection
+- **Semantic routing** uses Haiku to assign brief risks to categories in
+  one batch call
+- **Semantic gate** uses Haiku to decide keep-vs-revise per entry
+
+### Running the Misconception Architect
+
+```bash
+# Deterministic only (no API key needed):
+python scripts/run_misconception_architect.py --game bakery-rush
+
+# With LLM for revised entries and unmatched risks:
+export ANTHROPIC_API_KEY=sk-ant-...
+python scripts/run_misconception_architect.py --game bakery-rush-changed --llm
+
+# With mock LLM (plumbing test, no API key):
+python scripts/run_misconception_architect.py --game bakery-rush-changed --mock-llm
+
+# With library write-back (generates pending file, does not auto-apply):
+python scripts/run_misconception_architect.py --game fire-dispatch-changed --llm --write-back
+
+# Stability check (two passes, verifies write-back produces a fixed point):
+python scripts/run_misconception_architect.py --game bakery-rush-changed --llm --stability-check
+```
+
+Available games: `bakery-rush`, `bakery-rush-changed`, `fire-dispatch`,
+`fire-dispatch-changed`, `unit-circle`.
+
+### Library write-back workflow
+
+Revised primary entries can be written back to the seeded library through
+a controlled review flow:
+
+```bash
+# List all pending write-backs:
+python scripts/apply_library_writeback.py --list
+
+# Dry-run — show field-level diffs without modifying anything:
+python scripts/apply_library_writeback.py <pending_file>
+
+# Apply only selected categories:
+python scripts/apply_library_writeback.py <pending_file> --apply --only representation_mismatch
+
+# Apply all entries:
+python scripts/apply_library_writeback.py <pending_file> --apply
+
+# Revert an applied write-back (dry-run first):
+python scripts/apply_library_writeback.py <pending_file> --revert
+python scripts/apply_library_writeback.py <pending_file> --revert --apply
+
+# Prune old backups (dry-run first):
+python scripts/apply_library_writeback.py --prune-backups --keep 3
+python scripts/apply_library_writeback.py --prune-backups --keep 3 --apply
+```
+
+Write-back safeguards:
+- Only primary entries can write back (not secondaries)
+- Only revised entries that pass quality checks are eligible
+- Pending file must be explicitly applied — never automatic
+- Backup of the original library is created before every apply
+- Partial apply is supported — select categories, leave others pending
+- Revert restores from the most recent backup
+
+## Repository structure (full, including post-pipeline)
+
+```
+pipeline.py                  Main entry point — runs stages 0–8 in sequence
+agents/                      One directory per agent (agent.py, prompt.md, config.yaml)
+  intake_framing/            Stage 1 — intake_brief
+  kill_test/                 Stage 2 — kill_report
+  interaction_mapper/        Stage 3 — interaction_decision_memo
+  family_architect/          Stage 4 — family_architecture_brief
+  core_loop/                 Stage 5 — lowest_viable_loop_brief
+  prototype_spec/            Stage 6 — prototype_spec
+  prototype_build_spec/      Stage 7 — prototype_build_spec
+  prototype_ui_spec/         Stage 8 — prototype_ui_spec
+  misconception_architect/   Post-pipeline — misconception_map
+artifacts/schemas/           JSON schemas for all artifact types
+artifacts/misconception_library/  Seeded misconception entries per game family
+  pending/                   Pending write-back files awaiting review
+  backups/                   Timestamped library backups from write-back applies
+utils/                       Shared agent runner, LLM caller, schema validator
+scripts/                     Benchmark runner, misconception runner, write-back CLI
+memory/                      Job workspace storage (generated, gitignored)
+reports/                     Benchmark markdown reports (generated, gitignored)
+docs/                        Project documentation
+```
+
 ## Current status
 
 - V1 — frozen at tag v1.0. Stages 0 through 5, five benchmarks, all
@@ -176,8 +278,28 @@ gaps are fixable and should revise.
 - V2 boundary — defined and frozen. Stage 6 prototype_spec and Stage 7
   prototype_build_spec are in place.
 - Stage 8 — prototype_ui_spec added. Approved concepts now run all nine
-  stages and exit with a UI-ready specification including screen layouts,
-  component styling, animations, and accessibility requirements.
-- Current endpoint — approved concepts exit with prototype_ui_spec.
-- First implementation example — Bakery is the lead concept through
-  the full pipeline.
+  stages and exit with a UI-ready specification.
+- Misconception Architect — working post-pipeline component with
+  diff-and-extend, split-model semantic gates (Haiku for routing and
+  gate, Sonnet for rewrites), quality gate with retry, and a controlled
+  library write-back flow with pending review, partial apply, revert,
+  and backup pruning.
+- Stability verified — write-back loop reaches a fixed point (zero
+  revision pressure on re-run after apply).
+
+## Current limitations
+
+- The Misconception Architect runs standalone via
+  `scripts/run_misconception_architect.py`, not as a pipeline stage.
+  Integration into the orchestrator is not yet implemented.
+- Write-back is per-game, not batch. Each game's pending file must be
+  reviewed and applied individually.
+- The stability check temporarily patches the library file during its
+  second pass (restored in a finally block). Do not run concurrent
+  stability checks on the same game.
+- Semantic routing keyword fallback (`_CATEGORY_KEYWORDS`) is maintained
+  for deterministic-only mode but is not actively used when `--llm` is
+  enabled.
+- The quality gate retry loop has not been triggered in practice — model
+  output has been consistently clean. The retry path is tested via the
+  mock LLM plumbing.
