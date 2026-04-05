@@ -22,6 +22,14 @@ Usage:
         ParameterConfig, audit_parameter, audit_game_ramp,
         BAKERY_PARAMETER_CONFIGS, audit_bakery_level_configs,
     )
+
+    # From a prototype_spec artifact:
+    audit = audit_from_prototype_spec(
+        game_name="Bakery Rush",
+        parameter_values={"beltDuration": [9,6,4,3,2], "patience": [20,18,15,12,10]},
+        spec=json.load(open("artifacts/bakery_prototype_spec.json")),
+        fallback_configs=BAKERY_PARAMETER_CONFIGS,  # used when spec has no parameters section
+    )
 """
 
 from __future__ import annotations
@@ -100,6 +108,7 @@ class ParameterRampReport:
     curve_type: str                        # "smooth_ramp" | "spike" | "flat" | "mixed" | "single_level"
     is_teaching_friendly: bool
     recommendations: List[str]
+    severity_score: float = 0.0
 
 
 @dataclass
@@ -112,6 +121,8 @@ class GameRampAudit:
     flagged_parameters: List[str]          # parameter names with flag-level issues
     warned_parameters: List[str]           # parameter names with warnings
     curve_verdict: str                     # "smooth_ramp" | "spike" | "mixed" | "flat"
+    weighted_severity: float               # 0.0 = all clean, 1.0 = worst possible
+    severity_label: str                    # "clean" | "advisory" | "concern" | "flag"
     summary: str
     recommendations: List[str]             # deduplicated across all parameters
 
@@ -209,6 +220,32 @@ def _transition_verdict(
                          f"too large a jump from Level {'->'} next level.")
     return ("smooth", f"Step of {step_pct:.1f}% is within the smooth-ramp range "
                       f"({config.min_step_pct}%–{config.max_step_pct}%).")
+
+
+def _compute_severity_score(report: "ParameterRampReport") -> float:
+    """
+    Compute a severity score in [0.0, 1.0] for a single parameter report.
+
+    - L1 flag:      +0.6
+    - L1 warning:   +0.2
+    - Each spike at L1→L2 (spike_at == 1): +0.4
+    - Each later spike:                     +0.2
+    - Each flat span of length >= 2:        +0.1
+    """
+    score = 0.0
+    if report.level_1_verdict == "flag":
+        score += 0.6
+    elif report.level_1_verdict == "warning":
+        score += 0.2
+    for spike_at in report.spike_transitions:
+        if spike_at == 1:
+            score += 0.4
+        else:
+            score += 0.2
+    for span in report.flat_spans:
+        if span[1] - span[0] >= 2:
+            score += 0.1
+    return min(score, 1.0)
 
 
 def audit_parameter(
@@ -360,6 +397,19 @@ def audit_parameter(
 
     is_teaching_friendly = (l1_verdict == "teaching") and (not spike_transitions or spike_transitions[0] > 1)
 
+    # ── Severity score ──
+    _sev = 0.0
+    if l1_verdict == "flag":
+        _sev += 0.6
+    elif l1_verdict == "warning":
+        _sev += 0.2
+    for spike_at in spike_transitions:
+        _sev += 0.4 if spike_at == 1 else 0.2
+    for span in flat_spans:
+        if span[1] - span[0] >= 2:
+            _sev += 0.1
+    severity_score = min(_sev, 1.0)
+
     return ParameterRampReport(
         parameter=config.name,
         unit=config.unit,
@@ -374,6 +424,7 @@ def audit_parameter(
         curve_type=curve_type,
         is_teaching_friendly=is_teaching_friendly,
         recommendations=recommendations,
+        severity_score=severity_score,
     )
 
 
@@ -443,6 +494,25 @@ def audit_game_ramp(
             seen.add(rec)
             unique_recs.append(rec)
 
+    # Weighted severity
+    total_weight = sum(c.weight for c in parameter_configs)
+    if total_weight > 0:
+        weighted_severity = sum(
+            r.severity_score * c.weight
+            for r, c in zip(reports, parameter_configs)
+        ) / total_weight
+    else:
+        weighted_severity = 0.0
+
+    if weighted_severity == 0.0:
+        severity_label = "clean"
+    elif weighted_severity <= 0.25:
+        severity_label = "advisory"
+    elif weighted_severity <= 0.5:
+        severity_label = "concern"
+    else:
+        severity_label = "flag"
+
     return GameRampAudit(
         game_name=game_name,
         level_count=level_count,
@@ -451,9 +521,76 @@ def audit_game_ramp(
         flagged_parameters=flagged,
         warned_parameters=warned,
         curve_verdict=curve_verdict,
+        weighted_severity=weighted_severity,
+        severity_label=severity_label,
         summary=summary,
         recommendations=unique_recs,
     )
+
+
+# ---------------------------------------------------------------------------
+# Spec-driven entry point
+# ---------------------------------------------------------------------------
+
+def audit_from_prototype_spec(
+    game_name: str,
+    parameter_values: Dict[str, Sequence[float]],
+    spec: Dict[str, Any],
+    fallback_configs: Optional[List[ParameterConfig]] = None,
+) -> GameRampAudit:
+    """
+    Run the ramp audit using thresholds declared in a prototype_spec artifact.
+
+    Reads difficulty_profile.parameters from the spec dict. If that key is
+    absent or empty, falls back to fallback_configs. If fallback_configs is
+    also None, raises ValueError with a clear message.
+
+    Args:
+        game_name:         Display name for the game.
+        parameter_values:  Dict mapping parameter name → list of values per level.
+        spec:              A prototype_spec artifact dict (parsed JSON).
+        fallback_configs:  Optional list of ParameterConfig to use when the spec
+                           does not declare difficulty_profile.parameters.
+
+    Returns:
+        GameRampAudit — identical structure to audit_game_ramp() output.
+
+    Example:
+        import json
+        spec = json.load(open("artifacts/bakery_prototype_spec.json"))
+        audit = audit_from_prototype_spec(
+            game_name="Bakery Rush",
+            parameter_values={"beltDuration": [9, 6, 4, 3, 2], ...},
+            spec=spec,
+            fallback_configs=BAKERY_PARAMETER_CONFIGS,
+        )
+    """
+    diff_profile = spec.get("difficulty_profile", {})
+    param_specs = diff_profile.get("parameters") or []
+
+    if param_specs:
+        configs: List[ParameterConfig] = []
+        for p in param_specs:
+            configs.append(ParameterConfig(
+                name=p["name"],
+                direction=p["direction"],
+                unit=p.get("unit", ""),
+                level_1_teaching_min=p.get("level_1_teaching_min"),
+                level_1_teaching_max=p.get("level_1_teaching_max"),
+                max_step_pct=p.get("max_step_pct", 35.0),
+                min_step_pct=p.get("min_step_pct", 3.0),
+                weight=p.get("weight", 1.0),
+            ))
+    elif fallback_configs is not None:
+        configs = list(fallback_configs)
+    else:
+        raise ValueError(
+            f"No difficulty_profile.parameters found in spec for '{game_name}', "
+            "and no fallback_configs provided. Add a 'parameters' array to "
+            "difficulty_profile in the prototype_spec artifact, or pass fallback_configs."
+        )
+
+    return audit_game_ramp(game_name, parameter_values, configs)
 
 
 # ---------------------------------------------------------------------------

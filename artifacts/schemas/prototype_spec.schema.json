@@ -473,6 +473,25 @@
           "type": "number",
           "minimum": 0,
           "description": "How long does a player have to understand the loop before pressure becomes meaningful? Under 5 seconds on Level 1 is a red flag."
+        },
+        "parameters": {
+          "type": "array",
+          "description": "Per-parameter ramp audit thresholds. When present, difficulty_ramp_auditor.py reads these instead of its built-in defaults.",
+          "items": {
+            "type": "object",
+            "required": ["name", "direction"],
+            "additionalProperties": false,
+            "properties": {
+              "name":                   { "type": "string" },
+              "direction":              { "type": "string", "enum": ["lower_is_harder", "higher_is_harder"] },
+              "unit":                   { "type": "string", "default": "" },
+              "level_1_teaching_min":   { "type": "number", "description": "Used when direction=lower_is_harder. Level 1 value must be >= this." },
+              "level_1_teaching_max":   { "type": "number", "description": "Used when direction=higher_is_harder. Level 1 value must be <= this." },
+              "max_step_pct":           { "type": "number", "default": 35.0, "description": "% change above which a transition is flagged as a spike." },
+              "min_step_pct":           { "type": "number", "default": 3.0,  "description": "% change below which a transition is flagged as flat." },
+              "weight":                 { "type": "number", "minimum": 0.1, "default": 1.0, "description": "Relative importance in weighted severity score. 2.0 = critical." }
+            }
+          }
         }
       },
       "required": [
@@ -480,8 +499,7 @@
         "intro_pressure_level",
         "pressure_axes",
         "level_1_teaching_window_seconds"
-      ],
-      "additionalProperties": false
+      ]
     }
   },
   "required": [
