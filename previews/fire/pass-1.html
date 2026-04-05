@@ -239,6 +239,13 @@
       color: #64748b;
       white-space: nowrap;
     }
+    .board-axis-label {
+      font-size: 9px;
+      color: #f59e0b;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 1px;
+    }
     .board-excess {
       font-size: 11px;
       color: #ef4444;
@@ -546,13 +553,35 @@
   <script type="text/babel">
     const { useState, useEffect, useRef, useCallback } = React;
 
+    /*
+     * ─────────────────── INTERACTION CONSTRAINTS (Pass 1) ───────────────────
+     *
+     * selection_rule:          fixed_set_multi_select
+     * item_reuse_allowed:      false  — each truck type dispatched at most once
+     * selected_items_disappear: true  — truck moves from yard to dispatch queue
+     * exact_match_required:    true   — fire capacity must equal fire demand exactly
+     * overshoot_recovery:      blocked — cannot add a truck that would exceed demand
+     *
+     * skill:  resource_allocation_under_constraints
+     *         NOT simple accumulation — the player must find the right COMBINATION
+     *         that satisfies the incident demand exactly from the available set.
+     *
+     * solvability guarantee:   getSolvableDemands() ensures every generated target
+     *         is reachable by at least one subset of the available trucks.
+     *
+     * Pass 2 extension: add Rescue demand axis → trucks gain multi-attribute
+     *         capacity profiles and incidents require matching multiple categories.
+     */
+
     /* ─────────────────── DATA ─────────────────── */
     const TRUCK_TYPES = [
-      { id: 'hose',      emoji: '🚒', label: 'Hose Truck',   capacity: 5 },
-      { id: 'ladder',    emoji: '🪜', label: 'Ladder Truck', capacity: 3 },
-      { id: 'ambulance', emoji: '🚑', label: 'Ambulance',    capacity: 2 },
-      { id: 'command',   emoji: '🚐', label: 'Command Van',  capacity: 4 },
-      { id: 'tanker',    emoji: '🚛', label: 'Water Tanker', capacity: 6 },
+      // id, emoji, short label, fire capacity (single-axis Pass 1)
+      // Capacity shown as "Fire +N" in the UI to establish the attribute framing
+      { id: 'hose',      emoji: '🚒', label: 'Engine',        fireCapacity: 5 },
+      { id: 'ladder',    emoji: '🪜', label: 'Ladder',         fireCapacity: 3 },
+      { id: 'ambulance', emoji: '🚑', label: 'Rescue Unit',   fireCapacity: 2 },
+      { id: 'command',   emoji: '🚐', label: 'Command',        fireCapacity: 4 },
+      { id: 'tanker',    emoji: '🚛', label: 'Tanker',         fireCapacity: 6 },
     ];
 
     const LEVEL_CONFIGS = [
@@ -586,7 +615,7 @@
      */
     function getSolvableDemands(levelConfig) {
       const trucks = TRUCK_TYPES.filter(t => levelConfig.trucksAvailable.includes(t.id));
-      const caps   = trucks.map(t => t.capacity);
+      const caps   = trucks.map(t => t.fireCapacity);
       const n      = caps.length;
       const reachable = new Set();
       for (let mask = 1; mask < (1 << n); mask++) {
@@ -625,7 +654,7 @@
             <div className="mission-location">📍 {locationName}</div>
           </div>
           <div className="mission-demand-block">
-            <div className="demand-label">DEMAND</div>
+            <div className="demand-label">🔥 FIRE DEMAND</div>
             <div className="demand-value">{demandValue}</div>
           </div>
         </div>
@@ -649,12 +678,13 @@
                     onClick={() => onTruckReturn && onTruckReturn(t.id)}
                     title={`Return ${t.label} to yard`}
                   >
-                    {t.emoji}<span className="board-truck-cap">{t.capacity}</span>
+                    {t.emoji}<span className="board-truck-cap">+{t.fireCapacity}</span>
                   </span>
                 ))
             }
           </div>
           <div className="board-total-block">
+            <div className="board-axis-label">🔥 Fire</div>
             <div className={totalClass}>{totalCapacity}</div>
             <div className="board-demand">of {demandValue}</div>
           </div>
@@ -684,7 +714,7 @@
                     >
                       <span className="truck-emoji">{truck.emoji}</span>
                       <div className="truck-label">{truck.label}</div>
-                      <span className="truck-capacity">{truck.capacity}</span>
+                      <span className="truck-capacity">🔥 +{truck.fireCapacity}</span>
                     </div>
                   );
                 })
@@ -860,10 +890,10 @@
           if (prev.includes(truckId)) {
             // deselect
             const next = prev.filter(id => id !== truckId);
-            setTotalCapacity(next.reduce((sum, id) => sum + truckById(id).capacity, 0));
+            setTotalCapacity(next.reduce((sum, id) => sum + truckById(id).fireCapacity, 0));
             return next;
           } else {
-            const tentative = prev.reduce((sum, id) => sum + truckById(id).capacity, 0) + truck.capacity;
+            const tentative = prev.reduce((sum, id) => sum + truckById(id).fireCapacity, 0) + truck.fireCapacity;
             const demand = currentIncident ? currentIncident.demandValue : 0;
             if (tentative > demand) {
               // overshoot prevention — shake truck
@@ -925,17 +955,18 @@
               <div style={{ fontSize: 72 }}>🚒</div>
               <h1>Fire Station<br/>Dispatch</h1>
               <p>
-                Incidents are incoming! Tap trucks to send them to the dispatch queue — they leave the
-                yard and stack up above. Tap a queued truck to return it. Hit DISPATCH when the total
-                matches the demand exactly. Every target is solvable — find the right combination!
+                Each incident has a <strong style={{ color: '#f59e0b' }}>🔥 Fire Demand</strong>.
+                Choose the right combination of trucks so their total fire capacity matches the demand exactly.
+                Tap a truck to dispatch it — it leaves the yard and joins your queue.
+                Tap a queued truck to return it. Every incident is solvable.
               </p>
-              <div style={{ fontSize: 13, color: '#64748b', lineHeight: 1.7 }}>
-                <strong style={{ color: '#f59e0b' }}>🚒 Hose</strong> = 5 &nbsp;
-                <strong style={{ color: '#f59e0b' }}>🪜 Ladder</strong> = 3 &nbsp;
-                <strong style={{ color: '#f59e0b' }}>🚑 Ambulance</strong> = 2
+              <div style={{ fontSize: 13, color: '#64748b', lineHeight: 1.9 }}>
+                <strong style={{ color: '#f59e0b' }}>🚒 Engine</strong> Fire +5 &nbsp;·&nbsp;
+                <strong style={{ color: '#f59e0b' }}>🪜 Ladder</strong> Fire +3 &nbsp;·&nbsp;
+                <strong style={{ color: '#f59e0b' }}>🚑 Rescue Unit</strong> Fire +2
                 <br />
-                <strong style={{ color: '#f59e0b' }}>🚐 Command</strong> = 4 &nbsp;
-                <strong style={{ color: '#f59e0b' }}>🚛 Tanker</strong> = 6
+                <strong style={{ color: '#f59e0b' }}>🚐 Command</strong> Fire +4 &nbsp;·&nbsp;
+                <strong style={{ color: '#f59e0b' }}>🚛 Tanker</strong> Fire +6
               </div>
               <button className="start-btn" onClick={startGame}>Start Shift →</button>
             </div>
