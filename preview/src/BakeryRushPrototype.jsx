@@ -20,6 +20,19 @@ import {
 
 const MAX_LIVES = 3;
 const CONVEYOR_ITEM_COUNT = 10;
+const REFLECTION_TRIGGER_THRESHOLD = 2; // consecutive same-category errors before reflection fires
+const MAX_REFLECTIONS_PER_LEVEL = 2;
+const REFLECTION_DISMISS_MS = 0; // manual dismiss only
+
+// Reflection prompts from the misconception library, keyed by category
+const REFLECTION_PROMPTS = {
+  impulsive_guess: "Before you tapped, did you know how much you still needed? What would you check first next time?",
+  procedure_slip: "What was your running total right before you tapped the last item? Could you see it clearly?",
+  representation_mismatch: "Which number on the belt mattered most for filling this order? How did you use it?",
+  concept_confusion: "What were the numbers on the pastries you picked? Did they add up to what the customer wanted?",
+  rule_misunderstanding: "When the item slipped back, what was your total? What did you need to do next?",
+  strategic_overload: "What made it harder this level? Was it the speed, the numbers, or trying to do both at once?",
+};
 
 const BASE_PASTRIES = {
   cookie:    { id: "cookie",    label: "Cookie",     icon: Cookie,    value: 1 },
@@ -34,21 +47,21 @@ const LEVELS = [
     shiftSeconds: 70, targetScore: 450, patienceSeconds: 16,
     pastrySet: [BASE_PASTRIES.cookie, BASE_PASTRIES.croissant],
     pastryWeights: [1, 1], targetPool: [1, 2, 3, 4, 5],
-    customerCount: 7, conveyorDuration: 9,
+    customerCount: 7, conveyorDuration: 9, overshootPenaltySeconds: 2,
   },
   {
     level: 2, title: "Shift 2", subtitle: "Bigger orders",
     shiftSeconds: 65, targetScore: 650, patienceSeconds: 14,
     pastrySet: [BASE_PASTRIES.cookie, BASE_PASTRIES.croissant],
     pastryWeights: [1, 1], targetPool: [6, 7, 8, 9, 10],
-    customerCount: 8, conveyorDuration: 8,
+    customerCount: 8, conveyorDuration: 8, overshootPenaltySeconds: 2,
   },
   {
     level: 3, title: "Shift 3", subtitle: "Longer counts",
     shiftSeconds: 60, targetScore: 850, patienceSeconds: 12,
     pastrySet: [BASE_PASTRIES.cookie, BASE_PASTRIES.croissant],
     pastryWeights: [1, 1], targetPool: [11, 12, 13, 14, 15],
-    customerCount: 9, conveyorDuration: 7,
+    customerCount: 9, conveyorDuration: 7, overshootPenaltySeconds: 3,
   },
   {
     level: 4, title: "Shift 4", subtitle: "Choose the right combination",
@@ -56,7 +69,7 @@ const LEVELS = [
     pastrySet: [BASE_PASTRIES.cookie, BASE_PASTRIES.slice],
     pastryWeights: [0.65, 0.35],
     targetPool: [6, 7, 8, 9, 10, 12, 14, 15, 16, 18],
-    customerCount: 9, conveyorDuration: 6,
+    customerCount: 9, conveyorDuration: 6, overshootPenaltySeconds: 3,
   },
   {
     level: 5, title: "Shift 5", subtitle: "Fast mixed value orders",
@@ -64,7 +77,7 @@ const LEVELS = [
     pastrySet: [BASE_PASTRIES.cookie, BASE_PASTRIES.slice, BASE_PASTRIES.drink],
     pastryWeights: [0.55, 0.3, 0.15],
     targetPool: [8, 10, 11, 12, 13, 15, 17, 18, 20, 22, 25],
-    customerCount: 10, conveyorDuration: 5,
+    customerCount: 10, conveyorDuration: 5, overshootPenaltySeconds: 4,
   },
 ];
 
@@ -119,7 +132,7 @@ function nextConveyorItem(pastrySet, pastryWeights) {
 
 function SmallStat({ label, value, valueClassName = "text-amber-400" }) {
   return (
-    <div className="rounded-2xl border border-neutral-800 bg-neutral-950 p-4">
+    <div className="rounded-2xl border border-amber-900/15 bg-[#1a1412] p-4">
       <div className="text-xs uppercase tracking-[0.2em] text-neutral-500">{label}</div>
       <div className={`mt-2 text-3xl font-bold ${valueClassName}`}>{value}</div>
     </div>
@@ -148,9 +161,27 @@ export default function BakeryRushPrototype() {
   const [lastAward, setLastAward]                   = useState("");
   const [lives, setLives]                           = useState(MAX_LIVES);
   const [conveyor, setConveyor]                     = useState(() => makeConveyorItems(LEVELS[0].pastrySet, LEVELS[0].pastryWeights));
+  const [customerMood, setCustomerMood]             = useState("neutral"); // "neutral" | "annoyed"
+  const [overshootsThisOrder, setOvershootsThisOrder] = useState(0);
 
   const overshootTimerRef = useRef(null);
   const successTimerRef   = useRef(null);
+
+  // --- Reflection beat state ---
+  const [reflectionPrompt, setReflectionPrompt]     = useState(null);
+  const [reflectionCategory, setReflectionCategory] = useState(null);
+  const tapTimestamps                               = useRef([]);
+  const consecutiveErrors                           = useRef([]); // [{category, orderIndex}]
+  const reflectionsFiredThisLevel                   = useRef(0);
+  const reflectionCategoriesFiredThisLevel           = useRef(new Set());
+
+  // --- Session diagnostics for reflection beats ---
+  const [sessionDiagnostics, setSessionDiagnostics] = useState({
+    totalReflections: 0,
+    reflectionsByLevel: {},   // { levelIndex: count }
+    reflectionsByCategory: {}, // { category: count }
+    reflectionLog: [],        // [{ level, order, category, prompt }]
+  });
 
   const currentLevel    = LEVELS[levelIndex];
   const currentCustomer = queue[customerIndex] ?? null;
@@ -220,6 +251,75 @@ export default function BakeryRushPrototype() {
     setMessage("Shift goal reached.");
   }, [score, currentLevel.targetScore, screen, levelIndex]);
 
+  // --- Misconception detection ---
+  function classifyError(nextTotal, target, pastryValue, tapTimes) {
+    // impulsive_guess: 3+ taps within 1500ms total
+    if (tapTimes.length >= 3) {
+      const recent = tapTimes.slice(-3);
+      const span = recent[recent.length - 1] - recent[0];
+      if (span < 1500) return "impulsive_guess";
+    }
+    // procedure_slip: overshoot by small amount (1-2), deliberate pace (last gap > 800ms)
+    const overshootAmount = nextTotal - target;
+    if (overshootAmount <= 2 && tapTimes.length >= 2) {
+      const lastGap = tapTimes[tapTimes.length - 1] - tapTimes[tapTimes.length - 2];
+      if (lastGap > 800) return "procedure_slip";
+    }
+    // concept_confusion: at L4+ where items have mixed values,
+    // if item count equals target but total doesn't (count-not-sum error)
+    if (itemsInBox.length + 1 === target && nextTotal !== target && pastryValue > 1) {
+      return "concept_confusion";
+    }
+    // Default: rule_misunderstanding (generic overshoot confusion)
+    return "rule_misunderstanding";
+  }
+
+  function checkReflectionTrigger(category) {
+    // Already at cap for this level?
+    if (reflectionsFiredThisLevel.current >= MAX_REFLECTIONS_PER_LEVEL) return;
+    // Already fired for this category this level?
+    if (reflectionCategoriesFiredThisLevel.current.has(category)) return;
+
+    consecutiveErrors.current.push({ category, orderIndex: customerIndex });
+
+    // Check for N consecutive same-category errors
+    const recent = consecutiveErrors.current.slice(-REFLECTION_TRIGGER_THRESHOLD);
+    if (recent.length < REFLECTION_TRIGGER_THRESHOLD) return;
+    const allSame = recent.every(e => e.category === category);
+    if (!allSame) return;
+
+    // Fire reflection beat
+    const prompt = REFLECTION_PROMPTS[category] || REFLECTION_PROMPTS.rule_misunderstanding;
+    setReflectionPrompt(prompt);
+    setReflectionCategory(category);
+    setScreen("reflection");
+
+    reflectionsFiredThisLevel.current += 1;
+    reflectionCategoriesFiredThisLevel.current.add(category);
+
+    setSessionDiagnostics(prev => ({
+      totalReflections: prev.totalReflections + 1,
+      reflectionsByLevel: {
+        ...prev.reflectionsByLevel,
+        [levelIndex]: (prev.reflectionsByLevel[levelIndex] || 0) + 1,
+      },
+      reflectionsByCategory: {
+        ...prev.reflectionsByCategory,
+        [category]: (prev.reflectionsByCategory[category] || 0) + 1,
+      },
+      reflectionLog: [
+        ...prev.reflectionLog,
+        { level: levelIndex + 1, order: customerIndex + 1, category, prompt },
+      ],
+    }));
+  }
+
+  function dismissReflection() {
+    setReflectionPrompt(null);
+    setReflectionCategory(null);
+    setScreen("playing");
+  }
+
   function refillConveyorExact(pastrySet, pastryWeights) {
     setConveyor(makeConveyorItems(pastrySet, pastryWeights));
   }
@@ -230,6 +330,8 @@ export default function BakeryRushPrototype() {
     setLastItem(null);
     setPatienceLeft(level.patienceSeconds);
     setFirstTryForCurrentOrder(true);
+    setCustomerMood("neutral");
+    setOvershootsThisOrder(0);
     setMessage(nextMessage);
     refillConveyorExact(level.pastrySet, level.pastryWeights);
   }
@@ -255,6 +357,12 @@ export default function BakeryRushPrototype() {
     setLastAward("");
     setLives(MAX_LIVES);
     refillConveyorExact(config.pastrySet, config.pastryWeights);
+    tapTimestamps.current = [];
+    consecutiveErrors.current = [];
+    reflectionsFiredThisLevel.current = 0;
+    reflectionCategoriesFiredThisLevel.current = new Set();
+    setReflectionPrompt(null);
+    setReflectionCategory(null);
     setScreen("countdown");
   }
 
@@ -311,6 +419,10 @@ export default function BakeryRushPrototype() {
     if (screen !== "playing") return;
     const pastry = item.pastry;
     const nextTotal = currentTotal + pastry.value;
+
+    // Record tap timestamp for misconception detection
+    tapTimestamps.current.push(Date.now());
+
     setCurrentTotal(nextTotal);
     setItemsInBox((prev) => [...prev, pastry.id]);
     setLastItem(pastry.id);
@@ -318,18 +430,34 @@ export default function BakeryRushPrototype() {
       const remaining = prev.filter((entry) => entry.uid !== item.uid);
       return [...remaining, nextConveyorItem(currentLevel.pastrySet, currentLevel.pastryWeights)];
     });
-    if (nextTotal === currentTarget) { completeOrder(); return; }
+    if (nextTotal === currentTarget) {
+      // Successful order clears consecutive error tracking for this order
+      tapTimestamps.current = [];
+      completeOrder();
+      return;
+    }
     if (nextTotal > currentTarget) {
+      // Classify the error before handling the overshoot
+      const errorCategory = classifyError(nextTotal, currentTarget, pastry.value, tapTimestamps.current);
+      checkReflectionTrigger(errorCategory);
+
+      // --- Overshoot consequence: drain patience, upset customer ---
+      const penalty = currentLevel.overshootPenaltySeconds || 2;
+      setPatienceLeft((prev) => Math.max(0, prev - penalty));
+      setOvershootsThisOrder((prev) => prev + 1);
+      setCustomerMood("annoyed");
+
       setWrongMoves((prev) => prev + 1);
       setFirstTryForCurrentOrder(false);
       setStreak(0);
-      setMessage("Too many. The last pastry bounced out.");
-      setLastAward("Overshoot");
+      setMessage(`Too many! Lost ${penalty}s of patience. The last pastry bounced out.`);
+      setLastAward(`Overshoot −${penalty}s`);
       overshootTimerRef.current = window.setTimeout(() => {
         setItemsInBox((prev) => { const clone = [...prev]; clone.pop(); return clone; });
         setCurrentTotal((prev) => prev - pastry.value);
         setLastItem(null);
-      }, 450);
+      }, 900);
+      tapTimestamps.current = [];
       return;
     }
     setMessage("Keep going until the total matches.");
@@ -340,14 +468,23 @@ export default function BakeryRushPrototype() {
     setupLevel(levelIndex + 1);
   }
 
+  // Approaching target — within 2 of goal
+  const approachingTarget = screen === "playing" && currentTarget > 0 && (currentTarget - currentTotal) <= 2 && (currentTarget - currentTotal) > 0;
+
   return (
-    <div className="min-h-screen bg-neutral-950 p-4 text-white md:p-8">
-      <div className="mx-auto grid max-w-7xl gap-5">
+    <div className="min-h-screen p-4 text-white md:p-8" style={{
+      background: "linear-gradient(180deg, #1a1412 0%, #0f0d0b 50%, #1a1412 100%)",
+    }}>
+      {/* Ambient warm glow behind play area */}
+      <div className="pointer-events-none fixed inset-0 z-0" style={{
+        background: "radial-gradient(ellipse 60% 40% at 50% 40%, rgba(217,119,6,0.06) 0%, transparent 70%)",
+      }} />
+      <div className="relative z-10 mx-auto grid max-w-7xl gap-5">
         <AnimatePresence>
           {screen === "intro" && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               className="fixed inset-0 z-50 flex items-center justify-center overflow-auto bg-black/90 p-6">
-              <Card className="w-full max-w-5xl rounded-3xl border-neutral-800 bg-neutral-950 text-white shadow-2xl">
+              <Card className="w-full max-w-5xl rounded-3xl border-amber-900/30 bg-[#1a1412] text-white shadow-2xl shadow-amber-950/20">
                 <CardContent className="grid gap-6 p-8 md:p-10">
                   <div className="text-center">
                     <p className="text-sm uppercase tracking-[0.35em] text-amber-400">Bakery Rush Prototype</p>
@@ -410,51 +547,94 @@ export default function BakeryRushPrototype() {
         </AnimatePresence>
 
         <div className="grid gap-4 md:grid-cols-[1.15fr_1fr]">
-          <Card className="rounded-3xl border-neutral-800 bg-neutral-900 shadow-2xl">
+          <Card className="rounded-3xl border-amber-900/20 bg-[#1c1614] shadow-2xl shadow-amber-950/10">
             <CardContent className="grid gap-5 p-6 md:p-8">
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
                   <p className="text-xs uppercase tracking-[0.3em] text-amber-400">{levelLabel}</p>
                   <h2 className="mt-2 text-2xl font-semibold md:text-3xl">
-                    {currentCustomer ? `${currentCustomer.name}'s order` : "Shift finished"}
+                    {currentCustomer ? (
+                      <>
+                        <span>{customerMood === "annoyed" ? "😠" : "😊"}</span>
+                        {" "}{currentCustomer.name}'s order
+                        {overshootsThisOrder > 0 && (
+                          <span className="ml-2 text-base font-normal text-red-400">
+                            ({overshootsThisOrder} overshoot{overshootsThisOrder > 1 ? "s" : ""})
+                          </span>
+                        )}
+                      </>
+                    ) : "Shift finished"}
                   </h2>
                 </div>
                 <div className="flex flex-wrap gap-3">
-                  <div className={`min-w-[120px] rounded-2xl border px-4 py-3 ${timerUrgent ? "border-red-500 bg-red-500/10" : "border-neutral-700 bg-neutral-950"}`}>
-                    <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-neutral-400">
+                  <div className={`min-w-[120px] rounded-2xl border px-4 py-3 ${timerUrgent ? "border-red-500/40 bg-red-500/10" : "border-amber-900/20 bg-[#1a1412]"}`}>
+                    <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-neutral-500">
                       <Clock3 className="h-3.5 w-3.5" /> Shift time
                     </div>
                     <div className={`mt-1 text-3xl font-bold ${timerUrgent ? "text-red-400" : "text-amber-400"}`}>{formatTime(shiftSecondsLeft)}</div>
                   </div>
-                  <div className="min-w-[120px] rounded-2xl border border-neutral-700 bg-neutral-950 px-4 py-3">
-                    <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-neutral-400">
+                  <div className="min-w-[120px] rounded-2xl border border-amber-900/20 bg-[#1a1412] px-4 py-3">
+                    <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-neutral-500">
                       <Trophy className="h-3.5 w-3.5" /> Shift score
                     </div>
-                    <div className="mt-1 text-3xl font-bold text-emerald-400">{score}</div>
+                    <motion.div key={score} initial={{ scale: 1.15 }} animate={{ scale: 1 }}
+                      className="mt-1 text-3xl font-bold text-emerald-400">{score}</motion.div>
                   </div>
                 </div>
               </div>
 
               <div className="grid gap-5 md:grid-cols-[0.9fr_1.1fr]">
-                <Card className="rounded-3xl border-neutral-800 bg-neutral-950">
+                <Card className="rounded-3xl border-amber-900/20 bg-[#1a1412]">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2 text-lg">
                       <ShoppingBag className="h-5 w-5 text-amber-400" /> Order ticket
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="grid gap-4">
-                    <div className="rounded-3xl bg-amber-50 p-5 text-black">
-                      <div className="text-xs uppercase tracking-[0.25em] text-neutral-500">Target value</div>
-                      <div className="mt-2 text-6xl font-bold">
+                    <motion.div
+                      animate={approachingTarget
+                        ? { boxShadow: ["0 0 8px rgba(217,119,6,0.2)", "0 0 20px rgba(217,119,6,0.35)", "0 0 8px rgba(217,119,6,0.2)"] }
+                        : { boxShadow: "0 4px 12px rgba(0,0,0,0.15)" }
+                      }
+                      transition={approachingTarget ? { repeat: Infinity, duration: 1.2, ease: "easeInOut" } : {}}
+                      className="rounded-3xl p-5"
+                      style={{
+                        background: "linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%)",
+                        color: "#1a1412",
+                      }}
+                    >
+                      <div className="text-xs uppercase tracking-[0.25em]" style={{ color: "#92400e" }}>Target value</div>
+                      <motion.div
+                        key={currentTarget}
+                        initial={{ scale: 0.9, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        className="mt-2 text-6xl font-bold" style={{ color: "#78350f" }}
+                      >
                         {screen === "shift_complete" || screen === "game_over" ? "✓" : currentTarget}
+                      </motion.div>
+                      <div className="mt-3 text-sm" style={{ color: "#92400e" }}>
+                        {approachingTarget ? "Almost there!" : "Match this number exactly."}
                       </div>
-                      <div className="mt-3 text-sm text-neutral-600">Click pastries from the conveyor until the box matches exactly.</div>
-                    </div>
+                    </motion.div>
                     <div className="grid gap-2">
                       <div className="flex items-center justify-between text-sm text-neutral-300">
-                        <span>Customer patience</span><span>{patienceLeft}s</span>
+                        <span>Customer patience</span>
+                        <span className={patiencePercent < 30 ? "text-red-400 font-semibold" : ""}>{patienceLeft}s</span>
                       </div>
-                      <Progress value={patiencePercent} className="h-3 bg-neutral-800" />
+                      <div className="h-3 overflow-hidden rounded-full bg-neutral-800">
+                        <motion.div
+                          className="h-full rounded-full"
+                          animate={{ width: `${patiencePercent}%` }}
+                          transition={{ duration: 0.4 }}
+                          style={{
+                            background: patiencePercent > 50
+                              ? "linear-gradient(90deg, #fbbf24, #f59e0b)"
+                              : patiencePercent > 25
+                              ? "linear-gradient(90deg, #f59e0b, #ea580c)"
+                              : "linear-gradient(90deg, #ef4444, #dc2626)",
+                          }}
+                        />
+                      </div>
                     </div>
                     <div className="grid gap-2">
                       <div className="flex items-center justify-between text-sm text-neutral-300">
@@ -462,27 +642,44 @@ export default function BakeryRushPrototype() {
                       </div>
                       <Progress value={scorePercent} className="h-3 bg-neutral-800" />
                     </div>
-                    <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-4 text-sm leading-6 text-neutral-200">
-                      <div className="mb-2 text-xs uppercase tracking-[0.2em] text-neutral-400">Status</div>
+                    <div className="rounded-2xl border border-amber-900/15 bg-[#1a1412] p-4 text-sm leading-6 text-neutral-300">
+                      <div className="mb-2 text-xs uppercase tracking-[0.2em] text-neutral-500">Status</div>
                       {message}
                     </div>
-                    <div className="text-sm text-neutral-300">
-                      Last award: <span className="text-amber-400">{lastAward || "—"}</span>
+                    <div className="text-sm text-neutral-400">
+                      Last award: <motion.span key={lastAward} initial={{ scale: 1.2, color: "#fbbf24" }}
+                        animate={{ scale: 1, color: "#f59e0b" }}
+                        className="font-medium">{lastAward || "—"}</motion.span>
                     </div>
                   </CardContent>
                 </Card>
 
-                <Card className="min-h-[470px] rounded-3xl border-neutral-800 bg-neutral-950">
+                <Card className="min-h-[470px] rounded-3xl border-amber-900/20 bg-[#1a1412]">
                   <CardHeader>
                     <CardTitle className="text-lg">Pastry box</CardTitle>
                   </CardHeader>
                   <CardContent className="grid gap-5">
-                    <div className="relative min-h-[250px] overflow-hidden rounded-3xl border-2 border-dashed border-amber-500/60 bg-neutral-900 p-4">
+                    <motion.div
+                      animate={
+                        screen === "order_success"
+                          ? { borderColor: "rgba(16,185,129,0.6)", boxShadow: "0 0 24px rgba(16,185,129,0.2)" }
+                          : message.includes("bounced")
+                          ? { borderColor: "rgba(239,68,68,0.6)", boxShadow: "0 0 24px rgba(239,68,68,0.15)" }
+                          : approachingTarget
+                          ? { borderColor: "rgba(217,119,6,0.7)", boxShadow: "0 0 20px rgba(217,119,6,0.12)" }
+                          : { borderColor: "rgba(217,119,6,0.25)", boxShadow: "0 0 0px transparent" }
+                      }
+                      transition={{ duration: 0.3 }}
+                      className="relative min-h-[250px] overflow-hidden rounded-3xl border-2 border-dashed p-4"
+                      style={{ background: "linear-gradient(180deg, #1f1a14 0%, #191410 100%)" }}
+                    >
                       <AnimatePresence>
                         {itemsInBox.length === 0 && screen === "playing" && (
-                          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                            className="absolute inset-0 flex items-center justify-center text-sm text-neutral-500">
-                            Click pastries from the belt to add them here.
+                          <motion.div initial={{ opacity: 0 }} animate={{ opacity: [0.4, 0.7, 0.4] }}
+                            transition={{ repeat: Infinity, duration: 2.5, ease: "easeInOut" }}
+                            exit={{ opacity: 0 }}
+                            className="absolute inset-0 flex items-center justify-center text-sm text-amber-200/30">
+                            Tap pastries from the belt
                           </motion.div>
                         )}
                       </AnimatePresence>
@@ -490,15 +687,25 @@ export default function BakeryRushPrototype() {
                         {itemsInBox.map((item, index) => {
                           const pastry = currentPastries.find((p) => p.id === item);
                           const Icon = pastry?.icon ?? Cookie;
-                          const isBounce = item === lastItem && index === itemsInBox.length - 1 && message.includes("bounced out");
+                          const isBounce = item === lastItem && index === itemsInBox.length - 1 && message.includes("bounced");
+                          const isNewest = index === itemsInBox.length - 1 && !isBounce;
                           return (
                             <motion.div key={`${item}-${index}`}
-                              initial={{ opacity: 0, scale: 0.75, y: -8 }}
-                              animate={isBounce ? { opacity: 0.3, scale: 0.8, y: -20, x: 10 } : { opacity: 1, scale: 1, y: 0, x: 0 }}
-                              transition={{ duration: 0.25 }}
-                              className="flex flex-col items-center justify-center gap-1 rounded-2xl bg-amber-100 p-3 text-black shadow-lg">
-                              <Icon className="h-7 w-7" />
-                              <div className="text-xs font-semibold">+{pastry?.value ?? 1}</div>
+                              initial={{ opacity: 0, scale: 1.15, y: -12 }}
+                              animate={isBounce
+                                ? { opacity: 0.3, scale: 0.7, y: -20, x: [0, -8, 8, -4, 0], rotate: [0, -5, 5, 0] }
+                                : { opacity: 1, scale: 1, y: 0, x: 0, rotate: 0 }
+                              }
+                              transition={isBounce ? { duration: 0.4 } : { type: "spring", stiffness: 400, damping: 20 }}
+                              className="flex flex-col items-center justify-center gap-1 rounded-2xl p-3 shadow-lg"
+                              style={{
+                                background: "linear-gradient(180deg, #fef3c7 0%, #fde68a 100%)",
+                                boxShadow: isNewest
+                                  ? "0 0 12px rgba(217,119,6,0.3), 0 4px 8px rgba(0,0,0,0.2)"
+                                  : "0 2px 6px rgba(0,0,0,0.2)",
+                              }}>
+                              <Icon className="h-7 w-7" style={{ color: "#b45309" }} />
+                              <div className="text-xs font-bold" style={{ color: "#78350f" }}>+{pastry?.value ?? 1}</div>
                             </motion.div>
                           );
                         })}
@@ -506,33 +713,54 @@ export default function BakeryRushPrototype() {
                       <AnimatePresence>
                         {screen === "order_success" && (
                           <motion.div initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
-                            className="absolute inset-0 flex items-center justify-center rounded-3xl border border-emerald-400 bg-emerald-500/20 backdrop-blur-sm">
+                            className="absolute inset-0 flex items-center justify-center rounded-3xl backdrop-blur-sm"
+                            style={{ background: "rgba(16,185,129,0.15)", border: "1px solid rgba(16,185,129,0.4)" }}>
                             <div className="px-6 text-center">
-                              <div className="text-3xl font-semibold text-white">Perfect order</div>
-                              <div className="mt-2 text-sm text-emerald-100">The box closed right on target.</div>
+                              <div className="text-4xl">🎉</div>
+                              <div className="mt-2 text-3xl font-semibold text-white">Perfect order!</div>
+                              <div className="mt-2 text-sm text-emerald-200">The box closed right on target.</div>
                             </div>
                           </motion.div>
                         )}
                       </AnimatePresence>
-                    </div>
+                    </motion.div>
                     <div className="grid grid-cols-2 gap-4">
-                      <SmallStat label="Running total" value={currentTotal} />
+                      <div className="rounded-2xl border border-amber-900/20 bg-[#1a1412] p-4">
+                        <div className="text-xs uppercase tracking-[0.2em] text-neutral-500">Running total</div>
+                        <motion.div
+                          key={currentTotal}
+                          initial={{ scale: 1.2, color: "#f59e0b" }}
+                          animate={{ scale: 1, color: approachingTarget ? "#f59e0b" : "#fbbf24" }}
+                          transition={{ type: "spring", stiffness: 500, damping: 15 }}
+                          className="mt-2 text-3xl font-bold"
+                        >
+                          {currentTotal}
+                        </motion.div>
+                      </div>
                       <SmallStat label="Orders completed" value={completedOrders} valueClassName="text-emerald-400" />
                     </div>
                   </CardContent>
                 </Card>
               </div>
 
-              <Card className="overflow-hidden rounded-3xl border-neutral-800 bg-neutral-950">
+              <Card className="overflow-hidden rounded-3xl border-amber-900/20 bg-[#1a1412]">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-lg">
                     <Layers3 className="h-5 w-5 text-amber-400" /> Conveyor belt
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="grid gap-4">
-                  <div className="text-sm text-neutral-400">Pastries move continuously now. Click the correct ones before patience or time runs out.</div>
-                  <div className="relative overflow-hidden rounded-3xl border border-neutral-800 bg-neutral-900 p-4">
-                    <div className="absolute inset-x-0 top-1/2 h-16 -translate-y-1/2 rounded-2xl bg-neutral-800 opacity-70" />
+                  <div className="text-sm text-amber-200/40">Tap the right pastries before patience runs out.</div>
+                  <div className="relative overflow-hidden rounded-3xl p-4" style={{
+                    background: "linear-gradient(180deg, #292018 0%, #1f1810 40%, #292018 100%)",
+                    boxShadow: "inset 0 2px 8px rgba(0,0,0,0.5), inset 0 -2px 8px rgba(0,0,0,0.3)",
+                    border: "1px solid rgba(217,119,6,0.12)",
+                  }}>
+                    {/* Belt track surface */}
+                    <div className="absolute inset-x-0 top-1/2 h-16 -translate-y-1/2 rounded-2xl" style={{
+                      background: "linear-gradient(180deg, #3d2e1e 0%, #2a1f14 50%, #3d2e1e 100%)",
+                      boxShadow: "inset 0 1px 4px rgba(0,0,0,0.6), 0 1px 2px rgba(217,119,6,0.05)",
+                    }} />
                     <motion.div className="relative flex w-max gap-4"
                       animate={{ x: [0, -220] }}
                       transition={{ repeat: Infinity, duration: currentLevel.conveyorDuration, ease: "linear" }}>
@@ -542,16 +770,29 @@ export default function BakeryRushPrototype() {
                         const disabled = screen !== "playing";
                         return (
                           <motion.button key={`${item.uid}-${index}`}
-                            whileHover={{ scale: disabled ? 1 : 1.04, y: disabled ? 0 : -2 }}
-                            whileTap={{ scale: disabled ? 1 : 0.96 }}
+                            whileHover={{ scale: disabled ? 1 : 1.06, y: disabled ? 0 : -4 }}
+                            whileTap={{ scale: disabled ? 1 : 0.94 }}
+                            animate={{ y: [0, -2, 0] }}
+                            transition={{ y: { repeat: Infinity, duration: 2 + (index % 3) * 0.3, ease: "easeInOut" }}}
                             onClick={() => handlePastryTap(item)}
                             disabled={disabled}
-                            className="relative z-10 min-w-[126px] rounded-3xl border border-neutral-700 bg-neutral-950/95 px-4 py-5 text-center shadow-xl disabled:cursor-not-allowed disabled:opacity-50">
+                            className="relative z-10 min-w-[126px] rounded-3xl px-4 py-5 text-center disabled:cursor-not-allowed disabled:opacity-50"
+                            style={{
+                              background: "linear-gradient(180deg, #fef3c7 0%, #fde68a 100%)",
+                              border: "1px solid rgba(217,119,6,0.25)",
+                              boxShadow: disabled
+                                ? "0 2px 8px rgba(0,0,0,0.3)"
+                                : "0 4px 16px rgba(217,119,6,0.15), 0 2px 4px rgba(0,0,0,0.3)",
+                              color: "#1a1412",
+                            }}>
                             <div className="flex justify-center">
-                              <Icon className="h-8 w-8 text-amber-400" />
+                              <Icon className="h-8 w-8" style={{ color: "#b45309" }} />
                             </div>
-                            <div className="mt-3 text-sm font-medium">{pastry.label}</div>
-                            <div className="mt-1 text-xs text-neutral-400">Value {pastry.value}</div>
+                            <div className="mt-3 text-sm font-semibold" style={{ color: "#78350f" }}>{pastry.label}</div>
+                            <div className="mt-1 rounded-full px-2 py-0.5 text-xs font-bold" style={{
+                              background: "rgba(217,119,6,0.15)",
+                              color: "#92400e",
+                            }}>+{pastry.value}</div>
                           </motion.button>
                         );
                       })}
@@ -571,14 +812,18 @@ export default function BakeryRushPrototype() {
           </Card>
 
           <div className="grid gap-4">
-            <Card className="rounded-3xl border-neutral-800 bg-neutral-900 shadow-2xl">
+            <Card className="rounded-3xl border-amber-900/20 bg-[#1c1614] shadow-2xl shadow-amber-950/10">
               <CardHeader><CardTitle className="text-lg">Shift dashboard</CardTitle></CardHeader>
               <CardContent className="grid gap-4">
-                <div className="rounded-2xl border border-neutral-800 bg-neutral-950 p-4">
+                <div className="rounded-2xl border border-amber-900/15 bg-[#1a1412] p-4">
                   <div className="text-xs uppercase tracking-[0.2em] text-neutral-500">Lives</div>
                   <div className="mt-3 flex gap-2">
                     {hearts(lives).map((filled, index) => (
-                      <Heart key={index} className={`h-6 w-6 ${filled ? "fill-red-400 text-red-400" : "text-neutral-700"}`} />
+                      <motion.div key={index}
+                        animate={filled ? {} : { scale: [1, 0.8], opacity: [1, 0.3] }}
+                        transition={{ duration: 0.3 }}>
+                        <Heart className={`h-6 w-6 ${filled ? "fill-red-400 text-red-400" : "text-neutral-700"}`} />
+                      </motion.div>
                     ))}
                   </div>
                 </div>
@@ -586,19 +831,20 @@ export default function BakeryRushPrototype() {
                   <SmallStat label="Missed" value={missedOrders} valueClassName="text-red-400" />
                   <SmallStat label="Wrong moves" value={wrongMoves} valueClassName="text-orange-400" />
                 </div>
-                <div className="rounded-2xl border border-neutral-800 bg-neutral-950 p-4">
+                <div className="rounded-2xl border border-amber-900/15 bg-[#1a1412] p-4">
                   <div className="text-xs uppercase tracking-[0.2em] text-neutral-500">Streak</div>
-                  <div className="mt-2 text-3xl font-bold text-emerald-400">{streak}</div>
-                  <div className="mt-2 text-sm text-neutral-400">Every third completed order gives a bonus.</div>
+                  <motion.div key={streak} initial={{ scale: 1.3 }} animate={{ scale: 1 }}
+                    className="mt-2 text-3xl font-bold text-emerald-400">{streak}</motion.div>
+                  <div className="mt-2 text-sm text-neutral-500">Every third order gives a bonus.</div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="rounded-3xl border-neutral-800 bg-neutral-900 shadow-2xl">
+            <Card className="rounded-3xl border-amber-900/20 bg-[#1c1614] shadow-2xl shadow-amber-950/10">
               <CardHeader><CardTitle className="text-lg">Customer queue</CardTitle></CardHeader>
               <CardContent className="grid gap-3">
                 {queuePreview.map((customer, index) => (
-                  <div key={customer.id} className="flex items-center justify-between rounded-2xl border border-neutral-800 bg-neutral-950 p-4">
+                  <div key={customer.id} className="flex items-center justify-between rounded-2xl border border-amber-900/15 bg-[#1a1412] p-4">
                     <div>
                       <div className="text-xs uppercase tracking-[0.2em] text-neutral-500">Next {index + 1}</div>
                       <div className="mt-1 text-lg font-medium">{customer.name}</div>
@@ -610,8 +856,8 @@ export default function BakeryRushPrototype() {
               </CardContent>
             </Card>
 
-            <Card className="rounded-3xl border-neutral-800 bg-neutral-900 shadow-2xl">
-              <CardContent className="p-5 text-sm leading-6 text-neutral-300">
+            <Card className="rounded-3xl border-amber-900/20 bg-[#1c1614] shadow-2xl shadow-amber-950/10">
+              <CardContent className="p-5 text-sm leading-6 text-neutral-400">
                 <div className="mb-2 text-xs uppercase tracking-[0.2em] text-neutral-500">Boundary check</div>
                 This stays inside prototype territory. It includes level selection, unlock flow, score thresholds, and a moving conveyor belt, but still avoids stores, accounts, analytics, and other full product systems.
               </CardContent>
@@ -620,12 +866,38 @@ export default function BakeryRushPrototype() {
         </div>
 
         <AnimatePresence>
+          {screen === "reflection" && reflectionPrompt && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6">
+              <Card className="w-full max-w-lg rounded-3xl border-amber-500/40 bg-neutral-950 text-white shadow-2xl">
+                <CardContent className="grid gap-5 p-8 text-center">
+                  <div className="text-sm uppercase tracking-[0.3em] text-amber-400">Reflection moment</div>
+                  <div className="text-4xl">💭</div>
+                  <div className="text-lg leading-7 text-neutral-200">{reflectionPrompt}</div>
+                  {reflectionCategory && (
+                    <div className="text-xs text-neutral-500">
+                      Category: {reflectionCategory.replace(/_/g, " ")}
+                    </div>
+                  )}
+                  <Button onClick={dismissReflection}
+                    className="mx-auto rounded-2xl bg-amber-400 px-8 py-4 text-base font-semibold text-black hover:bg-amber-300">
+                    I understand — keep going
+                  </Button>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
           {(screen === "shift_complete" || screen === "game_over") && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-6">
-              <Card className="w-full max-w-2xl rounded-3xl border-neutral-800 bg-neutral-950 text-white shadow-2xl">
+              className="fixed inset-0 z-50 flex items-center justify-center p-6"
+              style={{ background: "rgba(15,13,11,0.85)" }}>
+              <Card className="w-full max-w-2xl rounded-3xl border-amber-900/20 bg-[#1a1412] text-white shadow-2xl shadow-amber-950/20">
                 <CardContent className="grid gap-6 p-8 text-center md:p-10">
                   <div>
+                    <div className="text-5xl mb-3">{screen === "shift_complete" ? "🎉" : "😔"}</div>
                     <div className={`text-sm uppercase tracking-[0.35em] ${screen === "shift_complete" ? "text-emerald-400" : "text-red-400"}`}>
                       {screen === "shift_complete" ? "Shift complete" : "Shift failed"}
                     </div>
@@ -644,6 +916,20 @@ export default function BakeryRushPrototype() {
                       ? `You cleared ${currentLevel.title}. This level used ${currentPastries.length} pastry values, conveyor speed ${currentLevel.conveyorDuration}s, and a tuned target pool of ${currentLevel.targetPool.join(", ")}.`
                       : "This failure state now tests whether the loop stays fair once the conveyor and progression systems are added."}
                   </div>
+                  {sessionDiagnostics.totalReflections > 0 && (
+                    <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-4 text-left text-sm">
+                      <div className="mb-2 text-xs uppercase tracking-[0.2em] text-amber-400">Reflection beat diagnostics</div>
+                      <div className="grid gap-1 text-neutral-300">
+                        <div>Total reflection beats: <span className="text-white font-medium">{sessionDiagnostics.totalReflections}</span></div>
+                        <div>By level: {Object.entries(sessionDiagnostics.reflectionsByLevel).map(([lvl, count]) =>
+                          <span key={lvl} className="ml-2 text-neutral-400">L{Number(lvl) + 1}: {count}</span>
+                        )}</div>
+                        <div>By category: {Object.entries(sessionDiagnostics.reflectionsByCategory).map(([cat, count]) =>
+                          <span key={cat} className="ml-2 text-neutral-400">{cat.replace(/_/g, " ")}: {count}</span>
+                        )}</div>
+                      </div>
+                    </div>
+                  )}
                   <div className="flex flex-wrap justify-center gap-3">
                     <Button onClick={() => setupLevel(levelIndex)} className="rounded-2xl bg-amber-400 px-8 py-6 text-lg font-semibold text-black hover:bg-amber-300">
                       Retry level
