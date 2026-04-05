@@ -719,6 +719,12 @@ def main():
         default="claude-haiku-4-5-20251001",
         help="Cheap model for semantic keep-vs-revise gate (default: claude-haiku-4-5-20251001)",
     )
+    parser.add_argument(
+        "--write-back",
+        action="store_true",
+        default=False,
+        help="Write pending library write-back files for revised primary entries",
+    )
     args = parser.parse_args()
 
     game_data = GAME_FACTORIES[args.game]()
@@ -766,6 +772,7 @@ def main():
             artifact_paths=artifact_paths,
             targeted_llm=targeted_llm,
             gate_llm=gate_llm,
+            enable_writeback=args.write_back,
         )
 
     print(f"\nResult:")
@@ -806,6 +813,28 @@ def main():
             print(f"  {c['label']:10s} ({c['model']}): {c['calls']} calls")
         total_calls = sum(c["calls"] for c in counters)
         print(f"  {'total':10s}: {total_calls} calls")
+
+    # Print write-back info
+    wb_path = result.artifact.get("_writeback_pending_path")
+    if wb_path:
+        print(f"\nLibrary write-back:")
+        print(f"  pending file: {Path(wb_path).relative_to(REPO_ROOT)}")
+        # Read and summarize
+        with open(wb_path) as f:
+            wb_data = json.load(f)
+        for entry in wb_data.get("entries_to_update", []):
+            cat = entry["category"]
+            fields = entry["fields_changed"]
+            print(f"  [{cat}] {len(fields)} fields changed: {', '.join(fields)}")
+            for field, diff in entry["field_diff"].items():
+                old_preview = diff["old"][:60].replace("\n", " ")
+                new_preview = diff["new"][:60].replace("\n", " ")
+                print(f"    {field}:")
+                print(f"      old: {old_preview}...")
+                print(f"      new: {new_preview}...")
+        print(f"  To apply: python3 -c \"from agents.misconception_architect.agent import apply_library_writeback; from pathlib import Path; print(apply_library_writeback(Path('{wb_path}'), Path('{REPO_ROOT}'), dry_run=False))\"")
+    elif args.write_back:
+        print(f"\nLibrary write-back: no eligible entries (no revised primaries passed quality checks)")
 
     return 0
 
