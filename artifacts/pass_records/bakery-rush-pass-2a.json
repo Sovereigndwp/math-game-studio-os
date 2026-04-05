@@ -1,0 +1,27 @@
+{
+  "pass_name": "bakery-rush-pass-2a",
+  "game_name": "Bakery Rush",
+  "pass_number": 2,
+  "timestamp": "2026-04-05T17:06:00Z",
+  "what_this_pass_proved": [
+    "Star ratings (★/★★/★★★ based on misses and overshoots) give the player a visible mastery target beyond just completing the level.",
+    "Mission Debrief with per-order log, hardest targets, and one contextual takeaway turns the end of a run into a learning moment rather than a blank score screen.",
+    "The player now has a concrete reason to replay immediately — beat my star rating and fix the specific weakness the debrief identified."
+  ],
+  "open_questions": [
+    "Are star thresholds tuned correctly? If ★★★ is too easy to earn, it loses its pull as a replay hook.",
+    "Does the takeaway message feel actionable, or does it read as generic encouragement?"
+  ],
+  "bugs_fixed": [
+    {
+      "description": "No end-of-run feedback existed — session ended with just a score. Added star rating calculation and full mission debrief overlay.",
+      "impact": "teaching"
+    }
+  ],
+  "known_limits": [
+    "Star rating is per-session, not per-level. A player who aces L1-L3 but struggles at L4-L5 gets a blended rating that may not reflect their actual weak point.",
+    "Debrief persistence is session-only (React ref). No cross-session comparison of star ratings or takeaways."
+  ],
+  "next_pass_first_obligation": "Observe whether the star rating and debrief actually change player behavior on replay — does the player attempt to fix the weakness the debrief identified, or do they ignore the takeaway?",
+  "_note": "The historical file bakery-rush-pass-2.json contains P2B-style belt tuning and diagnostic content from the same development period. This P2A record covers the star/debrief/replay-payoff work done in commit fe83609."
+}

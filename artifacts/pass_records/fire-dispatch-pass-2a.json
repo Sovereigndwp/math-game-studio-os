@@ -1,0 +1,26 @@
+{
+  "pass_name": "fire-dispatch-pass-2a",
+  "game_name": "Fire Dispatch",
+  "pass_number": 2,
+  "timestamp": "2026-04-05T17:06:00Z",
+  "what_this_pass_proved": [
+    "Star ratings at session end give the player a visible target beyond just clearing incidents — the run now answers 'How did I do?' with a grade.",
+    "Incident personality lines (unique dispatch and resolved text per incident type) make each call feel like a distinct event rather than a generic math prompt.",
+    "The debrief shows resolved incidents, timeouts, overshoot attempts, response time, hardest demands, and one practical takeaway — the player leaves knowing what to improve."
+  ],
+  "open_questions": [
+    "Are star thresholds tuned correctly for the dispatch context? Too easy and the rating is meaningless; too hard and it discourages replay.",
+    "Does the takeaway feel specific enough to change behavior on the next run?"
+  ],
+  "bugs_fixed": [
+    {
+      "description": "No end-of-session feedback existed beyond a score total. Added star rating, incident log summary, and contextual takeaway.",
+      "impact": "teaching"
+    }
+  ],
+  "known_limits": [
+    "Star rating is per-session aggregate. Does not break down performance by incident type or level.",
+    "Debrief persistence is session-only. No cross-session comparison."
+  ],
+  "next_pass_first_obligation": "Verify that the star rating and debrief produce a reason to replay immediately — does the player know what to do differently on the next run?"
+}

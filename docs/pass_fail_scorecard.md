@@ -99,6 +99,45 @@ After every pass — before starting the next one.
 | **What changed in player feeling** | "This is a bakery" — I remember Luna's order |
 | **Decision** | pass |
 
+### Fire Dispatch P2A
+| Field | Value |
+|---|---|
+| **Game** | Fire Dispatch |
+| **Pass label** | P2A |
+| **Primary bottleneck** | No end-of-session feedback, no reason to replay |
+| **Proof target** | Player has a reason to replay immediately |
+| **Playtest question** | Did the end of the run teach something or reward something? |
+| **Pass criteria** | Stars exist, debrief shows specific performance, replay has a target |
+| **Actual result** | Star rating, incident log with response times, hardest demands, contextual takeaway |
+| **What changed in player feeling** | "I know how I did" — the run has a verdict and a next step |
+| **Decision** | pass |
+
+### Fire Dispatch P2B
+| Field | Value |
+|---|---|
+| **Game** | Fire Dispatch |
+| **Pass label** | P2B |
+| **Primary bottleneck** | L1 timer too generous, wrong dispatch has no consequence, L5 unbeatable |
+| **Proof target** | Difficulty feels fair across all 5 levels |
+| **Playtest question** | Did the timer and penalty ramp feel fair? |
+| **Pass criteria** | Timer ramp smooth, wrong dispatch costs something, L5 clearable |
+| **Actual result** | Timer 20-12s smooth ramp, wrong dispatch penalty 2-4s, L5 at 400 threshold clearable |
+| **What changed in player feeling** | "The challenge is fair" — mistakes cost something, L5 feels hard but reachable |
+| **Decision** | pass |
+
+### Fire Dispatch P3
+| Field | Value |
+|---|---|
+| **Game** | Fire Dispatch |
+| **Pass label** | P3 |
+| **Primary bottleneck** | Incidents feel generic, station feels like a test screen |
+| **Proof target** | Player remembers a specific incident or moment |
+| **Playtest question** | Does it feel like a fire station or a math quiz? |
+| **Pass criteria** | Incidents have personality, station has ambient state, visual warmth present |
+| **Actual result** | Per-type dispatch lines, status strip, warm emergency tones |
+| **What changed in player feeling** | "This is a station" — incidents feel like real calls, not generic prompts |
+| **Decision** | pass |
+
 ### Fire Dispatch P1
 | Field | Value |
 |---|---|
@@ -110,6 +149,19 @@ After every pass — before starting the next one.
 | **Pass criteria** | 3-step tutorial teaches one mechanic each, L1 feels learnable |
 | **Actual result** | Tutorial covers match, combine, overshoot prevention |
 | **What changed in player feeling** | "I understand the rules" — L1 is no longer confusing |
+| **Decision** | pass |
+
+### Unit Circle P2A
+| Field | Value |
+|---|---|
+| **Game** | Unit Circle |
+| **Pass label** | P2A |
+| **Primary bottleneck** | No end-of-session feedback, no replay reason |
+| **Proof target** | Player has a reason to replay immediately |
+| **Playtest question** | Did the debrief teach something the player didn't already know? |
+| **Pass criteria** | Stars exist, debrief shows precision and prompt-type breakdown, takeaway is specific |
+| **Actual result** | ★★★/★★/★ rating, avg precision, angle-type breakdown, contextual takeaway |
+| **What changed in player feeling** | "I know my weak spot" — the debrief shows degrees vs radians vs coordinates performance |
 | **Decision** | pass |
 
 ### Unit Circle P1

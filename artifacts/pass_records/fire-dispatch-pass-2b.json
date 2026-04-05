@@ -1,0 +1,49 @@
+{
+  "pass_name": "fire-dispatch-pass-2b",
+  "game_name": "Fire Dispatch",
+  "pass_number": 2,
+  "timestamp": "2026-04-05T17:26:00Z",
+  "what_this_pass_proved": [
+    "Timer ramp 20→18→16→14→12 is smoother than the previous 25→20→18→15→12 — L1 at 20s is still learnable but no longer dead time, and the step sizes are more consistent.",
+    "Wrong dispatch penalty (2-4s depending on level, zero at L1) gives mistakes a felt consequence without punishing exploration during learning.",
+    "L5 threshold at 400 (down from 9999) is now clearable — the game has a reachable endgame instead of an impossible wall.",
+    "L4 keeping all 5 trucks (was removing Ambulance) feels correct — removing a truck type felt like a bug, not a difficulty increase.",
+    "Scoring formula (base + remaining seconds + streak × urgency) makes speed rewarding and scores predictable — fast play on high-urgency incidents pays more."
+  ],
+  "open_questions": [
+    "Is the L1 penalty of zero too generous? Players may develop bad dispatch habits that L2's penalty then punishes unexpectedly.",
+    "Does the L5 threshold of 400 feel achievable on a first attempt, or does it require multiple runs to learn the scoring math?",
+    "Is the urgency multiplier visible enough to the player? If not, the scoring feels arbitrary."
+  ],
+  "bugs_fixed": [
+    {
+      "description": "L1 timer at 25s was too generous — incidents sat on screen with no urgency. Reduced to 20s.",
+      "impact": "teaching"
+    },
+    {
+      "description": "Wrong dispatch had zero penalty — player could spam dispatch attempts with no consequence. Added level-scaled penalty (2-4s).",
+      "impact": "honesty"
+    },
+    {
+      "description": "L5 threshold at 9999 was unreachable — effectively impossible to clear. Lowered to 400.",
+      "impact": "correctness"
+    },
+    {
+      "description": "L4 removed Ambulance truck type — felt like a bug. Restored all 5 trucks.",
+      "impact": "correctness"
+    }
+  ],
+  "known_limits": [
+    "Timer ramp has not been validated against real play. The 20→12 range may still be too fast or too slow at the extremes.",
+    "Penalty scaling (2-4s) is a design hypothesis. May need per-level tuning after observation.",
+    "Scoring formula not yet surfaced to the player in a way that teaches the strategy."
+  ],
+  "auditor_results": {
+    "curve_verdict": "smooth_ramp",
+    "weighted_severity": 0.0,
+    "severity_label": "clean",
+    "flagged_parameters": [],
+    "notes": "Timer ramp [20, 18, 16, 14, 12] — steps of 10%, 11%, 13%, 14%. All within smooth range. Penalty ramp [0, 2, 3, 3, 4] is monotonic."
+  },
+  "next_pass_first_obligation": "Observe whether the wrong-dispatch penalty at L2 feels fair or like a surprise punishment after L1's zero-penalty learning mode."
+}

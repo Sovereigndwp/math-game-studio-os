@@ -1,0 +1,32 @@
+{
+  "pass_name": "fire-dispatch-pass-3",
+  "game_name": "Fire Dispatch",
+  "pass_number": 3,
+  "timestamp": "2026-04-05T17:06:00Z",
+  "what_this_pass_proved": [
+    "Incident personality (unique dispatch lines and resolved lines per incident type) makes each call feel distinct — 'Kitchen fire on Oak Street' is more memorable than 'Incident requires 15'.",
+    "Dispatch status strip ('Standing by' → 'Calls stacking' → 'On fire') gives the player ambient situational awareness without adding a new UI element to track.",
+    "Visual warmth shift (cold blue to warm emergency tones) makes the station feel like a real place rather than a test screen."
+  ],
+  "open_questions": [
+    "Do the personality lines get repetitive across sessions? May need a larger pool or randomization.",
+    "Does the status strip influence player behavior (dispatching faster when 'On fire') or is it just decoration?",
+    "Is the visual warmth noticeable enough to affect feel, or does it need stronger contrast?"
+  ],
+  "bugs_fixed": [
+    {
+      "description": "All incidents used the same generic text. Added per-type dispatch and resolved lines with location and situation variety.",
+      "impact": "polish"
+    },
+    {
+      "description": "No ambient station state visible — player had no sense of overall pressure beyond individual incident timers. Added status strip.",
+      "impact": "honesty"
+    }
+  ],
+  "known_limits": [
+    "Personality line pool is fixed — not randomized across sessions. Repeat players will see the same lines.",
+    "Status strip thresholds (when it shifts from 'standing by' to 'calls stacking') have not been tuned against real play.",
+    "Visual warmth is a color palette shift only — no animation or ambient sound. May not be strong enough to change feel."
+  ],
+  "next_pass_first_obligation": "Observe whether the personality and status strip make the player remember specific incidents or moments — if they describe 'that kitchen fire' instead of 'Level 3', the pass worked."
+}

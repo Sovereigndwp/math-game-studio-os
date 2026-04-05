@@ -1,0 +1,29 @@
+{
+  "pass_name": "unit-circle-pass-2a",
+  "game_name": "Unit Circle",
+  "pass_number": 2,
+  "timestamp": "2026-04-05T00:00:00Z",
+  "what_this_pass_proved": [
+    "Star ratings (★★★ zero misses, ★★ ≤2 misses with ≥50% correct, ★ otherwise) give the player a visible mastery target beyond just surviving all 15 rounds.",
+    "Session debrief showing correct/close/miss counts, average precision in degrees, and breakdown by prompt type (degrees vs radians vs coordinates) turns the end screen into diagnostic feedback.",
+    "Contextual takeaway logic (diagnoses timeouts, worst prompt type, or precision issues) gives specific advice rather than generic encouragement — the player leaves knowing what to practice.",
+    "Angle-type breakdown reveals whether the player struggles with degrees, radians, or coordinates specifically — this was invisible before."
+  ],
+  "open_questions": [
+    "Are the star thresholds correctly tuned? ★★★ requiring zero misses across 15 rounds may be too punishing for early players.",
+    "Does the prompt-type breakdown change behavior? Does a player who sees 'worst: coordinates' actually practice coordinates next run?",
+    "Is average precision in degrees meaningful feedback, or is it too abstract for the target age group?"
+  ],
+  "bugs_fixed": [
+    {
+      "description": "No end-of-session feedback existed — game ended with just correct/total count. Added star rating, precision stats, prompt-type breakdown, and contextual takeaway.",
+      "impact": "teaching"
+    }
+  ],
+  "known_limits": [
+    "Star rating is session-aggregate. Does not show per-tier performance, so a player who aces Tier 1 but fails Tier 3 gets a blended rating.",
+    "Debrief persistence is session-only. No cross-session tracking of precision improvement.",
+    "Takeaway logic uses simple heuristics (worst prompt type, timeout count). May misdiagnose when multiple issues overlap."
+  ],
+  "next_pass_first_obligation": "Verify that the star rating creates a replay pull — does a ★★ player want to try again for ★★★, or do they just close the game?"
+}

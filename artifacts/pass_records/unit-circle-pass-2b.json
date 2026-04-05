@@ -1,0 +1,45 @@
+{
+  "pass_name": "unit-circle-pass-2b",
+  "game_name": "Unit Circle",
+  "pass_number": 2,
+  "timestamp": "2026-04-05T00:00:00Z",
+  "what_this_pass_proved": [
+    "Tightened tolerances (Tier 1: 12°, Tier 2: 9°, Tier 3: 8°→6° smooth ramp) make placement feel precise without being punishing — the old 15° at Tier 1 was too generous to teach anything.",
+    "Coordinate prompts delayed to Tier 3 only (Tier 2 uses degrees + radians) prevents a difficulty spike when coords appear — radians are comfortable before coords are introduced.",
+    "Within-tier round shuffling per session prevents sequence memorization — the same tier feels different each play.",
+    "Warm-up bonus (+3s on first round of each tier) prevents the 'surprise new difficulty' feeling at tier transitions.",
+    "Close threshold tightened from 2.5× to 2× tolerance makes near-miss feedback more honest — fewer false 'close' results."
+  ],
+  "open_questions": [
+    "Is the Tier 3 ramp (8°→7°→7°→6°→6°) smooth enough, or does the 7→6 step feel like a spike on the last two rounds?",
+    "Does the warm-up bonus feel like a natural breathing room or like inconsistency in the timer?",
+    "With coords delayed to Tier 3, do players feel unprepared when they first encounter (−½, √3/2) at round 11?"
+  ],
+  "bugs_fixed": [
+    {
+      "description": "Tier 3 tolerance had a spike: 8/8/8/8/5 — the last round dropped 3° suddenly. Smoothed to 8/7/7/6/6.",
+      "impact": "teaching"
+    },
+    {
+      "description": "Tier 2 round 6 used coordinate prompt (−½, √3/2) before radians were comfortable. Changed to radians 2π/3.",
+      "impact": "teaching"
+    },
+    {
+      "description": "Tier 1 tolerance at 15° was too generous — players could place roughly and still get 'correct'. Tightened to 12°.",
+      "impact": "honesty"
+    }
+  ],
+  "known_limits": [
+    "Tolerance ramp has not been validated against real play data. The 12°→6° range is a design hypothesis.",
+    "Round shuffling is within-tier only. Cross-tier order is fixed (always Tier 1→2→3). May feel predictable after multiple sessions.",
+    "Warm-up bonus is a flat +3s. May need to vary by tier if Tier 3 warm-up needs more time."
+  ],
+  "auditor_results": {
+    "curve_verdict": "smooth_ramp",
+    "weighted_severity": 0.0,
+    "severity_label": "clean",
+    "flagged_parameters": [],
+    "notes": "Tolerance ramp [12, 12, 12, 12, 12, 9, 9, 9, 9, 9, 8, 7, 7, 6, 6] — smooth within each tier. Timer ramp [18, 18, 18, 18, 18, 14, 14, 14, 14, 14, 10, 10, 10, 10, 10] — stepped by tier with warm-up bonus on transitions."
+  },
+  "next_pass_first_obligation": "Observe whether the Tier 2→3 transition (radians to coordinates) feels fair with the warm-up bonus, or whether coordinates need their own mini-tutorial before the first coord round."
+}
