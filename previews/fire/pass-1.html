@@ -11,7 +11,7 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      background: #0f0f1a;
+      background: linear-gradient(180deg, #1a1018 0%, #0f0d12 50%, #1a1018 100%);
       display: flex;
       justify-content: center;
       align-items: flex-start;
@@ -24,7 +24,7 @@
 
     /* ── Root container ── */
     .fire-dispatch {
-      background: #1a1a2e;
+      background: #1c1418;
       color: #fff;
       border-radius: 16px;
       overflow: hidden;
@@ -36,7 +36,7 @@
 
     /* ── Header / HUD ── */
     .dispatch-hud {
-      background: #16213e;
+      background: #1a1418;
       padding: 12px 16px 10px;
       display: flex;
       align-items: center;
@@ -94,7 +94,7 @@
 
     /* ── Mission card ── */
     .mission-card {
-      background: linear-gradient(135deg, #16213e 0%, #0f3460 100%);
+      background: linear-gradient(135deg, #201418 0%, #2a1018 100%);
       margin: 14px 14px 0;
       border-radius: 14px;
       padding: 16px 18px;
@@ -595,13 +595,36 @@
     ];
 
     const INCIDENTS = [
-      { name: 'Factory Fire',   emoji: '🏭', location: 'Industrial District' },
-      { name: 'House Fire',     emoji: '🏠', location: 'Oak Street'          },
-      { name: 'Car Accident',   emoji: '🚗', location: 'Highway 7'           },
-      { name: 'Chemical Spill', emoji: '⚗️', location: 'North Warehouse'    },
-      { name: 'Building Fire',  emoji: '🏢', location: 'Downtown'            },
-      { name: 'Brush Fire',     emoji: '🌿', location: 'City Park'           },
+      { name: 'Factory Fire',   emoji: '🏭', location: 'Industrial District', dispatchLine: 'Workers are evacuating!',       resolvedLine: 'Factory secured. Workers safe.' },
+      { name: 'House Fire',     emoji: '🏠', location: 'Oak Street',          dispatchLine: 'Family trapped on second floor!', resolvedLine: 'Family rescued. House saved.' },
+      { name: 'Car Accident',   emoji: '🚗', location: 'Highway 7',           dispatchLine: 'Multi-car pileup, traffic stopped.', resolvedLine: 'Road cleared. Everyone okay.' },
+      { name: 'Chemical Spill', emoji: '⚗️', location: 'North Warehouse',    dispatchLine: 'Hazmat situation developing!',    resolvedLine: 'Spill contained. Area safe.' },
+      { name: 'Building Fire',  emoji: '🏢', location: 'Downtown',            dispatchLine: 'Smoke visible for blocks!',       resolvedLine: 'Fire out. Building stable.' },
+      { name: 'Brush Fire',     emoji: '🌿', location: 'City Park',           dispatchLine: 'Wind is spreading it fast!',      resolvedLine: 'Fire line held. Park saved.' },
     ];
+
+    function calcStars(incidentLog) {
+      const timeouts = incidentLog.filter(i => i.outcome === 'timeout').length;
+      const totalOvershoots = incidentLog.reduce((s, i) => s + i.overshootAttempts, 0);
+      if (timeouts === 0 && totalOvershoots === 0) return 3;
+      if (timeouts <= 1 && totalOvershoots <= 3) return 2;
+      return 1;
+    }
+
+    function getStarLabel(stars) {
+      if (stars === 3) return { text: '★★★ Perfect Shift!', color: '#fbbf24' };
+      if (stars === 2) return { text: '★★ Good Shift', color: '#d6d3d1' };
+      return { text: '★ Shift Completed', color: '#a8a29e' };
+    }
+
+    function getDispatchStatus(incidentCount, streak, lives) {
+      if (lives === 1) return { text: '🚨 Final life — stay sharp!', color: '#fca5a5' };
+      if (streak >= 4) return { text: '🔥 On fire! Dispatch running hot!', color: '#86efac' };
+      if (streak >= 2) return { text: '📻 Good coordination. Keep it up.', color: '#fbbf24' };
+      if (incidentCount >= 3) return { text: '📻 Calls are stacking up...', color: '#d6d3d1' };
+      if (incidentCount >= 1) return { text: '📻 First response dispatched.', color: '#a8a29e' };
+      return { text: '📻 Standing by for incoming calls.', color: '#94a3b8' };
+    }
 
     const SUCCESS_MS  = 1400;
     const TIMEOUT_MS  = 1200;
@@ -645,7 +668,7 @@
     function truckById(id) { return TRUCK_TYPES.find(t => t.id === id); }
 
     /* ─────────────────── MissionCard ─────────────────── */
-    function MissionCard({ incidentName, incidentEmoji, locationName, demandValue, urgency }) {
+    function MissionCard({ incidentName, incidentEmoji, locationName, demandValue, urgency, dispatchLine }) {
       const urgencyLabel = urgency === 'high' ? '🔴 HIGH' : urgency === 'medium' ? '🟡 MED' : '🟢 LOW';
       return (
         <div className="mission-card">
@@ -654,6 +677,7 @@
           <div className="mission-info">
             <div className="mission-name">{incidentName}</div>
             <div className="mission-location">📍 {locationName}</div>
+            {dispatchLine && <div style={{ fontSize: 11, color: '#fca5a5', fontStyle: 'italic', marginTop: 2 }}>"{dispatchLine}"</div>}
           </div>
           <div className="mission-demand-block">
             <div className="demand-label">🔥 FIRE DEMAND</div>
@@ -825,7 +849,7 @@
         success: {
           wrapClass: 'overlay-success',
           emoji: '✅',
-          title: 'Incident Resolved!',
+          title: summaryStats?.resolvedLine || 'Incident Resolved!',
           subtitle: summaryStats && summaryStats.urgency === 'high'
             ? `🔴 High priority! +${summaryStats.pointsEarned} pts`
             : summaryStats && summaryStats.streak > 1
@@ -848,6 +872,9 @@
 
       if (!config) return null;
 
+      const stars = incidentLog && incidentLog.length > 0 ? calcStars(incidentLog) : null;
+      const starInfo = stars ? getStarLabel(stars) : null;
+
       return (
         <div className={`outcome-overlay ${config.wrapClass}`}>
           <div className="overlay-backdrop" />
@@ -855,6 +882,9 @@
             <span className="overlay-emoji">{config.emoji}</span>
             <div className="overlay-title">{config.title}</div>
             {config.subtitle && <div className="overlay-subtitle">{config.subtitle}</div>}
+            {feedbackMode === 'shift_end' && starInfo && (
+              <div style={{ fontSize: 20, fontWeight: 800, color: starInfo.color, marginBottom: 8 }}>{starInfo.text}</div>
+            )}
             {feedbackMode === 'shift_end' && summaryStats && (
               <>
                 <div className="overlay-stats">
@@ -1230,6 +1260,20 @@
             </div>
           )}
 
+          {/* Dispatch status strip */}
+          {!tutorialActive && (() => {
+            const status = getDispatchStatus(incidentCount, streak, lives);
+            return (
+              <div style={{
+                textAlign: 'center', fontSize: 12, padding: '4px 12px',
+                color: status.color, background: '#0f172a',
+                borderBottom: '1px solid #1e293b',
+              }}>
+                {status.text}
+              </div>
+            );
+          })()}
+
           {/* Tutorial instruction panel */}
           {tutorialActive && tutorialConfig && (
             <div style={{
@@ -1292,6 +1336,7 @@
               locationName={currentIncident.location}
               demandValue={currentIncident.demandValue}
               urgency={currentIncident.urgency}
+              dispatchLine={currentIncident.dispatchLine}
             />
           )}
 
@@ -1336,6 +1381,7 @@
               streak,
               pointsEarned: lastPoints,
               urgency: currentIncident ? currentIncident.urgency : null,
+              resolvedLine: currentIncident ? currentIncident.resolvedLine : null,
             }}
             incidentLog={incidentLog}
             onPlayAgain={startGame}

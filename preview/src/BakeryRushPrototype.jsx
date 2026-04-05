@@ -167,6 +167,56 @@ function getBakeryStatus(completed, missed, streak, lives) {
   return { text: "☕ Quiet morning. First customer of the day.", color: "#a8a29e" };
 }
 
+function calcStars(completed, missed, wrongMoves) {
+  if (missed === 0 && wrongMoves === 0) return 3;     // ★★★ perfect
+  if (missed === 0 && wrongMoves <= 2) return 3;       // ★★★ near-perfect
+  if (missed <= 1 && wrongMoves <= 4) return 2;        // ★★ good
+  return 1;                                             // ★ passed
+}
+
+function getStarLabel(stars) {
+  if (stars === 3) return { text: "★★★ Perfect Run!", color: "#fbbf24" };
+  if (stars === 2) return { text: "★★ Good Run", color: "#d6d3d1" };
+  return { text: "★ Completed", color: "#a8a29e" };
+}
+
+function generateDebrief(orderLog, completed, missed, wrongMoves) {
+  const successes = orderLog.filter(o => o.outcome === 'success');
+  const timeouts = orderLog.filter(o => o.outcome === 'timeout');
+  const totalOvershoots = orderLog.reduce((s, o) => s + o.overshoots, 0);
+  const avgTime = successes.length > 0
+    ? Math.round(successes.reduce((s, o) => s + o.responseTime, 0) / successes.length)
+    : null;
+
+  // Hardest targets
+  const trouble = {};
+  orderLog.forEach(o => {
+    if (o.outcome === 'timeout' || o.overshoots > 0) {
+      trouble[o.target] = (trouble[o.target] || 0) + 1;
+    }
+  });
+  const hardest = Object.entries(trouble)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([t]) => Number(t));
+
+  // Takeaway
+  let tip;
+  if (timeouts.length > successes.length) {
+    tip = "You ran out of time more than you succeeded. Try checking the +N labels before tapping — plan first, tap second.";
+  } else if (totalOvershoots > orderLog.length * 1.5) {
+    tip = "Lots of overshoots. Before adding the last pastry, check: will this put me over? Subtract mentally.";
+  } else if (hardest.length > 0 && hardest[0] > 10) {
+    tip = `High targets (${hardest[0]}+) were toughest. Start with the biggest pastry values to get close fast, then fill the gap.`;
+  } else if (avgTime && avgTime > 12) {
+    tip = "Accurate but slow. Try recognizing common combos faster: two +2s = 4, +3 and +2 = 5.";
+  } else {
+    tip = "Strong baking! Aim for ★★★ — zero misses, zero overshoots.";
+  }
+
+  return { successes: successes.length, timeouts: timeouts.length, totalOvershoots, avgTime, hardest, tip };
+}
+
 export default function BakeryRushPrototype() {
   const [screen, setScreen]                         = useState("intro");
   const [levelIndex, setLevelIndex]                 = useState(0);
@@ -191,6 +241,13 @@ export default function BakeryRushPrototype() {
   const [conveyor, setConveyor]                     = useState(() => makeConveyorItems(LEVELS[0].pastrySet, LEVELS[0].pastryWeights));
   const [customerMood, setCustomerMood]             = useState("neutral"); // "neutral" | "annoyed"
   const [overshootsThisOrder, setOvershootsThisOrder] = useState(0);
+
+  // Pass 2: order log for mission debrief
+  const [orderLog, setOrderLog]                     = useState([]); // [{target, outcome, overshoots, responseTime}]
+  const orderStartTime                              = useRef(Date.now());
+
+  // Pass 2: belt jolt state
+  const [beltJolt, setBeltJolt]                     = useState(false);
 
   const overshootTimerRef = useRef(null);
   const successTimerRef   = useRef(null);
@@ -360,7 +417,9 @@ export default function BakeryRushPrototype() {
     setFirstTryForCurrentOrder(true);
     setCustomerMood("neutral");
     setOvershootsThisOrder(0);
+    setBeltJolt(false);
     setMessage(nextMessage);
+    orderStartTime.current = Date.now();
     refillConveyorExact(level.pastrySet, level.pastryWeights);
   }
 
@@ -384,7 +443,10 @@ export default function BakeryRushPrototype() {
     setFirstTryForCurrentOrder(true);
     setLastAward("");
     setLives(MAX_LIVES);
+    setOrderLog([]);
+    setBeltJolt(false);
     refillConveyorExact(config.pastrySet, config.pastryWeights);
+    orderStartTime.current = Date.now();
     tapTimestamps.current = [];
     consecutiveErrors.current = [];
     reflectionsFiredThisLevel.current = 0;
@@ -410,6 +472,12 @@ export default function BakeryRushPrototype() {
   }
 
   function handleMissedOrder() {
+    setOrderLog(prev => [...prev, {
+      target: currentCustomer?.target ?? 0,
+      outcome: 'timeout',
+      overshoots: overshootsThisOrder,
+      responseTime: currentLevel.patienceSeconds,
+    }]);
     setMissedOrders((prev) => prev + 1);
     setLives((prev) => {
       const nextLives = prev - 1;
@@ -431,6 +499,14 @@ export default function BakeryRushPrototype() {
     let earned = firstTryForCurrentOrder ? 100 : 60;
     let awardText = firstTryForCurrentOrder ? "+100 first try" : "+60 completed";
     if (nextCompleted % 3 === 0) { earned += 50; awardText += " · +50 streak"; }
+    // Log for debrief
+    setOrderLog(prev => [...prev, {
+      target: currentCustomer?.target ?? 0,
+      outcome: 'success',
+      overshoots: overshootsThisOrder,
+      responseTime: Math.round((Date.now() - orderStartTime.current) / 1000),
+    }]);
+
     setCompletedOrders(nextCompleted);
     setScore((prev) => prev + earned);
     setStreak((prev) => prev + 1);
@@ -500,18 +576,31 @@ export default function BakeryRushPrototype() {
       const errorCategory = classifyError(nextTotal, currentTarget, pastry.value, tapTimestamps.current);
       checkReflectionTrigger(errorCategory);
 
-      // --- Overshoot consequence: drain patience, upset customer ---
-      const penalty = currentLevel.overshootPenaltySeconds || 2;
+      // --- Overshoot consequence: escalates within the same order ---
+      const basePenalty = currentLevel.overshootPenaltySeconds || 2;
+      const overshootNum = overshootsThisOrder + 1;
+      const penalty = overshootNum >= 3 ? basePenalty * 2 : basePenalty;
       setPatienceLeft((prev) => Math.max(0, prev - penalty));
-      setOvershootsThisOrder((prev) => prev + 1);
+      setOvershootsThisOrder(overshootNum);
       setCustomerMood("annoyed");
+
+      // Belt jolt at L4+ after overshoot
+      if (levelIndex >= 3) {
+        setBeltJolt(true);
+        setTimeout(() => setBeltJolt(false), 3000);
+      }
 
       setWrongMoves((prev) => prev + 1);
       setFirstTryForCurrentOrder(false);
       setStreak(0);
       const custOvershoot = currentCustomer?.overshootLine ?? "That's too many!";
-      setMessage(`${custOvershoot} (−${penalty}s patience)`);
-      setLastAward(`Overshoot −${penalty}s`);
+      const escMsg = overshootNum === 1
+        ? `${custOvershoot} (−${penalty}s)`
+        : overshootNum === 2
+        ? `Again? The customer is watching... (−${penalty}s)`
+        : `The boss noticed. 👀 (−${penalty}s)`;
+      setMessage(escMsg);
+      setLastAward(`Overshoot #${overshootNum} −${penalty}s`);
       overshootTimerRef.current = window.setTimeout(() => {
         setItemsInBox((prev) => { const clone = [...prev]; clone.pop(); return clone; });
         setCurrentTotal((prev) => prev - pastry.value);
@@ -860,7 +949,7 @@ export default function BakeryRushPrototype() {
                     }} />
                     <motion.div className="relative flex w-max gap-4"
                       animate={{ x: [0, -220] }}
-                      transition={{ repeat: Infinity, duration: currentLevel.conveyorDuration, ease: "linear" }}>
+                      transition={{ repeat: Infinity, duration: beltJolt ? currentLevel.conveyorDuration * 0.5 : currentLevel.conveyorDuration, ease: "linear" }}>
                       {[...conveyor, ...conveyor].map((item, index) => {
                         const pastry = item.pastry;
                         const Icon = pastry.icon;
@@ -993,40 +1082,67 @@ export default function BakeryRushPrototype() {
               style={{ background: "rgba(15,13,11,0.85)" }}>
               <Card className="w-full max-w-2xl rounded-3xl border-amber-900/20 bg-[#1a1412] text-white shadow-2xl shadow-amber-950/20">
                 <CardContent className="grid gap-6 p-8 text-center md:p-10">
-                  <div>
-                    <div className="text-5xl mb-3">{screen === "shift_complete" ? "🎉" : "😔"}</div>
-                    <div className={`text-sm uppercase tracking-[0.35em] ${screen === "shift_complete" ? "text-emerald-400" : "text-red-400"}`}>
-                      {screen === "shift_complete" ? "Shift complete" : "Shift failed"}
-                    </div>
-                    <h2 className="mt-3 text-4xl font-semibold md:text-5xl">
-                      {screen === "shift_complete" ? `${currentLevel.title} cleared` : "Too many lost orders"}
-                    </h2>
-                  </div>
-                  <div className="grid gap-4 md:grid-cols-4">
-                    <SmallStat label="Score" value={score} />
-                    <SmallStat label="Completed" value={completedOrders} valueClassName="text-emerald-400" />
-                    <SmallStat label="Missed" value={missedOrders} valueClassName="text-red-400" />
-                    <SmallStat label="Wrong" value={wrongMoves} valueClassName="text-orange-400" />
-                  </div>
-                  <div className="mx-auto max-w-xl leading-7 text-neutral-300">
-                    {screen === "shift_complete"
-                      ? `You cleared ${currentLevel.title}. This level used ${currentPastries.length} pastry values, conveyor speed ${currentLevel.conveyorDuration}s, and a tuned target pool of ${currentLevel.targetPool.join(", ")}.`
-                      : "This failure state now tests whether the loop stays fair once the conveyor and progression systems are added."}
-                  </div>
-                  {sessionDiagnostics.totalReflections > 0 && (
-                    <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-4 text-left text-sm">
-                      <div className="mb-2 text-xs uppercase tracking-[0.2em] text-amber-400">Reflection beat diagnostics</div>
-                      <div className="grid gap-1 text-neutral-300">
-                        <div>Total reflection beats: <span className="text-white font-medium">{sessionDiagnostics.totalReflections}</span></div>
-                        <div>By level: {Object.entries(sessionDiagnostics.reflectionsByLevel).map(([lvl, count]) =>
-                          <span key={lvl} className="ml-2 text-neutral-400">L{Number(lvl) + 1}: {count}</span>
-                        )}</div>
-                        <div>By category: {Object.entries(sessionDiagnostics.reflectionsByCategory).map(([cat, count]) =>
-                          <span key={cat} className="ml-2 text-neutral-400">{cat.replace(/_/g, " ")}: {count}</span>
-                        )}</div>
-                      </div>
-                    </div>
-                  )}
+                  {(() => {
+                    const stars = calcStars(completedOrders, missedOrders, wrongMoves);
+                    const starInfo = getStarLabel(stars);
+                    const debrief = generateDebrief(orderLog, completedOrders, missedOrders, wrongMoves);
+                    return (
+                      <>
+                        <div>
+                          <div className="text-5xl mb-3">{screen === "shift_complete" ? "🎉" : "😔"}</div>
+                          <div className={`text-sm uppercase tracking-[0.35em] ${screen === "shift_complete" ? "text-emerald-400" : "text-red-400"}`}>
+                            {screen === "shift_complete" ? "Shift complete" : "Shift failed"}
+                          </div>
+                          <h2 className="mt-3 text-4xl font-semibold md:text-5xl">
+                            {screen === "shift_complete" ? `${currentLevel.title} cleared` : "Too many lost orders"}
+                          </h2>
+                          {/* Star rating */}
+                          <div className="mt-3 text-2xl font-bold" style={{ color: starInfo.color }}>
+                            {starInfo.text}
+                          </div>
+                        </div>
+                        <div className="grid gap-4 md:grid-cols-4">
+                          <SmallStat label="Score" value={score} />
+                          <SmallStat label="Completed" value={completedOrders} valueClassName="text-emerald-400" />
+                          <SmallStat label="Missed" value={missedOrders} valueClassName="text-red-400" />
+                          <SmallStat label="Overshoots" value={wrongMoves} valueClassName="text-orange-400" />
+                        </div>
+                        {/* Mission Debrief */}
+                        <div className="rounded-2xl border border-amber-900/20 bg-[#1a1412] p-4 text-left text-sm" style={{ maxWidth: 400, margin: '0 auto' }}>
+                          <div className="mb-2 text-xs uppercase tracking-[0.2em] text-amber-400">📋 Bakery Debrief</div>
+                          <div className="grid gap-1 text-neutral-300">
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span className="text-neutral-500">Orders filled</span>
+                              <span className="font-bold text-emerald-400">{debrief.successes}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span className="text-neutral-500">Timed out</span>
+                              <span className={`font-bold ${debrief.timeouts > 0 ? 'text-red-400' : 'text-emerald-400'}`}>{debrief.timeouts}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span className="text-neutral-500">Overshoot attempts</span>
+                              <span className={`font-bold ${debrief.totalOvershoots > 2 ? 'text-amber-400' : 'text-emerald-400'}`}>{debrief.totalOvershoots}</span>
+                            </div>
+                            {debrief.avgTime !== null && (
+                              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <span className="text-neutral-500">Avg order time</span>
+                                <span className={`font-bold ${debrief.avgTime > 12 ? 'text-amber-400' : 'text-emerald-400'}`}>{debrief.avgTime}s</span>
+                              </div>
+                            )}
+                            {debrief.hardest.length > 0 && (
+                              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <span className="text-neutral-500">Hardest targets</span>
+                                <span className="font-bold text-amber-400">{debrief.hardest.join(', ')}</span>
+                              </div>
+                            )}
+                          </div>
+                          <div className="mt-3 rounded-lg p-3 text-xs leading-5" style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.15)', color: '#fcd34d' }}>
+                            <strong>💡 Next time: </strong>{debrief.tip}
+                          </div>
+                        </div>
+                      </>
+                    );
+                  })()}
                   <div className="flex flex-wrap justify-center gap-3">
                     <Button onClick={() => setupLevel(levelIndex)} className="rounded-2xl bg-amber-400 px-8 py-6 text-lg font-semibold text-black hover:bg-amber-300">
                       Retry level
