@@ -414,7 +414,9 @@
       padding: 32px 28px;
       text-align: center;
       width: 100%;
-      max-width: 340px;
+      max-width: 380px;
+      max-height: 85vh;
+      overflow-y: auto;
       box-shadow: 0 12px 48px rgba(0,0,0,0.5);
       animation: overlayPop 0.25s cubic-bezier(0.34,1.56,0.64,1);
     }
@@ -724,8 +726,99 @@
       );
     }
 
+    /* ─────────────────── MissionDebrief ─────────────────── */
+    function MissionDebrief({ incidentLog }) {
+      if (!incidentLog || incidentLog.length === 0) return null;
+
+      const successes = incidentLog.filter(i => i.outcome === 'success');
+      const timeouts  = incidentLog.filter(i => i.outcome === 'timeout');
+      const totalOvershoots = incidentLog.reduce((sum, i) => sum + i.overshootAttempts, 0);
+      const avgResponse = successes.length > 0
+        ? Math.round(successes.reduce((sum, i) => sum + i.responseTime, 0) / successes.length)
+        : null;
+
+      // Find the hardest demand values (timed out or had overshoots)
+      const troubleDemands = {};
+      incidentLog.forEach(i => {
+        if (i.outcome === 'timeout' || i.overshootAttempts > 0) {
+          troubleDemands[i.demand] = (troubleDemands[i.demand] || 0) + 1;
+        }
+      });
+      const hardestDemands = Object.entries(troubleDemands)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([demand, count]) => ({ demand: Number(demand), count }));
+
+      // Generate a takeaway
+      let takeaway;
+      if (timeouts.length > successes.length) {
+        takeaway = 'You ran out of time more than you succeeded. Try planning your truck combination before tapping — look at the demand number first, then find the match.';
+      } else if (totalOvershoots > incidentLog.length) {
+        takeaway = 'You hit a lot of overshoot shakes. Before adding a truck, check: will this put me over the demand? Subtract mentally first.';
+      } else if (hardestDemands.length > 0 && hardestDemands[0].demand > 10) {
+        takeaway = `High demands (${hardestDemands[0].demand}+) were your toughest. For big numbers, start with your largest truck and fill the gap with smaller ones.`;
+      } else if (avgResponse && avgResponse > 15) {
+        takeaway = 'Your decisions were careful but slow. Try to recognize common combos faster: Engine(5)+Ladder(3)=8, Ladder(3)+Rescue(2)=5.';
+      } else {
+        takeaway = 'Strong dispatching! To improve further, aim for faster response times and zero overshoot attempts.';
+      }
+
+      const containerStyle = {
+        background: '#0f172a',
+        borderRadius: 12,
+        padding: '14px 16px',
+        marginTop: 12,
+        border: '1px solid #1e293b',
+        textAlign: 'left',
+        maxWidth: 360,
+        marginLeft: 'auto',
+        marginRight: 'auto',
+      };
+      const headerStyle = { fontSize: 11, color: '#f59e0b', fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 10 };
+      const rowStyle = { display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13, color: '#cbd5e1', borderBottom: '1px solid #1e293b' };
+      const labelStyle = { color: '#94a3b8' };
+      const valStyle = { fontWeight: 700 };
+      const goodStyle = { ...valStyle, color: '#86efac' };
+      const badStyle = { ...valStyle, color: '#fca5a5' };
+      const warnStyle = { ...valStyle, color: '#fcd34d' };
+
+      return React.createElement('div', { style: containerStyle }, [
+        React.createElement('div', { key: 'h', style: headerStyle }, '📋 Mission Debrief'),
+        React.createElement('div', { key: 'r1', style: rowStyle }, [
+          React.createElement('span', { key: 'l', style: labelStyle }, 'Resolved'),
+          React.createElement('span', { key: 'v', style: goodStyle }, successes.length),
+        ]),
+        React.createElement('div', { key: 'r2', style: rowStyle }, [
+          React.createElement('span', { key: 'l', style: labelStyle }, 'Timed out'),
+          React.createElement('span', { key: 'v', style: timeouts.length > 0 ? badStyle : goodStyle }, timeouts.length),
+        ]),
+        React.createElement('div', { key: 'r3', style: rowStyle }, [
+          React.createElement('span', { key: 'l', style: labelStyle }, 'Overshoot attempts'),
+          React.createElement('span', { key: 'v', style: totalOvershoots > 2 ? warnStyle : goodStyle }, totalOvershoots),
+        ]),
+        avgResponse !== null && React.createElement('div', { key: 'r4', style: rowStyle }, [
+          React.createElement('span', { key: 'l', style: labelStyle }, 'Avg response time'),
+          React.createElement('span', { key: 'v', style: avgResponse > 15 ? warnStyle : goodStyle }, `${avgResponse}s`),
+        ]),
+        hardestDemands.length > 0 && React.createElement('div', { key: 'r5', style: { ...rowStyle, borderBottom: 'none', flexDirection: 'column', gap: 4 } }, [
+          React.createElement('span', { key: 'l', style: labelStyle }, 'Hardest demands:'),
+          React.createElement('span', { key: 'v', style: { color: '#fcd34d', fontSize: 14, fontWeight: 700 } },
+            hardestDemands.map(d => `🔥 ${d.demand}`).join('   ')
+          ),
+        ]),
+        React.createElement('div', { key: 'tip', style: {
+          marginTop: 10, padding: '10px 12px', background: 'rgba(245,158,11,0.08)',
+          borderRadius: 8, border: '1px solid rgba(245,158,11,0.2)',
+          fontSize: 12, color: '#fcd34d', lineHeight: 1.6,
+        } }, [
+          React.createElement('strong', { key: 's' }, '💡 Next time: '),
+          takeaway,
+        ]),
+      ]);
+    }
+
     /* ─────────────────── OutcomeOverlay ─────────────────── */
-    function OutcomeOverlay({ feedbackMode, summaryStats, onPlayAgain }) {
+    function OutcomeOverlay({ feedbackMode, summaryStats, incidentLog, onPlayAgain }) {
       if (!feedbackMode) return null;
 
       const config = {
@@ -778,6 +871,7 @@
                     Level
                   </div>
                 </div>
+                {incidentLog && React.createElement(MissionDebrief, { incidentLog: incidentLog })}
                 <button className="play-again-btn" onClick={onPlayAgain}>
                   🔄 Play Again
                 </button>
@@ -787,6 +881,37 @@
         </div>
       );
     }
+
+    /* ─────────────────── TUTORIAL CONFIG ─────────────────── */
+    const TUTORIAL_STEPS = [
+      {
+        title: 'MATCH THE DEMAND',
+        body: 'This fire needs 5 units of capacity. The Engine has exactly Fire +5.\nTap the Engine to select it.',
+        icon: '🔥',
+        incident: { name: 'House Fire', emoji: '🏠', location: 'Oak Street', demandValue: 5, urgency: 'low' },
+        trucksAvailable: ['hose'],  // Engine = +5, exact match
+        hint: 'Tap 🚒 Engine (Fire +5)',
+        successText: 'The Engine matched exactly! That is how dispatch works.',
+      },
+      {
+        title: 'COMBINE TRUCKS',
+        body: 'This fire needs 5 units — but there is no single truck with +5.\nCombine Ladder (+3) and Rescue (+2) to reach exactly 5.',
+        icon: '🧮',
+        incident: { name: 'Car Accident', emoji: '🚗', location: 'Highway 7', demandValue: 5, urgency: 'medium' },
+        trucksAvailable: ['ladder', 'ambulance'],  // 3+2=5
+        hint: 'Tap 🪜 Ladder (+3) then 🚑 Rescue (+2)',
+        successText: 'You combined two trucks to match the demand. That is the core skill.',
+      },
+      {
+        title: 'WATCH FOR OVERSHOOT',
+        body: 'The demand is 5. If you select Ladder (+3) first, then Engine (+5) would make 8 — too much!\nThe truck will shake if it would overshoot. Try it, then pick Rescue (+2) instead.',
+        icon: '⚠️',
+        incident: { name: 'Brush Fire', emoji: '🌿', location: 'City Park', demandValue: 5, urgency: 'low' },
+        trucksAvailable: ['ladder', 'hose', 'ambulance'],  // 3+5=8 (over), 3+2=5 (exact)
+        hint: 'Try 🪜 Ladder first, then see what fits',
+        successText: 'You found the right combination and avoided overshoot. Ready for real incidents!',
+      },
+    ];
 
     /* ─────────────────── FireDispatchPrototype ─────────────────── */
     function FireDispatchPrototype() {
@@ -806,20 +931,37 @@
       const [boardShaking,    setBoardShaking]     = useState(false);
       const [lastPoints,      setLastPoints]       = useState(0);
 
+      // Tutorial state
+      const [tutorialStep,    setTutorialStep]     = useState(-1); // -1=not in tutorial, 0-2=steps
+      const [tutorialDone,    setTutorialDone]     = useState(false);
+      const [tutorialSuccess, setTutorialSuccess]  = useState(false); // show success text between steps
+
+      // Mission debrief — incident log
+      const [incidentLog,     setIncidentLog]      = useState([]); // [{demand, outcome, responseTime, overshootAttempts, trucksUsed}]
+      const incidentStartTime = useRef(Date.now());
+      const overshootCount    = useRef(0);
+
       // derived
       const currentLevel    = LEVEL_CONFIGS[levelIndex];
-      const availableTrucks = TRUCK_TYPES.filter(t => currentLevel.trucksAvailable.includes(t.id));
+      const tutorialActive  = tutorialStep >= 0 && tutorialStep < TUTORIAL_STEPS.length;
+      const tutorialConfig  = tutorialActive ? TUTORIAL_STEPS[tutorialStep] : null;
+      const activeTruckIds  = tutorialActive
+        ? tutorialConfig.trucksAvailable
+        : currentLevel.trucksAvailable;
+      const availableTrucks = TRUCK_TYPES.filter(t => activeTruckIds.includes(t.id));
       // trucks visible in the yard = available minus those already queued on the board
       const yardTrucks      = availableTrucks.filter(t => !dispatched.includes(t.id));
-      const timePercent     = (timeLeft / currentLevel.timeLimit) * 100;
+      const timePercent     = tutorialActive ? 100 : (timeLeft / currentLevel.timeLimit) * 100;
       const selectedTrucks  = dispatched.map(id => truckById(id));
       const dispatchEnabled = dispatched.length > 0 && !feedbackMode;
 
       // refs for stable callbacks
       const feedbackRef    = useRef(feedbackMode);
       const sessionRef     = useRef(sessionComplete);
+      const tutorialRef    = useRef(tutorialStep);
       feedbackRef.current  = feedbackMode;
       sessionRef.current   = sessionComplete;
+      tutorialRef.current  = tutorialStep;
 
       /* init incident */
       const spawnIncident = useCallback((lvlIdx) => {
@@ -830,10 +972,51 @@
         setTimeLeft(lvl.timeLimit);
         setFeedbackMode(null);
         setBoardShaking(false);
+        incidentStartTime.current = Date.now();
+        overshootCount.current = 0;
       }, []);
 
-      /* start game */
-      const startGame = () => {
+      /* start tutorial */
+      const startTutorial = () => {
+        setTutorialStep(0);
+        setTutorialDone(false);
+        setTutorialSuccess(false);
+        const step = TUTORIAL_STEPS[0];
+        setCurrentIncident(step.incident);
+        setDispatched([]);
+        setTotalCapacity(0);
+        setFeedbackMode(null);
+        setStarted(true);
+      };
+
+      /* skip tutorial — for returning players */
+      const skipTutorial = () => {
+        setTutorialStep(-1);
+        setTutorialDone(true);
+        startGameDirect();
+      };
+
+      /* advance tutorial to next step or finish */
+      const advanceTutorial = () => {
+        setTutorialSuccess(false);
+        const nextStep = tutorialStep + 1;
+        if (nextStep >= TUTORIAL_STEPS.length) {
+          // Tutorial complete — start real game
+          setTutorialStep(-1);
+          setTutorialDone(true);
+          startGameDirect();
+        } else {
+          setTutorialStep(nextStep);
+          const step = TUTORIAL_STEPS[nextStep];
+          setCurrentIncident(step.incident);
+          setDispatched([]);
+          setTotalCapacity(0);
+          setFeedbackMode(null);
+        }
+      };
+
+      /* start game (direct, no tutorial) */
+      const startGameDirect = () => {
         setLevelIndex(0);
         setScore(0);
         setLives(3);
@@ -841,22 +1024,39 @@
         setIncidentCount(0);
         setSessionComplete(false);
         setFeedbackMode(null);
+        setIncidentLog([]);
         spawnIncident(0);
         setStarted(true);
       };
 
-      /* timer */
+      /* start game (from start screen — goes through tutorial) */
+      const startGame = () => {
+        startTutorial();
+      };
+
+      /* timer — does NOT run during tutorial */
       useEffect(() => {
         if (!started || feedbackRef.current !== null || sessionRef.current) return;
+        if (tutorialStep >= 0) return; // tutorial = no timer
         if (timeLeft <= 0) return;
         const id = setTimeout(() => setTimeLeft(t => t - 1), 1000);
         return () => clearTimeout(id);
-      }, [started, timeLeft, feedbackMode, sessionComplete]);
+      }, [started, timeLeft, feedbackMode, sessionComplete, tutorialStep]);
 
       /* timeout handler */
       useEffect(() => {
         if (!started || timeLeft !== 0 || feedbackRef.current !== null || sessionRef.current) return;
-        // time ran out
+        if (tutorialRef.current >= 0) return; // no timeout during tutorial
+        // time ran out — log for debrief
+        if (currentIncident) {
+          setIncidentLog(prev => [...prev, {
+            demand: currentIncident.demandValue,
+            outcome: 'timeout',
+            responseTime: currentLevel.timeLimit,
+            overshootAttempts: overshootCount.current,
+            trucksUsed: dispatched.length,
+          }]);
+        }
         setStreak(0);
         setLives(prev => {
           const next = prev - 1;
@@ -901,6 +1101,7 @@
               // overshoot prevention — shake truck
               setShakingId(truckId);
               setTimeout(() => setShakingId(null), 420);
+              overshootCount.current++;
               return prev; // unchanged
             }
             const next = [...prev, truckId];
@@ -916,6 +1117,11 @@
         if (dispatched.length === 0) return;
         const demand = currentIncident ? currentIncident.demandValue : 0;
         if (totalCapacity === demand) {
+          // Tutorial success — show message, don't score
+          if (tutorialRef.current >= 0) {
+            setTutorialSuccess(true);
+            return;
+          }
           // urgency multiplier: HIGH incidents are worth more, LOW worth less
           const urgencyMult = currentIncident.urgency === 'high' ? 1.5
                             : currentIncident.urgency === 'low'  ? 0.8
@@ -931,6 +1137,15 @@
           const newCount = incidentCount + 1;
           setIncidentCount(newCount);
           setFeedbackMode('success');
+
+          // Log this incident for debrief
+          setIncidentLog(prev => [...prev, {
+            demand: demand,
+            outcome: 'success',
+            responseTime: Math.round((Date.now() - incidentStartTime.current) / 1000),
+            overshootAttempts: overshootCount.current,
+            trucksUsed: dispatched.length,
+          }]);
 
           setTimeout(() => {
             setScore(prevScore => {
@@ -961,21 +1176,20 @@
             <div className="start-screen">
               <div style={{ fontSize: 72 }}>🚒</div>
               <h1>Fire Station<br/>Dispatch</h1>
-              <p>
-                Each incident has a <strong style={{ color: '#f59e0b' }}>🔥 Fire Demand</strong>.
-                Choose the right combination of trucks so their total fire capacity matches the demand exactly.
-                Tap a truck to dispatch it — it leaves the yard and joins your queue.
-                Tap a queued truck to return it. Every incident is solvable.
+              <p style={{ maxWidth: 340, lineHeight: 1.7 }}>
+                Match truck capacity to fire demand.
+                <br/>Combine trucks until the total hits the target exactly.
               </p>
-              <div style={{ fontSize: 13, color: '#64748b', lineHeight: 1.9 }}>
-                <strong style={{ color: '#f59e0b' }}>🚒 Engine</strong> Fire +5 &nbsp;·&nbsp;
-                <strong style={{ color: '#f59e0b' }}>🪜 Ladder</strong> Fire +3 &nbsp;·&nbsp;
-                <strong style={{ color: '#f59e0b' }}>🚑 Rescue Unit</strong> Fire +2
-                <br />
-                <strong style={{ color: '#f59e0b' }}>🚐 Command</strong> Fire +4 &nbsp;·&nbsp;
-                <strong style={{ color: '#f59e0b' }}>🚛 Tanker</strong> Fire +6
-              </div>
-              <button className="start-btn" onClick={startGame}>Start Shift →</button>
+              <button className="start-btn" onClick={startGame}>Learn the Basics →</button>
+              {tutorialDone && (
+                <button
+                  className="start-btn"
+                  style={{ background: 'transparent', border: '1px solid #334155', color: '#94a3b8', marginTop: 8 }}
+                  onClick={skipTutorial}
+                >
+                  Skip Tutorial — Start Shift
+                </button>
+              )}
             </div>
           </div>
         );
@@ -988,27 +1202,87 @@
           {/* HUD */}
           <div className="dispatch-hud">
             <div>
-              <div className="hud-title">🚨 Dispatch</div>
-              <div className="hud-level">Level {levelIndex + 1} / 5</div>
+              <div className="hud-title">{tutorialActive ? '📋 Tutorial' : '🚨 Dispatch'}</div>
+              <div className="hud-level">{tutorialActive ? `Step ${tutorialStep + 1} / ${TUTORIAL_STEPS.length}` : `Level ${levelIndex + 1} / 5`}</div>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-              <div className="hud-lives">{livesDisplay}</div>
-            </div>
-            <div style={{ textAlign: 'right' }}>
-              <div className="hud-score">Score: {score}</div>
-              {streak > 1 && (
-                <span className="streak-badge">🔥 {streak}x</span>
-              )}
-            </div>
+            {!tutorialActive && (
+              <>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                  <div className="hud-lives">{livesDisplay}</div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div className="hud-score">Score: {score}</div>
+                  {streak > 1 && (
+                    <span className="streak-badge">🔥 {streak}x</span>
+                  )}
+                </div>
+              </>
+            )}
           </div>
 
-          {/* Timer */}
-          <div className="timer-bar">
-            <div
-              className={`timer-fill${timeLeft < 5 ? ' timer-urgent' : ''}`}
-              style={{ width: `${timePercent}%` }}
-            />
-          </div>
+          {/* Timer — hidden during tutorial */}
+          {!tutorialActive && (
+            <div className="timer-bar">
+              <div
+                className={`timer-fill${timeLeft < 5 ? ' timer-urgent' : ''}`}
+                style={{ width: `${timePercent}%` }}
+              />
+            </div>
+          )}
+
+          {/* Tutorial instruction panel */}
+          {tutorialActive && tutorialConfig && (
+            <div style={{
+              background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
+              margin: '0 14px',
+              borderRadius: '0 0 14px 14px',
+              padding: '14px 18px',
+              borderBottom: '2px solid #f59e0b',
+              textAlign: 'center',
+            }}>
+              <div style={{ fontSize: 11, color: '#f59e0b', fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 6 }}>
+                Tutorial {tutorialStep + 1} / {TUTORIAL_STEPS.length} — {tutorialConfig.title}
+              </div>
+              <div style={{ fontSize: 14, color: '#e2e8f0', lineHeight: 1.6, whiteSpace: 'pre-line', marginBottom: 8 }}>
+                {tutorialConfig.body}
+              </div>
+              <div style={{ fontSize: 12, color: '#94a3b8', fontStyle: 'italic' }}>
+                {tutorialConfig.hint}
+              </div>
+              {/* No timer text — just a calm "take your time" */}
+              <div style={{ fontSize: 11, color: '#475569', marginTop: 8 }}>
+                ⏸ No timer — take your time
+              </div>
+            </div>
+          )}
+
+          {/* Tutorial success overlay */}
+          {tutorialActive && tutorialSuccess && (
+            <div style={{
+              position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+              background: 'rgba(0,0,0,0.75)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              zIndex: 100,
+            }}>
+              <div style={{
+                background: '#1e293b', borderRadius: 16, padding: '28px 24px',
+                textAlign: 'center', maxWidth: 360, border: '1px solid #22c55e',
+                boxShadow: '0 0 30px rgba(34,197,94,0.2)',
+              }}>
+                <div style={{ fontSize: 48, marginBottom: 12 }}>✅</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: '#86efac', marginBottom: 8 }}>
+                  {tutorialConfig.successText}
+                </div>
+                <button
+                  className="start-btn"
+                  style={{ marginTop: 12, fontSize: 14, padding: '10px 28px' }}
+                  onClick={advanceTutorial}
+                >
+                  {tutorialStep < TUTORIAL_STEPS.length - 1 ? 'Next Lesson →' : 'Start Your Shift! 🚒'}
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Mission */}
           {currentIncident && (
@@ -1046,8 +1320,8 @@
               onClick={handleDispatch}
             >
               {totalCapacity === (currentIncident ? currentIncident.demandValue : -1) && dispatched.length > 0
-                ? '✅ DISPATCH!'
-                : `DISPATCH  (${totalCapacity} / ${currentIncident ? currentIncident.demandValue : '?'})`
+                ? (tutorialActive ? '✅ TRY IT!' : '✅ DISPATCH!')
+                : `${tutorialActive ? 'SELECT' : 'DISPATCH'}  (${totalCapacity} / ${currentIncident ? currentIncident.demandValue : '?'})`
               }
             </button>
           </div>
@@ -1063,6 +1337,7 @@
               pointsEarned: lastPoints,
               urgency: currentIncident ? currentIncident.urgency : null,
             }}
+            incidentLog={incidentLog}
             onPlayAgain={startGame}
           />
         </div>
