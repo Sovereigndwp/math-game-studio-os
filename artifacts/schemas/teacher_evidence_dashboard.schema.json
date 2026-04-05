@@ -1,0 +1,175 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "teacher_evidence_dashboard",
+  "description": "Defines what a teacher can see about student performance in a game and how fast they can interpret it. Written as a spec, not as live data — it states what MUST be computable and visible for classroom readiness. See docs/os_spec_2026.md Section 4.5 and Approval Gate 7.",
+  "type": "object",
+  "required": [
+    "game_name",
+    "intended_audience",
+    "interpretation_speed_target_seconds",
+    "misconception_frequency_view",
+    "stuck_points_by_level",
+    "guessing_detection",
+    "improvement_after_feedback",
+    "confusion_by_representation",
+    "approval_gate_7_met"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "game_name": {
+      "type": "string",
+      "description": "Human-readable game title."
+    },
+    "intended_audience": {
+      "type": "object",
+      "required": ["teacher_type", "session_context"],
+      "additionalProperties": false,
+      "properties": {
+        "teacher_type": {
+          "type": "string",
+          "description": "e.g. 'classroom generalist', 'math specialist', 'facilitator', 'parent'."
+        },
+        "session_context": {
+          "type": "string",
+          "description": "When and how the teacher sees this dashboard. e.g. 'after class session', 'live during play', 'weekly review'."
+        }
+      }
+    },
+    "interpretation_speed_target_seconds": {
+      "type": "integer",
+      "minimum": 10,
+      "maximum": 300,
+      "description": "Maximum time a teacher should need to identify the most confused student or most common misconception. Approval Gate 7 requires this to be achievable. Recommend: 60 seconds or less for classroom-ready status."
+    },
+    "misconception_frequency_view": {
+      "type": "object",
+      "required": ["visible", "categories_shown", "display_format", "update_trigger"],
+      "additionalProperties": false,
+      "description": "How the teacher sees which error types are most common.",
+      "properties": {
+        "visible": {
+          "type": "boolean",
+          "description": "Is this view implemented or specified?"
+        },
+        "categories_shown": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "procedure_slip",
+              "concept_confusion",
+              "representation_mismatch",
+              "impulsive_guess",
+              "rule_misunderstanding",
+              "strategic_overload"
+            ]
+          },
+          "minItems": 1,
+          "description": "Which of the six error categories are shown in this view."
+        },
+        "display_format": {
+          "type": "string",
+          "description": "How the data is shown. e.g. 'frequency bar chart', 'count table', 'heat map', 'percentage label'."
+        },
+        "update_trigger": {
+          "type": "string",
+          "description": "When data refreshes. e.g. 'end of session', 'every 5 orders', 'real-time'."
+        }
+      }
+    },
+    "stuck_points_by_level": {
+      "type": "object",
+      "required": ["visible", "data_shown", "display_format"],
+      "additionalProperties": false,
+      "description": "Which level(s) students most commonly fail or stop advancing.",
+      "properties": {
+        "visible": {
+          "type": "boolean"
+        },
+        "data_shown": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "What is shown per level. e.g. ['average orders to advance', 'timeout rate', 'overshoot rate', 'level reached by end of session']."
+        },
+        "display_format": {
+          "type": "string",
+          "description": "How the level data is shown. e.g. 'level funnel', 'table', 'list'."
+        }
+      }
+    },
+    "guessing_detection": {
+      "type": "object",
+      "required": ["visible", "signal_used", "display_format"],
+      "additionalProperties": false,
+      "description": "Identifies students who are likely guessing rather than reasoning. Prevents teachers from over-attributing success to understanding.",
+      "properties": {
+        "visible": {
+          "type": "boolean"
+        },
+        "signal_used": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1,
+          "description": "What behavioral signals are used to classify likely-guessing. Must match detection_signal fields in the game's misconception_library_entry. e.g. ['tap interval < 400ms on 3+ consecutive items', 'selection same-type ≥ 70% of orders']."
+        },
+        "display_format": {
+          "type": "string",
+          "description": "How guessing-risk students are surfaced. e.g. 'student name list with risk indicator', 'count of at-risk students', 'flag icon on student row'."
+        }
+      }
+    },
+    "improvement_after_feedback": {
+      "type": "object",
+      "required": ["visible", "measured_as", "display_format"],
+      "additionalProperties": false,
+      "description": "Whether students who received targeted feedback improved on the next attempt. This is the core formative assessment signal — feedback that does not change behavior is not working.",
+      "properties": {
+        "visible": {
+          "type": "boolean"
+        },
+        "measured_as": {
+          "type": "string",
+          "description": "How improvement is operationalized. e.g. 'accuracy rate on first 3 orders after a feedback event vs. 3 orders before', 'reduction in same-error category events'."
+        },
+        "display_format": {
+          "type": "string",
+          "description": "How this is shown to the teacher. e.g. 'before/after comparison row', 'trend line per student', 'aggregate improvement rate'."
+        }
+      }
+    },
+    "confusion_by_representation": {
+      "type": "object",
+      "required": ["visible", "representations_tracked", "display_format"],
+      "additionalProperties": false,
+      "description": "Which representations or problem types cause the most confusion. Helps teachers decide which concept to teach or reteach.",
+      "properties": {
+        "visible": {
+          "type": "boolean"
+        },
+        "representations_tracked": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Which distinct representations are tracked separately. e.g. ['degree prompts', 'radian prompts', 'low-value targets (≤8)', 'high-value targets (>10)']."
+        },
+        "display_format": {
+          "type": "string",
+          "description": "How representation-specific confusion is shown. e.g. 'accuracy column per representation type', 'confusion heat map'."
+        }
+      }
+    },
+    "approval_gate_7_met": {
+      "type": "boolean",
+      "description": "Explicit declaration: can a teacher identify the most confused student or most common misconception within interpretation_speed_target_seconds? Set true only when this has been tested with at least one non-designer teacher."
+    },
+    "printable_review_tasks": {
+      "type": "object",
+      "description": "Optional. Describes teacher-facing printable resources for follow-up instruction.",
+      "additionalProperties": false,
+      "properties": {
+        "available": { "type": "boolean" },
+        "format": { "type": "string" },
+        "misconception_targeted": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}
