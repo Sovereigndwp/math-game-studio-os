@@ -352,11 +352,341 @@ def _unit_circle_briefs() -> dict:
 # Main
 # ---------------------------------------------------------------------------
 
+def _bakery_rush_changed_brief() -> dict:
+    """Bakery Rush with a changed brief: subtraction items introduced, belt speed
+    is no longer a primary concern (adaptive speed added), and a new
+    'negative-value confusion' risk replaces the old impulsive-tap-from-speed risk.
+    This simulates a pass-3 redesign where the game has evolved."""
+    base = _bakery_rush_briefs()
+    base["job_id"] = "bakery-rush-pass3-changed"
+
+    # Modify the loop brief to reflect changed game design
+    base["loop_brief"]["version"] = 3
+    base["loop_brief"]["first_60_seconds_flow"] = (
+        "Player sees a conveyor belt with pastries moving left to right. "
+        "An order ticket appears showing a target number. "
+        "Player taps pastries on the belt; each has a +N or −N label. "
+        "Running total is shown above. Subtraction items (−N) remove value from the box. "
+        "Belt speed adapts to player performance (no longer a fixed ramp). "
+        "When total equals the target the order ships. "
+        "If player exceeds the target, the last item slips back automatically. "
+    )
+    base["loop_brief"]["expected_confusion_risks"] = [
+        # REMOVED: "Belt speed triggers tap-before-thinking" — adaptive speed mitigates this
+        # KEPT (same wording): running total loss
+        "Running total not tracked — learner loses count near target",
+        # CHANGED: icon preference risk now also involves negative items
+        "Pastry icon selected by preference; negative-value pastries (−N) avoided even when needed",
+        # KEPT (same wording): count vs sum confusion
+        "Target number confused with item count rather than sum",
+        # KEPT: overshoot mechanic
+        "Overshoot auto-correct mechanic misread as failure",
+        # CHANGED: strategic overload now involves subtraction decisions, not belt speed
+        "Subtraction items create strategic paralysis — learner avoids all −N items or uses them randomly",
+        # NEW: no prior library entry covers this
+        "Learner adds a −N item expecting it to add positively (sign confusion)",
+    ]
+    base["loop_brief"]["notes"] = (
+        "Pass 3: adaptive belt speed, subtraction items introduced. "
+        "Reflection beat still not implemented."
+    )
+    return base
+
+
+def _fire_dispatch_changed_brief() -> dict:
+    """Fire Dispatch with a changed brief: helicopters added as a second resource
+    type with different reach rules, and a cooldown mechanic replaces the
+    single-use-per-round rule. This simulates a pass-2 redesign."""
+    base = _fire_dispatch_briefs()
+    base["job_id"] = "fire-dispatch-pass2-changed"
+
+    base["loop_brief"]["version"] = 2
+    base["loop_brief"]["first_60_seconds_flow"] = (
+        "A fire appears with a severity number and a terrain tag (urban/forest). "
+        "Pool of fire trucks AND helicopters displayed, each with a capacity value. "
+        "Trucks work in urban, helicopters work in forest, both work on mixed. "
+        "Player selects resources whose combined capacity meets severity. "
+        "Used resources enter a 2-round cooldown instead of being removed. "
+        "Timer ticks."
+    )
+    base["loop_brief"]["expected_confusion_risks"] = [
+        # KEPT (same): impulsive dispatch
+        "Sends all resources without checking combined capacity",
+        # CHANGED: now two resource types — confusion about terrain matching
+        "Dispatches truck to forest fire or helicopter to urban fire, ignoring terrain restriction",
+        # KEPT (similar): icon confusion but now with two resource types
+        "Cannot distinguish truck capacity label from helicopter capacity label",
+        # CHANGED: arithmetic now involves mixed resource types
+        "Arithmetic slip when adding truck + helicopter capacity values under time pressure",
+        # CHANGED: cooldown replaces single-use rule
+        "Does not understand cooldown — tries to select grayed-out resource or waits for wrong resource to return",
+        # KEPT (similar): multi-constraint overload
+        "Cannot track terrain + capacity + cooldown simultaneously",
+    ]
+    base["loop_brief"]["fail_state_structure"] = (
+        "Under-capacity dispatch: fire not extinguished. "
+        "Wrong terrain: resource cannot reach fire, wasted dispatch. "
+        "Timer expiry: fire spreads, life lost."
+    )
+    base["loop_brief"]["notes"] = (
+        "Pass 2: helicopters added, cooldown replaces single-use. "
+        "Terrain matching is the new constraint axis."
+    )
+    return base
+
+
 GAME_FACTORIES = {
     "bakery-rush": _bakery_rush_briefs,
+    "bakery-rush-changed": _bakery_rush_changed_brief,
     "fire-dispatch": _fire_dispatch_briefs,
+    "fire-dispatch-changed": _fire_dispatch_changed_brief,
     "unit-circle": _unit_circle_briefs,
 }
+
+
+def _make_mock_targeted_llm():
+    """Return a mock targeted LLM that produces realistic responses for
+    the Bakery Rush changed-brief scenario. Used for testing the full
+    diff-and-extend + LLM pathway without an API key."""
+
+    _MOCK_RESPONSES = {
+        # Revise: representation_mismatch — negative-value pastries
+        "representation_mismatch": json.dumps({
+            "id": "bakery_emoji_not_value",
+            "category": "representation_mismatch",
+            "label": "Picks by pastry type, avoids negative items",
+            "description": (
+                "Learner selects items based on pastry emoji preference or visual "
+                "salience rather than the +N/−N numeric value label. Additionally, "
+                "learner systematically avoids −N items even when subtracting would "
+                "reach the target more efficiently, treating negative values as "
+                "'bad' items rather than useful arithmetic tools."
+            ),
+            "likely_cause": (
+                "The emoji is visually larger and more salient than the +N/−N label. "
+                "Negative values carry an affective 'loss' connotation from everyday "
+                "experience. Without explicit framing, learners treat subtraction "
+                "items as penalties to avoid rather than strategic tools."
+            ),
+            "how_it_appears_in_play": (
+                "Consistent selection of one emoji type regardless of value. "
+                "−N items are never tapped even when they would complete the order. "
+                "Player waits for a positive item to appear rather than using an "
+                "available −N item. Overshoot rate remains high on orders where "
+                "−N items would have corrected the total."
+            ),
+            "detection_signal": (
+                "Player selects the same emoji type >= 70% of the time across 3+ orders. "
+                "−N items are tapped < 10% of the time across a session even when "
+                "they appear on >= 50% of belt cycles. Orders where −N would have "
+                "completed the target end in overshoot or timeout instead."
+            ),
+            "best_feedback_response": (
+                "Every pastry has a number — positive adds, negative takes away. "
+                "You need 2 more, and there is a −1 pastry on the belt. "
+                "If you used it, your total would go from 6 to 5. Would that help?"
+            ),
+            "best_clean_replay_task": (
+                "All items same emoji. Mix of +N and −N labels. Target = 5. "
+                "Only reachable path requires using at least one −N item "
+                "(e.g., +4, +3, −2 to reach 5). Timer removed."
+            ),
+            "reflection_prompt": (
+                "Did you use any of the minus pastries? What would have happened "
+                "to your total if you had tapped the −1?"
+            ),
+            "change_rationale": (
+                "Revised from library: original entry covered icon preference for "
+                "positive items only. Brief now includes negative-value pastries (−N) "
+                "that learners avoid even when needed. Updated description, "
+                "detection_signal, and clean_replay_task to cover −N avoidance."
+            ),
+        }),
+        # Revise: strategic_overload — subtraction paralysis
+        "strategic_overload": json.dumps({
+            "id": "bakery_belt_overload",
+            "category": "strategic_overload",
+            "label": "Paralyzed by subtraction decisions",
+            "description": (
+                "Learner understands addition toward the target but cannot decide "
+                "when to use −N items. Either avoids all subtraction items (playing "
+                "as if they do not exist) or uses them randomly without connecting "
+                "them to the running total. The decision of 'should I add or "
+                "subtract right now?' exceeds working memory under time pressure."
+            ),
+            "likely_cause": (
+                "Addition is a single-direction operation: always move the total up. "
+                "Subtraction introduces a bidirectional decision: 'do I go up or "
+                "down right now?' This doubles the comparison load at each item. "
+                "Combined with belt movement and running-total tracking, the three "
+                "concurrent demands exceed working memory capacity."
+            ),
+            "how_it_appears_in_play": (
+                "Long pauses (> 5 seconds) specifically when −N items are on screen. "
+                "Random tapping that mixes + and − items without a clear strategy. "
+                "Total oscillates (goes up, then down, then up) rather than "
+                "converging toward the target. Performance degrades specifically "
+                "when −N items are introduced, not at level transitions."
+            ),
+            "detection_signal": (
+                "Running total direction changes >= 3 times in a single order. "
+                "Or: pause > 5 seconds occurs when >= 1 −N item is visible on belt "
+                "but does not occur in orders with only +N items. "
+                "Or: performance drops >= 40% on first 3 orders after −N introduction."
+            ),
+            "best_feedback_response": (
+                "Look at your running total first. Is it above or below the target? "
+                "If above, a minus pastry brings you closer. If below, a plus pastry "
+                "brings you closer."
+            ),
+            "best_clean_replay_task": (
+                "Static belt (no movement). Only −N items visible. Running total "
+                "starts ABOVE target (e.g., total = 8, target = 5). Player must "
+                "use −N items to reach the target. Isolates subtraction-as-tool "
+                "without any addition decision."
+            ),
+            "reflection_prompt": (
+                "When your total was too high, what kind of pastry could help you? "
+                "How did you decide whether to use a plus or a minus?"
+            ),
+            "change_rationale": (
+                "Revised from library: original entry described overload from belt "
+                "speed + arithmetic pressure. Brief now has adaptive belt speed "
+                "(no longer a fixed ramp) but introduces −N subtraction items. "
+                "Overload source shifted from speed to bidirectional arithmetic "
+                "decisions. Rewrote description, detection_signal, and "
+                "clean_replay_task accordingly."
+            ),
+        }),
+        # Unmatched risk: sign confusion
+        "sign_confusion": json.dumps({
+            "id": "bakery_sign_confusion",
+            "category": "concept_confusion",
+            "label": "Expects minus to add",
+            "description": (
+                "Learner taps a −N item expecting it to increase the running total "
+                "by N rather than decrease it. Believes the minus sign is decorative "
+                "or does not connect it to the subtraction operation."
+            ),
+            "likely_cause": (
+                "In early arithmetic, the minus sign appears only in written "
+                "equations (5 − 3 = 2), not attached to objects. A pastry labeled "
+                "'−2' has no real-world analogy for young learners. The minus sign "
+                "is visually small and may be confused with a hyphen or dash. "
+                "The concept that an object can have negative value requires "
+                "abstract reasoning that 7-9 year olds are still developing."
+            ),
+            "how_it_appears_in_play": (
+                "Player taps a −N item and appears surprised when the running total "
+                "decreases. Repeats the same action on the next −N item. "
+                "Running total moves away from target after tapping −N items. "
+                "Player does not self-correct after seeing the decrease."
+            ),
+            "detection_signal": (
+                "Player taps a −N item when running total is already below target "
+                "(total < target) on >= 2 orders. Running total moves further from "
+                "target after the tap. No self-correction within 3 seconds of "
+                "seeing the total decrease."
+            ),
+            "best_feedback_response": (
+                "The minus sign means this pastry takes away from your total. "
+                "Your total was 4. You tapped −2. Now your total is 2, not 6. "
+                "The minus takes away."
+            ),
+            "best_clean_replay_task": (
+                "Two pastries on a frozen belt: one +3 and one −3. Starting total "
+                "is 0, target is 3. Player must learn that tapping +3 reaches the "
+                "target and tapping −3 moves to −3. Three rounds with different "
+                "values to build the pattern."
+            ),
+            "reflection_prompt": (
+                "What happened to your total when you tapped the minus pastry? "
+                "What does the minus sign mean for your total?"
+            ),
+            "change_rationale": (
+                "New entry: brief risk 'Learner adds a −N item expecting it to add "
+                "positively (sign confusion)' is not covered by any existing entry. "
+                "Assigned to concept_confusion because the learner's mental model "
+                "of what the minus sign does is incorrect — this is a conceptual "
+                "misunderstanding, not a procedural or strategic error."
+            ),
+        }),
+    }
+
+    call_count = [0]
+
+    def _mock_call(prompt: str) -> str:
+        call_count[0] += 1
+        # Match the prompt to the appropriate mock response.
+        # Order matters: check specific unmatched-risk keywords first,
+        # then revision-category keywords.
+        if "expecting it to add positively" in prompt or "sign confusion" in prompt:
+            return _MOCK_RESPONSES["sign_confusion"]
+        if "representation_mismatch" in prompt:
+            return _MOCK_RESPONSES["representation_mismatch"]
+        if "strategic_overload" in prompt or "strategic paralysis" in prompt:
+            return _MOCK_RESPONSES["strategic_overload"]
+        # Default: reject unrecognized risks
+        return json.dumps({"rejected": True, "reason": "Mock LLM: no matching mock response for this prompt."})
+
+    return _mock_call
+
+
+def _make_counted_llm(model: str, label: str):
+    """Create a prompt->text callable with call counting.
+
+    Returns (callable, counter_dict) where counter_dict has a "calls" key
+    tracking how many times the callable was invoked.
+    """
+    import os
+
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        print("  WARNING: ANTHROPIC_API_KEY not set. --llm flag requires it.")
+        print("  Use --mock-llm for plumbing tests without an API key.")
+        sys.exit(1)
+
+    counter = {"calls": 0, "model": model, "label": label}
+
+    try:
+        import anthropic
+        client = anthropic.Anthropic(api_key=api_key)
+
+        def _call(prompt: str) -> str:
+            counter["calls"] += 1
+            response = client.messages.create(
+                model=model,
+                max_tokens=2048,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            return response.content[0].text
+
+        return _call, counter
+
+    except ImportError:
+        import requests as _requests
+
+        def _call_http(prompt: str) -> str:
+            counter["calls"] += 1
+            resp = _requests.post(
+                "https://api.anthropic.com/v1/messages",
+                headers={
+                    "x-api-key": api_key,
+                    "anthropic-version": "2023-06-01",
+                    "content-type": "application/json",
+                },
+                json={
+                    "model": model,
+                    "max_tokens": 2048,
+                    "messages": [{"role": "user", "content": prompt}],
+                },
+                timeout=120,
+            )
+            if resp.status_code != 200:
+                raise RuntimeError(f"API error {resp.status_code}: {resp.text[:300]}")
+            return resp.json()["content"][0]["text"]
+
+        return _call_http, counter
 
 
 def main():
@@ -367,10 +697,47 @@ def main():
         default="bakery-rush",
         help="Which game's briefs to use (default: bakery-rush)",
     )
+    parser.add_argument(
+        "--llm",
+        action="store_true",
+        default=False,
+        help="Use targeted LLM for revised entries and unmatched risks (requires ANTHROPIC_API_KEY)",
+    )
+    parser.add_argument(
+        "--mock-llm",
+        action="store_true",
+        default=False,
+        help="Use mock targeted LLM for testing the full pathway without an API key",
+    )
+    parser.add_argument(
+        "--rewrite-model",
+        default="claude-sonnet-4-6",
+        help="Strong model for entry rewrites and unmatched risks (default: claude-sonnet-4-6)",
+    )
+    parser.add_argument(
+        "--gate-model",
+        default="claude-haiku-4-5-20251001",
+        help="Cheap model for semantic keep-vs-revise gate (default: claude-haiku-4-5-20251001)",
+    )
     args = parser.parse_args()
 
     game_data = GAME_FACTORIES[args.game]()
     job_id = game_data["job_id"]
+
+    # Build LLM callables if requested
+    targeted_llm = None
+    gate_llm = None
+    counters = []
+
+    if args.mock_llm:
+        print("  Targeted LLM enabled (mock mode — no API calls)")
+        targeted_llm = _make_mock_targeted_llm()
+    elif args.llm:
+        print(f"  Gate model   : {args.gate_model}")
+        print(f"  Rewrite model: {args.rewrite_model}")
+        targeted_llm, rewrite_counter = _make_counted_llm(args.rewrite_model, "rewrite")
+        gate_llm, gate_counter = _make_counted_llm(args.gate_model, "gate")
+        counters = [gate_counter, rewrite_counter]
 
     # Write synthetic briefs to a temp directory
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -397,6 +764,8 @@ def main():
             repo_root=REPO_ROOT,
             job_id=job_id,
             artifact_paths=artifact_paths,
+            targeted_llm=targeted_llm,
+            gate_llm=gate_llm,
         )
 
     print(f"\nResult:")
@@ -404,7 +773,8 @@ def main():
     print(f"  version       : {result.artifact_version}")
     print(f"  status        : {result.artifact['status']}")
     print(f"  gate_passed   : {result.artifact['gate_threshold_met']}")
-    print(f"  valid_count   : {result.artifact['valid_misconception_count']}/6")
+    total = len(result.artifact['misconceptions'])
+    print(f"  valid_count   : {result.artifact['valid_misconception_count']}/{total}")
     print(f"  library_used  : {result.artifact['library_reference_used']}")
     print(f"  workspace     : {result.artifact_path}")
 
@@ -418,9 +788,25 @@ def main():
     # Print the misconception summary
     print(f"\nMisconceptions generated ({result.artifact['interaction_type']}):")
     for m in result.artifact["misconceptions"]:
-        print(f"  [{m['category']:30s}] {m['label']}")
+        rationale = m.get("change_rationale", "(no rationale)")
+        priority = m.get("priority", "")
+        quality = m.get("quality_notes", "")
+        pri_tag = f" [{priority}]" if priority else ""
+        print(f"  [{m['category']:30s}] {m['label']}{pri_tag}")
+        print(f"    rationale: {rationale[:140]}")
+        if quality:
+            print(f"    QUALITY: {quality}")
 
-    print(f"\nNotes: {result.artifact['notes'][:200]}...")
+    print(f"\nNotes: {result.artifact['notes'][:400]}...")
+
+    # Print API call counts
+    if counters:
+        print(f"\nAPI calls by model:")
+        for c in counters:
+            print(f"  {c['label']:10s} ({c['model']}): {c['calls']} calls")
+        total_calls = sum(c["calls"] for c in counters)
+        print(f"  {'total':10s}: {total_calls} calls")
+
     return 0
 
 

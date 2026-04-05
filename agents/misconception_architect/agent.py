@@ -472,33 +472,280 @@ def _all_fields_present(entry: Dict[str, Any]) -> bool:
     return _REQUIRED_FIELDS.issubset(entry.keys())
 
 
+# ---------------------------------------------------------------------------
+# Keyword-based category ↔ confusion-risk matching
+# ---------------------------------------------------------------------------
+# Maps each error category to keywords likely to appear in a brief's
+# expected_confusion_risks list when that category is relevant.
+
+_CATEGORY_KEYWORDS: Dict[str, List[str]] = {
+    "impulsive_guess": ["tap before", "impuls", "before think", "without check", "rapid", "reflex", "sends all", "without reading", "tap-before"],
+    "procedure_slip": ["lost count", "loses track", "loses count", "off-by-one", "arithmetic slip", "overshoot by 1"],
+    "representation_mismatch": ["icon", "emoji", "preference", "visual", "label", "capacity icon", "not clearly read", "pastry icon"],
+    "concept_confusion": ["item count", "number of items", "rather than sum", "count as capacity", "confused with item count", "count rather than"],
+    "rule_misunderstanding": ["auto-correct", "mechanic", "misread as failure", "reuse", "reused", "believes used", "overshoot auto"],
+    "strategic_overload": ["freeze", "combined", "pressure", "multi-constraint", "simultaneous", "overload", "both at once", "paralysis", "strategic"],
+}
+
+
+def _risk_matches_category(risk_text: str, category: str) -> bool:
+    """Return True if a confusion-risk string is relevant to the given category."""
+    risk_lower = risk_text.lower()
+    for kw in _CATEGORY_KEYWORDS.get(category, []):
+        if kw in risk_lower:
+            return True
+    return False
+
+
+def _find_matching_risk(confusion_risks: List[str], category: str) -> Optional[str]:
+    """Return the first confusion-risk string that matches *category*, or None."""
+    for risk in confusion_risks:
+        if _risk_matches_category(risk, category):
+            return risk
+    return None
+
+
+def _risk_changes_entry_heuristic(risk_text: str, library_entry_fields: Dict[str, str]) -> bool:
+    """Fast heuristic fallback: does the brief's confusion risk describe
+    something the library entry does not already cover?
+
+    Used when no LLM gate is available (deterministic-only mode).
+    """
+    risk_words = set(risk_text.lower().split())
+    stop = {"the", "a", "an", "is", "are", "was", "were", "in", "on", "at",
+            "to", "of", "and", "or", "not", "but", "for", "with", "by", "as",
+            "that", "this", "it", "its", "be", "do", "does", "did", "has",
+            "have", "had", "if", "than", "when", "from"}
+    content_words = risk_words - stop
+    if not content_words:
+        return False
+
+    haystack = " ".join([
+        library_entry_fields.get("description", ""),
+        library_entry_fields.get("how_it_appears_in_play", ""),
+        library_entry_fields.get("detection_signal", ""),
+        library_entry_fields.get("likely_cause", ""),
+    ]).lower()
+
+    missing = sum(1 for w in content_words if w not in haystack)
+    return missing > len(content_words) / 2
+
+
+def _prompt_for_risk_gate(
+    risk_text: str,
+    library_entry: Dict[str, str],
+    category: str,
+) -> str:
+    """Build a focused prompt for the semantic revision gate.
+
+    Asks the model a single yes/no question: does this brief risk introduce
+    something the library entry does not already cover?
+    """
+    entry_summary = (
+        f"Label: {library_entry.get('label', 'N/A')}\n"
+        f"Description: {library_entry.get('description', 'N/A')}\n"
+        f"Detection signal: {library_entry.get('detection_signal', 'N/A')}\n"
+        f"How it appears in play: {library_entry.get('how_it_appears_in_play', 'N/A')}"
+    )
+    return _textwrap.dedent(f"""\
+        You are a misconception analyst for a math learning game.
+
+        An existing misconception library entry covers the "{category}" error category.
+
+        ## Existing library entry
+        {entry_summary}
+
+        ## New confusion risk from the latest game brief
+        "{risk_text}"
+
+        ## Question
+        Does the new confusion risk describe a meaningfully different or expanded
+        concern that the existing library entry does NOT already cover?
+
+        Answer with a JSON object:
+        - "changes_entry": true or false
+        - "reason": one sentence explaining your decision
+
+        Return ONLY the JSON object. No other text.
+    """)
+
+
+def _risk_changes_entry(
+    risk_text: str,
+    library_entry_fields: Dict[str, str],
+    category: str,
+    gate_llm: Optional[Callable[[str], str]] = None,
+) -> bool:
+    """Determine whether a brief risk warrants revising a library entry.
+
+    When gate_llm is provided, uses a lightweight semantic comparison.
+    Otherwise falls back to the keyword heuristic.
+    """
+    if gate_llm is None:
+        return _risk_changes_entry_heuristic(risk_text, library_entry_fields)
+
+    prompt = _prompt_for_risk_gate(risk_text, library_entry_fields, category)
+    result = _call_targeted_llm(gate_llm, prompt)
+    if result and "_error" not in result:
+        return bool(result.get("changes_entry", False))
+
+    # LLM failed — fall back to heuristic
+    return _risk_changes_entry_heuristic(risk_text, library_entry_fields)
+
+
+def _diff_library_entry(
+    library_entry: Optional[Dict],
+    confusion_risks: List[str],
+    interaction_type: str,
+    family_name: str,
+    gate_llm: Optional[Callable[[str], str]] = None,
+) -> Dict[str, Dict[str, Any]]:
+    """Diff seeded library entries against the current brief's confusion risks.
+
+    Returns a dict keyed by category, each value containing:
+      - "action": "keep" | "revise" | "add"
+      - "entry": the misconception dict (original, revised stub, or new stub)
+      - "change_rationale": why this action was taken
+      - "source": "library" | "template" | "stub"
+    """
+    results: Dict[str, Dict[str, Any]] = {}
+    family_slug = family_name.lower().replace(" ", "_").replace("-", "_")
+
+    if not library_entry:
+        return results  # caller falls through to template/stub path
+
+    lib_by_cat: Dict[str, Dict[str, Any]] = {}
+    for m in library_entry.get("misconceptions", []):
+        cat = m.get("category")
+        if cat:
+            lib_by_cat[cat] = m
+
+    for category in _SIX_CATEGORIES:
+        lib_m = lib_by_cat.get(category)
+        matching_risk = _find_matching_risk(confusion_risks, category)
+
+        if lib_m is None:
+            # Library has no entry for this category
+            if matching_risk:
+                results[category] = {
+                    "action": "add",
+                    "entry": None,  # caller will fill from template/stub
+                    "change_rationale": (
+                        f"No library entry for '{category}'. Brief confusion risk "
+                        f"justifies adding: \"{matching_risk}\""
+                    ),
+                    "source": "pending",
+                }
+            else:
+                results[category] = {
+                    "action": "add",
+                    "entry": None,
+                    "change_rationale": (
+                        f"No library entry for '{category}'. No direct brief risk "
+                        f"either; filling from template for coverage."
+                    ),
+                    "source": "pending",
+                }
+            continue
+
+        # Library entry exists for this category
+        if not matching_risk:
+            # Library entry exists but no brief risk matches this category.
+            # Preserve it — the library has institutional knowledge we should keep.
+            entry = dict(lib_m)
+            entry["change_rationale"] = (
+                f"Kept from library. No brief confusion risk directly targets "
+                f"'{category}', but the misconception remains plausible for this "
+                f"game mechanic."
+            )
+            results[category] = {
+                "action": "keep",
+                "entry": entry,
+                "change_rationale": entry["change_rationale"],
+                "source": "library",
+            }
+            continue
+
+        # Both library entry and a matching brief risk exist.
+        # Check if the brief risk introduces something the library entry
+        # does not already cover.
+        if _risk_changes_entry(matching_risk, lib_m, category, gate_llm):
+            # The brief describes a changed or more specific risk.
+            # Mark for revision — in stub mode we annotate what needs updating.
+            entry = dict(lib_m)
+            entry["change_rationale"] = (
+                f"Revised: library entry existed but brief confusion risk "
+                f"introduces changed context: \"{matching_risk}\". "
+                f"Fields that may need LLM update: description, "
+                f"how_it_appears_in_play, detection_signal."
+            )
+            # Tag fields that a real model should rewrite
+            entry["_revision_needed"] = True
+            entry["_revision_trigger"] = matching_risk
+            results[category] = {
+                "action": "revise",
+                "entry": entry,
+                "change_rationale": entry["change_rationale"],
+                "source": "library-revised",
+            }
+        else:
+            # Brief risk aligns with what the library already says — keep.
+            entry = dict(lib_m)
+            entry["change_rationale"] = (
+                f"Kept from library. Brief confusion risk aligns with existing "
+                f"entry: \"{matching_risk}\""
+            )
+            results[category] = {
+                "action": "keep",
+                "entry": entry,
+                "change_rationale": entry["change_rationale"],
+                "source": "library",
+            }
+
+    return results
+
+
 def _build_misconception(
     interaction_type: str,
     category: str,
     family_name: str,
     confusion_risks: List[str],
     library_entry: Optional[Dict],
+    diff_results: Optional[Dict[str, Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     """Build one misconception entry for the given category.
 
     Priority:
-    1. Use matching library entry if it covers this category (and extend it).
-    2. Use interaction-type template.
+    1. Use diff result if available (keep / revise / add from library diff).
+    2. Use interaction-type template (with change_rationale).
     3. Fall back to minimal placeholder (stub mode).
     """
-    # Check library first
-    if library_entry:
+    family_slug = family_name.lower().replace(" ", "_").replace("-", "_")
+
+    # --- Check diff results first (new path for known games) ---
+    if diff_results and category in diff_results:
+        dr = diff_results[category]
+        if dr["entry"] is not None:
+            # keep or revise — entry already populated
+            return dr["entry"]
+        # action == "add" with entry == None → fall through to template/stub
+
+    # --- Legacy path: library without diff (should not happen after upgrade,
+    #     but kept for safety) ---
+    if library_entry and not diff_results:
         for lib_m in library_entry.get("misconceptions", []):
             if lib_m.get("category") == category:
-                # Clone and tag as library-sourced
                 entry = dict(lib_m)
-                # Preserve original id; the map is per-job so no conflict
+                entry["change_rationale"] = "Copied from library (legacy path — no diff performed)."
                 return entry
 
-    # Use template
-    family_slug = family_name.lower().replace(" ", "_").replace("-", "_")
+    # --- Use template ---
     templates_for_type = _TEMPLATES.get(interaction_type, _TEMPLATES["combine_and_build"])
     tmpl = templates_for_type.get(category)
+
+    rationale_prefix = ""
+    if diff_results and category in diff_results:
+        rationale_prefix = diff_results[category]["change_rationale"] + " "
 
     if tmpl:
         return {
@@ -512,6 +759,9 @@ def _build_misconception(
             "best_feedback_response": tmpl["best_feedback_response"],
             "best_clean_replay_task": tmpl["best_clean_replay_task"],
             "reflection_prompt": tmpl["reflection_prompt"],
+            "change_rationale": (
+                rationale_prefix + "Filled from interaction-type template."
+            ),
         }
 
     # Minimal fallback — stub mode; needs LLM to complete
@@ -526,19 +776,391 @@ def _build_misconception(
         "best_feedback_response": "Stub: requires LLM completion.",
         "best_clean_replay_task": "Stub: requires LLM completion.",
         "reflection_prompt": "Stub: requires LLM completion.",
+        "change_rationale": (
+            rationale_prefix + "Stub: no library entry or template available."
+        ),
     }
+
+
+# ---------------------------------------------------------------------------
+# Targeted LLM prompts — used only for revised entries and unmatched risks
+# ---------------------------------------------------------------------------
+
+import textwrap as _textwrap
+
+
+def _prompt_for_revise_entry(
+    library_entry: Dict[str, Any],
+    new_risk: str,
+    game_name: str,
+    interaction_type: str,
+    loop_brief_snippet: str,
+) -> str:
+    """Build a focused prompt asking the LLM to revise a single library entry
+    given a changed confusion risk from the brief."""
+    return _textwrap.dedent(f"""\
+        You are the Misconception Architect for the Math Game Factory OS.
+
+        A seeded misconception library entry exists for "{game_name}"
+        (interaction type: {interaction_type}), but the latest game brief
+        introduces a changed confusion risk that the entry does not fully cover.
+
+        ## Current library entry
+        ```json
+        {json.dumps(library_entry, indent=2)}
+        ```
+
+        ## Changed confusion risk from the brief
+        "{new_risk}"
+
+        ## Relevant loop brief context
+        {loop_brief_snippet}
+
+        ## Your task
+        Revise the library entry so it accurately reflects the changed risk.
+        - Keep the same `id` and `category`.
+        - Update `description`, `likely_cause`, `how_it_appears_in_play`,
+          `detection_signal`, `best_feedback_response`, `best_clean_replay_task`,
+          and `reflection_prompt` ONLY where the changed risk warrants it.
+        - If a field still applies as-is, keep the original text.
+        - Set `change_rationale` to a one-sentence explanation of what you changed and why.
+
+        Return ONLY a single JSON object with all 10 required fields plus `change_rationale`.
+        No markdown fences, no explanation outside the JSON.
+    """)
+
+
+def _prompt_for_unmatched_risk(
+    risk_text: str,
+    game_name: str,
+    interaction_type: str,
+    existing_categories: List[str],
+    loop_brief_snippet: str,
+) -> str:
+    """Build a focused prompt asking the LLM to evaluate an unmatched brief risk
+    and either produce a new misconception entry or reject it with rationale."""
+    covered = ", ".join(existing_categories) if existing_categories else "(none)"
+    family_slug = game_name.lower().replace(" ", "_").replace("-", "_")
+    return _textwrap.dedent(f"""\
+        You are the Misconception Architect for the Math Game Factory OS.
+
+        A new confusion risk appeared in the latest brief for "{game_name}"
+        (interaction type: {interaction_type}) that does not match any existing
+        misconception entry.
+
+        ## Unmatched confusion risk
+        "{risk_text}"
+
+        ## Categories already covered by existing entries
+        {covered}
+
+        ## Relevant loop brief context
+        {loop_brief_snippet}
+
+        ## Your task
+        Decide: does this risk justify a new misconception entry?
+
+        If YES:
+        - Assign it to one of the six categories: procedure_slip, concept_confusion,
+          representation_mismatch, impulsive_guess, rule_misunderstanding, strategic_overload.
+        - If the best-fit category is already covered, you may still add a second entry
+          for that category if the confusion is genuinely distinct.
+        - Use id format: "{family_slug}_<descriptive_slug>"
+        - Populate all 10 required fields: id, category, label, description, likely_cause,
+          how_it_appears_in_play, detection_signal, best_feedback_response,
+          best_clean_replay_task, reflection_prompt.
+        - Set `change_rationale` explaining why a new entry is justified.
+        - Return the JSON object.
+
+        If NO (the risk is already covered by an existing entry, is too vague,
+        or is not a learner misconception):
+        - Return exactly: {{"rejected": true, "reason": "<one-sentence explanation>"}}
+
+        Return ONLY the JSON object. No markdown fences, no text outside it.
+    """)
+
+
+def _call_targeted_llm(
+    llm_callable: Callable[[str], str],
+    prompt: str,
+) -> Optional[Dict[str, Any]]:
+    """Call the LLM with a focused prompt and parse the JSON response.
+
+    Args:
+        llm_callable: function(prompt_str) -> response_str
+        prompt: the focused prompt text
+
+    Returns:
+        Parsed JSON dict, or None if parsing fails.
+    """
+    try:
+        raw = llm_callable(prompt)
+    except Exception as e:
+        return {"_error": f"LLM call failed: {e}"}
+
+    # Import the shared JSON extractor
+    from utils.llm_caller import extract_json_from_text
+    try:
+        return extract_json_from_text(raw)
+    except ValueError:
+        return {"_error": f"Could not parse LLM response: {raw[:200]}"}
+
+
+# ---------------------------------------------------------------------------
+# Quality gate for model-produced entries
+# ---------------------------------------------------------------------------
+
+_GENERIC_REPLAY_MARKERS = [
+    "try again", "repeat the level", "play again", "same level",
+    "redo the task", "retry",
+]
+
+
+def _quality_check_revised(
+    revised: Dict[str, Any],
+    original: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Validate a model-revised entry against quality criteria.
+
+    Returns a dict with:
+      - "passed": bool
+      - "issues": list of issue strings (empty if passed)
+      - "entry": the entry (possibly annotated with quality warnings)
+    """
+    issues: List[str] = []
+
+    # 1. Detection signal must differ meaningfully from original
+    orig_det = original.get("detection_signal", "").lower()
+    new_det = revised.get("detection_signal", "").lower()
+    if orig_det and new_det:
+        # If the new signal is identical or a pure substring, flag it
+        if new_det == orig_det:
+            issues.append("detection_signal is identical to original — no revision occurred")
+        elif len(new_det) < 20:
+            issues.append("detection_signal is too short to be implementable")
+
+    # 2. Clean replay task must be specific, not generic
+    replay = revised.get("best_clean_replay_task", "").lower()
+    for marker in _GENERIC_REPLAY_MARKERS:
+        if marker in replay and len(replay) < 60:
+            issues.append(f"clean_replay_task appears generic (contains '{marker}' with no specifics)")
+            break
+
+    # 3. Description must be non-trivially different from original
+    orig_desc = original.get("description", "").lower()
+    new_desc = revised.get("description", "").lower()
+    if orig_desc and new_desc and orig_desc == new_desc:
+        issues.append("description is identical to original — revision did not update it")
+
+    if issues:
+        revised["_quality_issues"] = issues
+
+    return {
+        "passed": len(issues) == 0,
+        "issues": issues,
+        "entry": revised,
+    }
+
+
+def _quality_check_new_entry(
+    new_entry: Dict[str, Any],
+    existing_entries: List[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """Validate a model-added entry against quality criteria.
+
+    Returns a dict with:
+      - "passed": bool
+      - "issues": list of issue strings
+      - "entry": the entry (possibly annotated)
+      - "near_duplicate_of": id of the near-duplicate entry, or None
+    """
+    issues: List[str] = []
+    near_dup_id: Optional[str] = None
+
+    new_cat = new_entry.get("category", "")
+    new_desc = new_entry.get("description", "").lower()
+    new_det = new_entry.get("detection_signal", "").lower()
+    new_label = new_entry.get("label", "").lower()
+
+    # 1. Check for near-duplicate against same-category entries
+    for existing in existing_entries:
+        if existing.get("category") != new_cat:
+            continue
+        ex_desc = existing.get("description", "").lower()
+        ex_label = existing.get("label", "").lower()
+
+        # Simple overlap check: if > 60% of words in the new description
+        # appear in an existing same-category description, flag as near-dup
+        new_words = set(new_desc.split()) - {"the", "a", "an", "is", "are",
+            "to", "of", "and", "or", "not", "in", "on", "at", "for", "with"}
+        if new_words:
+            ex_words = set(ex_desc.split())
+            overlap = len(new_words & ex_words) / len(new_words)
+            if overlap > 0.6:
+                near_dup_id = existing.get("id", "unknown")
+                issues.append(
+                    f"near-duplicate of '{near_dup_id}' in same category "
+                    f"({new_cat}) — {overlap:.0%} description word overlap"
+                )
+
+        # Also check label similarity
+        if new_label and ex_label and new_label == ex_label:
+            issues.append(f"identical label to existing entry '{existing.get('id')}'")
+
+    # 2. Clean replay must be specific
+    replay = new_entry.get("best_clean_replay_task", "").lower()
+    for marker in _GENERIC_REPLAY_MARKERS:
+        if marker in replay and len(replay) < 60:
+            issues.append(f"clean_replay_task appears generic (contains '{marker}')")
+            break
+
+    # 3. Detection signal must be non-trivial
+    if len(new_det) < 20:
+        issues.append("detection_signal is too short to be implementable")
+
+    if issues:
+        new_entry["_quality_issues"] = issues
+
+    return {
+        "passed": len(issues) == 0,
+        "issues": issues,
+        "entry": new_entry,
+        "near_duplicate_of": near_dup_id,
+    }
+
+
+def _assign_category_priority(misconceptions: List[Dict[str, Any]]) -> None:
+    """When multiple entries share a category, assign priority fields.
+
+    The first entry for a category (from the library) gets priority "primary".
+    Subsequent entries (from LLM additions) get priority "secondary" with a
+    rationale linking back to the primary.
+    """
+    seen: Dict[str, str] = {}  # category -> id of primary entry
+    for m in misconceptions:
+        cat = m.get("category", "")
+        if cat not in seen:
+            seen[cat] = m.get("id", "unknown")
+            m["priority"] = "primary"
+        else:
+            m["priority"] = "secondary"
+            m["primary_entry_id"] = seen[cat]
+
+
+# ---------------------------------------------------------------------------
+# Quality gate retry
+# ---------------------------------------------------------------------------
+
+def _prompt_for_quality_retry(
+    entry: Dict[str, Any],
+    issues: List[str],
+    context_type: str,  # "revised" or "new"
+) -> str:
+    """Build a prompt asking the model to fix specific quality issues."""
+    issues_text = "\n".join(f"  - {issue}" for issue in issues)
+    return _textwrap.dedent(f"""\
+        You are the Misconception Architect for the Math Game Factory OS.
+
+        You previously produced a {context_type} misconception entry, but it
+        failed a quality check. Fix the specific issues listed below and return
+        the corrected entry.
+
+        ## Your previous entry
+        ```json
+        {json.dumps(entry, indent=2)}
+        ```
+
+        ## Quality issues to fix
+        {issues_text}
+
+        ## Rules
+        - Fix ONLY the flagged issues. Do not change fields that passed.
+        - Keep the same id and category.
+        - detection_signal must be specific and implementable in-game.
+        - best_clean_replay_task must describe a concrete, structurally different task
+          (not "try again" or "repeat the level").
+        - description must name the misunderstanding, not just the behavior.
+
+        Return ONLY the corrected JSON object with all 10 required fields plus change_rationale.
+        No markdown fences, no explanation outside the JSON.
+    """)
+
+
+def _retry_quality_check(
+    entry: Dict[str, Any],
+    issues: List[str],
+    context_type: str,
+    llm_callable: Callable[[str], str],
+    original: Optional[Dict[str, Any]],
+    existing_entries: Optional[List[Dict[str, Any]]],
+) -> Dict[str, Any]:
+    """Re-prompt the model once to fix quality issues.
+
+    Returns a dict with:
+      - "accepted": bool — whether the retried entry passed
+      - "entry": the (possibly fixed) entry
+      - "final_issues": remaining issues after retry (empty if accepted)
+    """
+    prompt = _prompt_for_quality_retry(entry, issues, context_type)
+    result = _call_targeted_llm(llm_callable, prompt)
+
+    if not result or "_error" in result or not _REQUIRED_FIELDS.issubset(result.keys()):
+        return {"accepted": False, "entry": entry, "final_issues": issues}
+
+    # Preserve id and category
+    result["id"] = entry["id"]
+    result["category"] = entry["category"]
+
+    # Strip unexpected fields
+    _allowed = _REQUIRED_FIELDS | {
+        "change_rationale", "priority", "primary_entry_id", "quality_notes",
+    }
+    for k in list(result.keys()):
+        if k not in _allowed:
+            result.pop(k)
+
+    # Re-check quality
+    if context_type == "revised" and original:
+        qc = _quality_check_revised(result, original)
+    elif context_type == "new" and existing_entries is not None:
+        qc = _quality_check_new_entry(result, existing_entries)
+    else:
+        qc = {"passed": True, "issues": []}
+
+    if qc["passed"]:
+        # Annotate that retry succeeded
+        result["quality_notes"] = "Passed after 1 retry."
+        return {"accepted": True, "entry": result, "final_issues": []}
+    else:
+        # Retry failed — keep original with issues annotated
+        entry["quality_notes"] = (
+            f"Failed quality check; retry also failed: {'; '.join(qc['issues'])}"
+        )
+        return {"accepted": False, "entry": entry, "final_issues": qc["issues"]}
 
 
 # ---------------------------------------------------------------------------
 # Main stub function
 # ---------------------------------------------------------------------------
 
-def misconception_architect_stub(context: Dict[str, Any]) -> Dict[str, Any]:
+def misconception_architect_stub(
+    context: Dict[str, Any],
+    targeted_llm: Optional[Callable[[str], str]] = None,
+    gate_llm: Optional[Callable[[str], str]] = None,
+) -> Dict[str, Any]:
     """Deterministic stub for the Misconception Architect.
 
     Reads lowest_viable_loop_brief and family_architecture_brief (plus optional
     interaction_decision_memo). Cross-references artifacts/misconception_library/
     for known game families. Generates one misconception per error category.
+
+    Model usage by tier:
+      - gate_llm (cheap/fast): semantic keep-vs-revise decision for library entries.
+        Falls back to keyword heuristic if not provided.
+      - targeted_llm (strong): field-level rewrites for revised entries and
+        category assignment + generation for unmatched risks.
+
+    All other entries (kept from library, filled from template) remain deterministic.
 
     Gate threshold: valid_misconception_count >= 3.
     """
@@ -555,39 +1177,227 @@ def misconception_architect_stub(context: Dict[str, Any]) -> Dict[str, Any]:
     )
     confusion_risks: List[str] = loop_brief.get("expected_confusion_risks", [])
 
+    # Build a brief snippet for LLM context (first_60_seconds + fail state)
+    loop_brief_snippet = (
+        f"First 60 seconds: {loop_brief.get('first_60_seconds_flow', 'N/A')}\n"
+        f"Fail state: {loop_brief.get('fail_state_structure', 'N/A')}\n"
+        f"Loop description: {loop_brief.get('lowest_viable_loop_description', 'N/A')}"
+    )
+
     # --- Cross-reference library ---
     library_entry = _load_library_entry(repo_root, family_name, interaction_type)
     library_used = library_entry is not None
 
+    # --- Diff-and-extend: compare library against current brief ---
+    # Use gate_llm (cheap model) for keep-vs-revise decisions;
+    # fall back to targeted_llm, then to keyword heuristic.
+    effective_gate = gate_llm or targeted_llm
+    diff_results = _diff_library_entry(
+        library_entry, confusion_risks, interaction_type, family_name,
+        gate_llm=effective_gate,
+    )
+
     # --- Generate one entry per category ---
     misconceptions: List[Dict[str, Any]] = [
-        _build_misconception(interaction_type, cat, family_name, confusion_risks, library_entry)
+        _build_misconception(
+            interaction_type, cat, family_name, confusion_risks,
+            library_entry, diff_results if diff_results else None,
+        )
         for cat in _SIX_CATEGORIES
     ]
+
+    # --- Targeted LLM: revise entries and evaluate unmatched risks ---
+    llm_revised_categories: List[str] = []
+    llm_new_entries: List[Dict[str, Any]] = []
+    llm_rejected_risks: List[Dict[str, str]] = []
+
+    if targeted_llm and diff_results:
+        # 1. Revise entries flagged by diff
+        for i, m in enumerate(misconceptions):
+            cat = m["category"]
+            dr = diff_results.get(cat)
+            if dr and dr["action"] == "revise":
+                prompt = _prompt_for_revise_entry(
+                    library_entry=m,
+                    new_risk=dr.get("change_rationale", ""),
+                    game_name=family_name,
+                    interaction_type=interaction_type,
+                    loop_brief_snippet=loop_brief_snippet,
+                )
+                result = _call_targeted_llm(targeted_llm, prompt)
+                if result and "_error" not in result and "rejected" not in result:
+                    # Validate that essential fields are present
+                    if _REQUIRED_FIELDS.issubset(result.keys()):
+                        # Preserve original id and category
+                        result["id"] = m["id"]
+                        result["category"] = cat
+                        misconceptions[i] = result
+                        llm_revised_categories.append(cat)
+
+        # 2. Find unmatched risks (risks not matched to any category)
+        matched_risks = set()
+        for cat in _SIX_CATEGORIES:
+            risk = _find_matching_risk(confusion_risks, cat)
+            if risk:
+                matched_risks.add(risk)
+        unmatched_risks = [r for r in confusion_risks if r not in matched_risks]
+
+        covered_cats = [m["category"] for m in misconceptions]
+        for risk in unmatched_risks:
+            prompt = _prompt_for_unmatched_risk(
+                risk_text=risk,
+                game_name=family_name,
+                interaction_type=interaction_type,
+                existing_categories=covered_cats,
+                loop_brief_snippet=loop_brief_snippet,
+            )
+            result = _call_targeted_llm(targeted_llm, prompt)
+            if result and "_error" not in result:
+                if result.get("rejected"):
+                    llm_rejected_risks.append({
+                        "risk": risk,
+                        "reason": result.get("reason", "no reason given"),
+                    })
+                elif _REQUIRED_FIELDS.issubset(result.keys()):
+                    # Ensure change_rationale is present
+                    if "change_rationale" not in result:
+                        result["change_rationale"] = (
+                            f"New entry added by LLM for unmatched risk: \"{risk}\""
+                        )
+                    llm_new_entries.append(result)
+                    misconceptions.append(result)
+
+    # --- Sanitize model output: strip fields not in schema ---
+    _ALLOWED_FIELDS = _REQUIRED_FIELDS | {
+        "change_rationale", "priority", "primary_entry_id", "quality_notes",
+        "_revision_needed", "_revision_trigger", "_quality_issues",
+    }
+    for m in misconceptions:
+        extra_keys = set(m.keys()) - _ALLOWED_FIELDS
+        for k in extra_keys:
+            m.pop(k)
+
+    # --- Quality gate on model-produced entries (with one retry) ---
+    quality_warnings: List[str] = []
+    retries_fired = 0
+    retries_accepted = 0
+
+    if targeted_llm:
+        # Check revised entries
+        for i, m in enumerate(misconceptions):
+            cat = m["category"]
+            if cat in llm_revised_categories:
+                dr = diff_results.get(cat)
+                original = None
+                if dr and library_entry:
+                    for lib_m in library_entry.get("misconceptions", []):
+                        if lib_m.get("category") == cat:
+                            original = lib_m
+                            break
+                if original:
+                    qc = _quality_check_revised(m, original)
+                    if not qc["passed"]:
+                        # Retry once
+                        retries_fired += 1
+                        retry = _retry_quality_check(
+                            m, qc["issues"], "revised",
+                            targeted_llm, original, None,
+                        )
+                        if retry["accepted"]:
+                            misconceptions[i] = retry["entry"]
+                            retries_accepted += 1
+                        else:
+                            warning = f"{cat}: {'; '.join(retry['final_issues'])}"
+                            quality_warnings.append(warning)
+                            misconceptions[i] = retry["entry"]
+
+        # Check new entries
+        base_entries = [m for m in misconceptions if m not in llm_new_entries]
+        for j, new_entry in enumerate(llm_new_entries):
+            qc = _quality_check_new_entry(new_entry, base_entries)
+            if not qc["passed"]:
+                # Retry once
+                retries_fired += 1
+                retry = _retry_quality_check(
+                    new_entry, qc["issues"], "new",
+                    targeted_llm, None, base_entries,
+                )
+                if retry["accepted"]:
+                    # Replace in both llm_new_entries and misconceptions
+                    idx = misconceptions.index(new_entry)
+                    misconceptions[idx] = retry["entry"]
+                    llm_new_entries[j] = retry["entry"]
+                    retries_accepted += 1
+                else:
+                    warning = f"{new_entry.get('id', '?')}: {'; '.join(retry['final_issues'])}"
+                    quality_warnings.append(warning)
+                    idx = misconceptions.index(new_entry)
+                    misconceptions[idx] = retry["entry"]
+
+    # --- Assign category priority for duplicate categories ---
+    _assign_category_priority(misconceptions)
+
+    # --- Strip internal fields before validation ---
+    for m in misconceptions:
+        m.pop("_revision_needed", None)
+        m.pop("_revision_trigger", None)
+        m.pop("_quality_issues", None)
 
     # --- Gate check ---
     valid_count = sum(1 for m in misconceptions if _all_fields_present(m))
     gate_passed = valid_count >= 3
     status = "pass" if gate_passed else "revise"
 
+    # --- Diff summary for notes ---
+    if diff_results:
+        actions = {a: [] for a in ("keep", "revise", "add")}
+        for cat, dr in diff_results.items():
+            actions[dr["action"]].append(cat)
+        diff_summary = (
+            f"Diff-and-extend: kept {len(actions['keep'])}, "
+            f"revised {len(actions['revise'])}, "
+            f"added {len(actions['add'])}. "
+        )
+    else:
+        diff_summary = ""
+
+    # --- LLM summary for notes ---
+    llm_summary = ""
+    if targeted_llm:
+        parts = []
+        if llm_revised_categories:
+            parts.append(f"LLM revised {len(llm_revised_categories)} entries: {', '.join(llm_revised_categories)}")
+        if llm_new_entries:
+            parts.append(f"LLM added {len(llm_new_entries)} new entries")
+        if llm_rejected_risks:
+            reasons = "; ".join(f"\"{r['risk']}\": {r['reason']}" for r in llm_rejected_risks)
+            parts.append(f"LLM rejected {len(llm_rejected_risks)} unmatched risks ({reasons})")
+        if retries_fired > 0:
+            parts.append(f"Quality gate retried {retries_fired}, accepted {retries_accepted}")
+        if quality_warnings:
+            parts.append(f"Quality gate flagged {len(quality_warnings)} remaining issues: {'; '.join(quality_warnings)}")
+        if not parts:
+            parts.append("LLM was available but no entries needed revision or addition")
+        llm_summary = " ".join(parts) + ". "
+
     # --- Notes ---
     source_note = (
-        f"Library entry found for '{family_name}' and used as primary source. "
-        "All entries cross-referenced; template used only where library had no entry."
+        f"Library entry found for '{family_name}'. {diff_summary}{llm_summary}"
+        "Entries were diffed against brief confusion risks — not blindly copied."
         if library_used
         else f"No library entry found for '{family_name}'. "
              f"Interaction-type templates used (type: {interaction_type}). "
              "Run with a real model_callable to produce game-specific content."
     )
     confusion_note = (
-        f"Confusion risks from loop brief ({len(confusion_risks)} items) informed category selection."
+        f"Confusion risks from loop brief ({len(confusion_risks)} items) informed diff decisions."
         if confusion_risks
         else "No confusion risks provided in loop brief; template defaults used."
     )
     gate_note = (
-        f"Gate threshold met: {valid_count}/6 entries have all required fields."
+        f"Gate threshold met: {valid_count}/{len(misconceptions)} entries have all required fields."
         if gate_passed
-        else f"Gate threshold NOT met: only {valid_count}/6 entries complete. "
+        else f"Gate threshold NOT met: only {valid_count}/{len(misconceptions)} entries complete. "
              "Run with a real model_callable to fill stub entries."
     )
 
@@ -630,18 +1440,36 @@ def run(
     job_id: str,
     artifact_paths: Dict[str, Path],
     model_callable=None,
+    targeted_llm: Optional[Callable[[str], str]] = None,
+    gate_llm: Optional[Callable[[str], str]] = None,
 ):
     """Run the Misconception Architect.
 
     Args:
-        model_callable: Optional override. If provided, replaces the stub (e.g., a Claude
-                        API callable from utils.llm_caller.make_claude_callable()).
+        model_callable: Optional override. If provided, replaces the stub entirely
+                        (e.g., a Claude API callable from utils.llm_caller.make_claude_callable()).
                         If None, uses the deterministic stub for development and testing.
+        targeted_llm:   Optional. A simple function(prompt_str) -> response_str.
+                        Strong model used for revised entry rewrites and unmatched risk
+                        evaluation. Ignored if model_callable is set.
+        gate_llm:       Optional. A cheap/fast function(prompt_str) -> response_str.
+                        Used for semantic keep-vs-revise decisions. Falls back to
+                        targeted_llm, then to keyword heuristic. Ignored if model_callable is set.
     """
+    if model_callable is not None:
+        effective_callable = model_callable
+    else:
+        def _stub_wrapper(context: Dict[str, Any]) -> Dict[str, Any]:
+            context["repo_root"] = str(repo_root)
+            return misconception_architect_stub(
+                context, targeted_llm=targeted_llm, gate_llm=gate_llm,
+            )
+        effective_callable = _stub_wrapper
+
     runner = SharedAgentRunner(repo_root)
     return runner.run(
         spec=build_spec(repo_root),
         job_id=job_id,
         artifact_paths=artifact_paths,
-        model_callable=model_callable if model_callable is not None else misconception_architect_stub,
+        model_callable=effective_callable,
     )

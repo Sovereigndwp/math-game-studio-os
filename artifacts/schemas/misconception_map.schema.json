@@ -145,6 +145,23 @@
           "reflection_prompt": {
             "type": "string",
             "minLength": 10
+          },
+          "change_rationale": {
+            "type": "string",
+            "description": "Why this entry was kept, revised, or added relative to the seeded library. Present only when a library was cross-referenced."
+          },
+          "priority": {
+            "type": "string",
+            "enum": ["primary", "secondary"],
+            "description": "When multiple entries share a category, 'primary' is the original or most authoritative; 'secondary' covers a distinct sub-pattern."
+          },
+          "primary_entry_id": {
+            "type": "string",
+            "description": "For secondary entries, the id of the primary entry in the same category."
+          },
+          "quality_notes": {
+            "type": "string",
+            "description": "Quality gate findings for model-produced entries. Absent for deterministic entries."
           }
         }
       }
