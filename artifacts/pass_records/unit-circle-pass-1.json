@@ -1,0 +1,51 @@
+{
+  "pass_name": "unit-circle-pass-1",
+  "game_name": "Unit Circle Pizza Lab",
+  "pass_number": 1,
+  "timestamp": "2026-04-04T00:00:00Z",
+
+  "what_this_pass_proved": [
+    "Players can place a point on the unit circle by clicking, using the four quadrant labels (0°, 90°, 180°, 270°) as visual anchors — the basic spatial mapping is learnable.",
+    "The three-representation system (degrees → radians → coordinates) can be introduced sequentially within a single 15-round session without losing the player's understanding of the core task.",
+    "Tiered tolerance (15° → 10° → 8° → 5°) creates a legible difficulty ramp without changing the interaction model — players perceive increasing precision demand as the session progresses.",
+    "The retry-on-close mechanic is implementable and pedagogically honest: showing the ghost position during the second attempt turns a near-miss into a guided placement rather than a failed round."
+  ],
+
+  "open_questions": [
+    "Do players mentally connect the coordinate display (cos θ, sin θ) to their topping position on the circle during play, or do they treat it as decorative readout?",
+    "For radian prompts (π/6, π/3, 5π/6, etc.), do players who have not memorized the conversions use any estimation strategy, or do they guess? This determines whether Pass 2 needs a conversion scaffold.",
+    "Is 15 rounds the right session length? A player who misses the first few may disengage before reaching Tier 2. Would 8–10 rounds prove the same things with a higher completion rate?",
+    "Does the ghost position revealed after a close/miss teach the correct location, or give away the answer in a way that removes the spatial reasoning work?",
+    "Does the pizza/topping metaphor add meaningful context, or does it dilute the mathematical framing for older learners?"
+  ],
+
+  "bugs_fixed": [
+    {
+      "description": "'Close! Try again.' was displayed after near-miss results but the game auto-advanced after 1800ms with no retry mechanism. The text promised an action the player could not take. Fixed: feedback text changed to 'Close — adjust your aim'; a real one-retry system implemented.",
+      "impact": "honesty"
+    },
+    {
+      "description": "Retry implementation: retryState machine (null → 'offered' → 'active') added. First close result pauses the round and shows 'Try Again ↺'. Ghost position remains visible during offered and active states as a placement guide. Second attempt always auto-advances regardless of result.",
+      "impact": "teaching"
+    }
+  ],
+
+  "known_limits": [
+    "Click-to-place only — no touch drag or continuous sweep. Motor precision is limited by click granularity.",
+    "Ghost position revealed after close/miss may reduce spatial reasoning effort on the retry. Trade-off is intentional: teaching value of guided placement was judged higher than preserving full self-discovery.",
+    "Session length (15 rounds) was not validated against attention span for the target age range.",
+    "Score is displayed but has no mechanical consequence — no progression unlock, no replay incentive tied to score.",
+    "Only standard angles are tested (multiples of 30° and 45°). Non-standard angle placement is not part of this prototype.",
+    "The coordinate display shows cos/sin live during placement but there is no mechanism checking whether the player is reading it to calibrate."
+  ],
+
+  "auditor_results": {
+    "curve_verdict": "smooth_ramp",
+    "weighted_severity": 0.0,
+    "severity_label": "clean",
+    "flagged_parameters": [],
+    "notes": "Auditor not formally run against Unit Circle parameters — tolerance values (15°/10°/8°/5°) follow a consistent decreasing pattern but no ParameterConfig has been defined for this game type. Ramp shape is smooth by inspection. No UNIT_CIRCLE_PARAMETER_CONFIGS exist yet."
+  },
+
+  "next_pass_first_obligation": "Determine whether players scoring 'close' on radian prompts (π/6, π/3, etc.) are estimating from the degree equivalent or guessing — this evidence decides whether Pass 2 should add a conversion scaffold (e.g. a fraction-of-circle visual) or maintain the current direct-placement model."
+}

@@ -1,0 +1,66 @@
+{
+  "pass_name": "bakery-rush-pass-1",
+  "game_name": "Bakery Rush",
+  "pass_number": 1,
+  "timestamp": "2026-04-04T00:00:00Z",
+
+  "what_this_pass_proved": [
+    "The core add-to-target loop is comprehensible without an instruction overlay — players understand 'tap to add, match the number' from first visible state.",
+    "Overshoot bounce-back teaches self-correction without creating anxiety — the brief 'Too many!' overlay followed by item reversal lands as a gentle correction, not a punishment.",
+    "A 9-second belt duration at Level 1 gives sufficient time for a new player to understand the loop before motion becomes meaningful pressure.",
+    "The patience bar is a legible teaching signal for time constraint — players respond to the color shift without being told what it means.",
+    "The difficulty ramp across all three parameters (beltDuration, patience, targetPoolMax) is smooth after the L1→L2 spike was fixed. Auditor verdict: smooth_ramp, severity clean."
+  ],
+
+  "open_questions": [
+    "The conveyor generates 12 random items — there is a ~7% probability of no 1-value items (croissants) appearing, which could make low-gap targets unreachable. Does this affect teaching clarity in practice?",
+    "Does the 'Next: 🎯X 🎯Y' queue preview in the HUD help players plan ahead, or does it split attention away from the current order?",
+    "Is the pastry box the right visual container for the running total, or should the total be displayed more prominently separate from the items?",
+    "At Levels 4–5, does the shorter belt duration (3s, 2s) feel punishing to players who were succeeding at Levels 1–2, or does the ramp feel earned?"
+  ],
+
+  "bugs_fixed": [
+    {
+      "description": "beltDuration at Level 1 was 5s — below the 7s teaching minimum. Raised to 9s. Players could not reliably read values off the belt before they scrolled past.",
+      "impact": "teaching"
+    },
+    {
+      "description": "beltDuration L1→L2 spike was 56% (9→4s, exceeding 35% max). targetPoolMax L1→L2 spike was 50% (8→12, exceeding 40% max). Both cascaded into a full ramp fix. Post-fix: all steps smooth.",
+      "impact": "teaching"
+    },
+    {
+      "description": "Title and game header displayed '(Component Architecture)' — a development note visible to players.",
+      "impact": "honesty"
+    },
+    {
+      "description": "Customer speech said 'I'd like X points worth, please!' — 'points' is the wrong vocabulary for a bakery. Changed to 'pastries'.",
+      "impact": "honesty"
+    },
+    {
+      "description": "Duplicate patience bar appeared in the HUD and on the OrderTicket simultaneously. Removed from HUD; kept on OrderTicket where it is contextually adjacent to the customer.",
+      "impact": "honesty"
+    },
+    {
+      "description": "When patience expired and lives remained, the customer left silently — the UI reset with no feedback. Added a 900ms 'Too slow! The customer left.' overlay before advancing.",
+      "impact": "teaching"
+    }
+  ],
+
+  "known_limits": [
+    "No solvability guarantee on the conveyor belt — items are randomly generated. A belt with no small-value items could make certain targets unreachable in theory.",
+    "The customer queue wraps — five customers cycle repeatedly. Long sessions surface the same orders.",
+    "Score-based level advancement means slower players may complete a full session without reaching Levels 4–5.",
+    "All five pastry types are always available on the belt regardless of level. Introducing value complexity as a difficulty axis (fewer types at Level 1) is deferred to Pass 2.",
+    "No hint or help mechanism for stuck players."
+  ],
+
+  "auditor_results": {
+    "curve_verdict": "smooth_ramp",
+    "weighted_severity": 0.0,
+    "severity_label": "clean",
+    "flagged_parameters": [],
+    "notes": "Auditor run post-fix against LEVEL_CONFIGS [9,6,4,3,2] / [20,18,15,12,10] / targetPoolMax [8,10,12,15,18]. All steps within thresholds. Spec-driven path confirmed identical to convenience-path result."
+  },
+
+  "next_pass_first_obligation": "Prove that players can successfully fill orders for targets ≥ 12 without the belt feeling uncontrollably fast — or determine whether target complexity (not belt speed) should become the primary difficulty axis at Levels 3–5."
+}

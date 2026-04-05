@@ -1,0 +1,58 @@
+{
+  "pass_name": "fire-dispatch-pass-1",
+  "game_name": "Fire Station Dispatch",
+  "pass_number": 1,
+  "timestamp": "2026-04-04T00:00:00Z",
+
+  "what_this_pass_proved": [
+    "The fixed-set-multi-select interaction rule is learnable: players can discover that trucks disappear from the yard when dispatched and return when tapped on the board, without written instructions.",
+    "The solvability guarantee works in practice: every generated demand is reachable by at least one subset of the available trucks. No unsolvable boards were produced after getSolvableDemands() was introduced.",
+    "The overshoot block (cannot add a truck whose capacity would exceed demand) teaches constraint reasoning through behavior, not text — the truck shake is readable as 'this won't fit'.",
+    "The game is architecturally distinct from Bakery Rush: it is resource_allocation_under_constraints, not additive_accumulation. Players must find the right combination, not accumulate a total.",
+    "Urgency (HIGH/MED/LOW) is mechanically meaningful when backed by a points multiplier — players notice the badge changes their score."
+  ],
+
+  "open_questions": [
+    "Does a first-time player understand WHY some demands require a specific combination — i.e., does the subset-sum constraint feel like a puzzle or like an arbitrary rule?",
+    "Is 25 seconds at Level 1 enough time for a new player to think through combinations, or does the timer add pressure before comprehension is established?",
+    "Do players discover the board-tap return mechanic without prompting, or do they assume dispatched trucks are permanently gone until the round resets?",
+    "Level 4 removes the Rescue Unit from available trucks, narrowing the effective solvable demand range below what the declared range [8,18] implies. Is this noticeable as a difficulty spike?"
+  ],
+
+  "bugs_fixed": [
+    {
+      "description": "generateIncident() picked random integers from the demand range without checking subset-sum feasibility. Targets 4 and 6 with Level 1 trucks [5,3,2] were unreachable. Fixed with getSolvableDemands() — bitmask enumeration of all non-empty subsets filtered to range.",
+      "impact": "correctness"
+    },
+    {
+      "description": "Level advancement threshold check used prevScore+pts >= threshold inside a setState updater, double-counting pts because prevScore was already post-update. Fixed to prevScore >= threshold.",
+      "impact": "correctness"
+    },
+    {
+      "description": "Urgency badge (🔴 HIGH / 🟡 MED / 🟢 LOW) was purely decorative — identical points and time limits regardless of urgency. Fixed: HIGH=1.5×, MED=1.0×, LOW=0.8× multiplier on base points. Success overlay names the bonus.",
+      "impact": "honesty"
+    },
+    {
+      "description": "Selected trucks remained visible in the yard with a checkmark overlay after dispatch. Players could not distinguish 'in yard' from 'queued on board'. Fixed: dispatched trucks removed from TruckYard; board chips are tappable to return them.",
+      "impact": "honesty"
+    }
+  ],
+
+  "known_limits": [
+    "Single demand axis (fire capacity only). Multi-attribute matching (fire + rescue) is architecturally designed for but not yet built.",
+    "Urgency is randomly assigned per incident — not tied to incident type or location. A 'House Fire' can be HIGH priority while a 'Chemical Spill' is LOW.",
+    "Timer starts immediately on incident spawn — no free-exploration window for first-time players to read the available trucks before pressure begins.",
+    "Level 4 removes the Rescue Unit, silently narrowing the effective solvable demand range. Players see the declared range [8,18] but the actual solvable range is smaller.",
+    "No hint or partial-credit mechanism for players who exhaust all combinations without finding the right one."
+  ],
+
+  "auditor_results": {
+    "curve_verdict": "smooth_ramp",
+    "weighted_severity": 0.0,
+    "severity_label": "clean",
+    "flagged_parameters": [],
+    "notes": "Auditor run against timeLimit [25,20,18,15,12] and demandRangeMax [8,12,15,18,20]. Steps within thresholds on both parameters. FIRE_DISPATCH_PARAMETER_CONFIGS thresholds are estimated defaults — not yet validated against a prototype spec artifact. No Bakery-equivalent proof case run yet for Fire Dispatch."
+  },
+
+  "next_pass_first_obligation": "Add a second demand axis (Rescue) so that each incident requires matching both fire capacity and rescue capacity simultaneously, and prove that two-attribute reasoning is learnable at Level 1 without the cognitive load becoming prohibitive."
+}
