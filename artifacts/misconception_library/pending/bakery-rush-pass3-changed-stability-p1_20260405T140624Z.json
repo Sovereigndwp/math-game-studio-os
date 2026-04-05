@@ -1,0 +1,124 @@
+{
+  "writeback_type": "library_revision",
+  "status": "pending_review",
+  "game_name": "Bakery Rush",
+  "game_family": "combine_and_build",
+  "source_job_id": "bakery-rush-pass3-changed-stability-p1",
+  "timestamp": "2026-04-05T14:06:24Z",
+  "library_file": "bakery-rush-misconceptions.json",
+  "entries_to_update": [
+    {
+      "category": "representation_mismatch",
+      "entry_id": "bakery_emoji_not_value",
+      "change_rationale": "Updated description, likely_cause, how_it_appears_in_play, detection_signal, best_feedback_response, best_clean_replay_task, and reflection_prompt to incorporate the new confusion risk that learners avoid −N items by preference even when subtraction is needed, while retaining all original content that still applies.",
+      "fields_changed": [
+        "detection_signal",
+        "best_clean_replay_task",
+        "reflection_prompt",
+        "likely_cause",
+        "description",
+        "best_feedback_response",
+        "how_it_appears_in_play"
+      ],
+      "field_diff": {
+        "detection_signal": {
+          "old": "Player selects the same emoji type ≥ 70% of the time across 3+ orders. Overshoot rate is high (> 40%) compared to orders without preference pattern.",
+          "new": "Player selects the same emoji type ≥ 70% of the time across 3+ orders. Overshoot rate is high (> 40%) compared to orders without preference pattern. Additionally, −N item tap rate is near zero (< 10%) across rounds where selecting a −N item would have been the optimal or necessary move to reach the target without overshoot."
+        },
+        "best_clean_replay_task": {
+          "old": "All items same emoji (🥐). +N label changes each round (1, 2, 3, 4, or 5). Target ≤ 6. Player must match target using only the number, not the icon.",
+          "new": "All items same emoji (🥐). +N and −N labels change each round. Target requires using at least one −N item to reach exactly. Player must use the minus-value pastry to complete the order without overshoot."
+        },
+        "reflection_prompt": {
+          "old": "Which number on the belt mattered most for filling this order? How did you use it?",
+          "new": "Did you use a minus pastry in that order? How did it help you hit the target number exactly?"
+        },
+        "likely_cause": {
+          "old": "The emoji is visually larger and more salient than the +N label. If the learner has not connected the icon to the number, they may treat all pastries as equivalent units. Common in learners who are early readers or have not yet automated symbol-to-quantity mapping.",
+          "new": "The emoji is visually larger and more salient than the +N/−N label. If the learner has not connected the icon to the number, they may treat all pastries as equivalent units. The minus sign on −N items may additionally trigger avoidance because learners associate subtraction with loss or penalty rather than a useful corrective tool. Common in learners who are early readers, have not yet automated symbol-to-quantity mapping, or hold the intuition that 'more is better' when building a total."
+        },
+        "description": {
+          "old": "Learner selects items based on pastry emoji preference or visual salience rather than the +N numeric value label. Believes or ignores that different pastries have different values.",
+          "new": "Learner selects items based on pastry emoji preference or visual salience rather than the +N or −N numeric value label. Believes or ignores that different pastries have different values, and actively avoids negative-value pastries (−N) even when subtracting would be the correct or only path to the target."
+        },
+        "best_feedback_response": {
+          "old": "Every pastry has a number. The 🥐 is worth 1, the 🍰 is worth 4. Check the +N label before you tap.",
+          "new": "Every pastry has a number. The 🥐 is worth +1, the 🎰 is worth +4. A pastry with a − sign takes value away—that can help you hit the target exactly. Check the label before you tap."
+        },
+        "how_it_appears_in_play": {
+          "old": "Consistent selection of one emoji type regardless of value. Running total does not approach target in a predictable pattern. Player seems surprised by overshoot. Favorite-emoji selection even when a different emoji would complete the order.",
+          "new": "Consistent selection of one emoji type regardless of value. Running total does not approach target in a predictable pattern. Player skips or scrolls past −N pastries even when the running total has overshot or needs a small downward correction to reach the target. Player seems surprised by overshoot. Favorite-emoji selection even when a different emoji—or a −N item—would complete the order."
+        }
+      },
+      "revised_entry": {
+        "id": "bakery_emoji_not_value",
+        "category": "representation_mismatch",
+        "label": "Picks by pastry type, not value",
+        "description": "Learner selects items based on pastry emoji preference or visual salience rather than the +N or −N numeric value label. Believes or ignores that different pastries have different values, and actively avoids negative-value pastries (−N) even when subtracting would be the correct or only path to the target.",
+        "likely_cause": "The emoji is visually larger and more salient than the +N/−N label. If the learner has not connected the icon to the number, they may treat all pastries as equivalent units. The minus sign on −N items may additionally trigger avoidance because learners associate subtraction with loss or penalty rather than a useful corrective tool. Common in learners who are early readers, have not yet automated symbol-to-quantity mapping, or hold the intuition that 'more is better' when building a total.",
+        "how_it_appears_in_play": "Consistent selection of one emoji type regardless of value. Running total does not approach target in a predictable pattern. Player skips or scrolls past −N pastries even when the running total has overshot or needs a small downward correction to reach the target. Player seems surprised by overshoot. Favorite-emoji selection even when a different emoji—or a −N item—would complete the order.",
+        "detection_signal": "Player selects the same emoji type ≥ 70% of the time across 3+ orders. Overshoot rate is high (> 40%) compared to orders without preference pattern. Additionally, −N item tap rate is near zero (< 10%) across rounds where selecting a −N item would have been the optimal or necessary move to reach the target without overshoot.",
+        "best_feedback_response": "Every pastry has a number. The 🥐 is worth +1, the 🎰 is worth +4. A pastry with a − sign takes value away—that can help you hit the target exactly. Check the label before you tap.",
+        "best_clean_replay_task": "All items same emoji (🥐). +N and −N labels change each round. Target requires using at least one −N item to reach exactly. Player must use the minus-value pastry to complete the order without overshoot.",
+        "reflection_prompt": "Did you use a minus pastry in that order? How did it help you hit the target number exactly?"
+      }
+    },
+    {
+      "category": "strategic_overload",
+      "entry_id": "bakery_belt_overload",
+      "change_rationale": "Updated description, likely_cause, how_it_appears_in_play, detection_signal, best_feedback_response, best_clean_replay_task, and reflection_prompt to incorporate the subtraction-item paralysis pattern — avoidance of or random use of −N items — as a distinct observable behaviour layered on top of the existing cognitive-overload risk, with targeted detection signals and a replay task that specifically requires intentional −N item use.",
+      "fields_changed": [
+        "detection_signal",
+        "best_clean_replay_task",
+        "reflection_prompt",
+        "likely_cause",
+        "description",
+        "best_feedback_response",
+        "how_it_appears_in_play"
+      ],
+      "field_diff": {
+        "detection_signal": {
+          "old": "Order contains ≥ 5 second gap between taps without overshoot or success. Or performance at new level is ≥ 40% worse than performance at previous level on first 3 orders.",
+          "new": "Order contains ≥ 5 second gap between taps without overshoot or success. Or performance at new level is ≥ 40% worse than performance at previous level on first 3 orders. Additionally: across any 5-order window, −N items are tapped at a rate < 15% of their belt appearances when at least one −N item would have produced an exact match to the target (avoidance signal); or −N items are tapped in ≥ 2 consecutive orders where the running total was already at or below zero (random-use signal)."
+        },
+        "best_clean_replay_task": {
+          "old": "Static belt (no movement). Target ≤ 6. Patience bar removed. One pressure axis only. Player demonstrates arithmetic competence without time pressure before pressure reintroduced.",
+          "new": "Static belt (no movement). Target ≤ 6. Patience bar removed. One pressure axis only. Mix includes exactly one −N item whose value, if tapped at the right moment, produces the exact target. Player must use the −N item to complete the order successfully before pressure is reintroduced. Confirms both arithmetic competence and intentional −N integration without time stress."
+        },
+        "reflection_prompt": {
+          "old": "What made it harder this level? Was it the speed, the numbers, or trying to do both at once?",
+          "new": "What made it harder this level? Was it the speed, the numbers, or trying to do both at once? Did you ever think about using the minus pastries on purpose — what felt risky about that?"
+        },
+        "likely_cause": {
+          "old": "Cognitive load of tracking running total AND scanning a moving belt AND monitoring patience bar simultaneously exceeds working memory capacity. Typically appears at L3+ when belt speed increases and target complexity grows together.",
+          "new": "Cognitive load of tracking running total AND scanning a moving belt AND monitoring patience bar simultaneously exceeds working memory capacity. The addition of −N items introduces a second decision layer (should I subtract here?) that compounds load further. Learners default to avoidance of −N items because subtraction feels risky under time pressure, or revert to impulsive tapping when they cannot plan ahead. Typically appears at L3+ when belt speed increases, target complexity grows, and −N items become more frequent."
+        },
+        "description": {
+          "old": "Learner understands both the arithmetic and the belt mechanic in isolation, but cannot manage both simultaneously. Freezes, picks random items, or ignores the patience bar under combined pressure.",
+          "new": "Learner understands both the arithmetic and the belt mechanic in isolation, but cannot manage both simultaneously under combined pressure. A distinct sub-pattern emerges when subtraction items (−N) are present: learner either avoids all −N pastries entirely, treating them as threats rather than tools, or taps them randomly without strategic intent — both patterns indicate the learner has not integrated subtraction items into their running-total strategy."
+        },
+        "best_feedback_response": {
+          "old": "Focus on the running total number first — ignore the belt for a moment. What number do you need to reach?",
+          "new": "Focus on the running total number first — ignore the belt for a moment. What number do you need to reach? Remember, the minus pastries can help you get closer — if you're one over, a −1 pastry is your friend."
+        },
+        "how_it_appears_in_play": {
+          "old": "Pause of > 5 seconds mid-order with no taps. Rapid random tapping under pressure (reverts to impulsive pattern). Multiple overshoots in single order after previously controlled play. Performance degrades specifically at level transitions.",
+          "new": "Pause of > 5 seconds mid-order with no taps. Rapid random tapping under pressure (reverts to impulsive pattern). Multiple overshoots in a single order after previously controlled play. Performance degrades specifically at level transitions. Additionally: learner's tap history shows consistent skipping of all −N items across multiple orders even when using one would produce the exact target, OR learner taps −N items with no apparent relationship to current running total (e.g., tapping −3 when already at 0 or when total is already below target)."
+        }
+      },
+      "revised_entry": {
+        "id": "bakery_belt_overload",
+        "category": "strategic_overload",
+        "label": "Freezes under combined belt + target pressure",
+        "description": "Learner understands both the arithmetic and the belt mechanic in isolation, but cannot manage both simultaneously under combined pressure. A distinct sub-pattern emerges when subtraction items (−N) are present: learner either avoids all −N pastries entirely, treating them as threats rather than tools, or taps them randomly without strategic intent — both patterns indicate the learner has not integrated subtraction items into their running-total strategy.",
+        "likely_cause": "Cognitive load of tracking running total AND scanning a moving belt AND monitoring patience bar simultaneously exceeds working memory capacity. The addition of −N items introduces a second decision layer (should I subtract here?) that compounds load further. Learners default to avoidance of −N items because subtraction feels risky under time pressure, or revert to impulsive tapping when they cannot plan ahead. Typically appears at L3+ when belt speed increases, target complexity grows, and −N items become more frequent.",
+        "how_it_appears_in_play": "Pause of > 5 seconds mid-order with no taps. Rapid random tapping under pressure (reverts to impulsive pattern). Multiple overshoots in a single order after previously controlled play. Performance degrades specifically at level transitions. Additionally: learner's tap history shows consistent skipping of all −N items across multiple orders even when using one would produce the exact target, OR learner taps −N items with no apparent relationship to current running total (e.g., tapping −3 when already at 0 or when total is already below target).",
+        "detection_signal": "Order contains ≥ 5 second gap between taps without overshoot or success. Or performance at new level is ≥ 40% worse than performance at previous level on first 3 orders. Additionally: across any 5-order window, −N items are tapped at a rate < 15% of their belt appearances when at least one −N item would have produced an exact match to the target (avoidance signal); or −N items are tapped in ≥ 2 consecutive orders where the running total was already at or below zero (random-use signal).",
+        "best_feedback_response": "Focus on the running total number first — ignore the belt for a moment. What number do you need to reach? Remember, the minus pastries can help you get closer — if you're one over, a −1 pastry is your friend.",
+        "best_clean_replay_task": "Static belt (no movement). Target ≤ 6. Patience bar removed. One pressure axis only. Mix includes exactly one −N item whose value, if tapped at the right moment, produces the exact target. Player must use the −N item to complete the order successfully before pressure is reintroduced. Confirms both arithmetic competence and intentional −N integration without time stress.",
+        "reflection_prompt": "What made it harder this level? Was it the speed, the numbers, or trying to do both at once? Did you ever think about using the minus pastries on purpose — what felt risky about that?"
+      }
+    }
+  ],
+  "review_notes": "Generated by Misconception Architect for job 'bakery-rush-pass3-changed-stability-p1'. 2 primary entries revised and passed quality checks. Review the field_diff for each entry before applying."
+}

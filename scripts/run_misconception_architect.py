@@ -689,6 +689,203 @@ def _make_counted_llm(model: str, label: str):
         return _call_http, counter
 
 
+def _extract_counts(artifact: dict) -> dict:
+    """Extract kept/revised/added counts from an artifact's notes."""
+    notes = artifact.get("notes", "")
+    counts = {"kept": 0, "revised": 0, "added": 0}
+    # Parse from notes: "Diff-and-extend: kept N, revised N, added N."
+    import re
+    m = re.search(r"kept (\d+), revised (\d+), added (\d+)", notes)
+    if m:
+        counts["kept"] = int(m.group(1))
+        counts["revised"] = int(m.group(2))
+        counts["added"] = int(m.group(3))
+    counts["total"] = len(artifact.get("misconceptions", []))
+    counts["secondaries"] = sum(
+        1 for e in artifact.get("misconceptions", [])
+        if e.get("priority") == "secondary"
+    )
+    return counts
+
+
+def _extract_llm_counts(notes: str) -> dict:
+    """Extract LLM-specific counts from notes."""
+    import re
+    result = {"llm_revised": 0, "llm_added": 0, "llm_rejected": 0}
+    m = re.search(r"LLM revised (\d+)", notes)
+    if m:
+        result["llm_revised"] = int(m.group(1))
+    m = re.search(r"LLM added (\d+)", notes)
+    if m:
+        result["llm_added"] = int(m.group(1))
+    m = re.search(r"LLM rejected (\d+)", notes)
+    if m:
+        result["llm_rejected"] = int(m.group(1))
+    return result
+
+
+def stability_check(args) -> int:
+    """Run the architect twice: once against current library, once after
+    simulating write-back. Compare revision pressure before and after."""
+
+    game_data = GAME_FACTORIES[args.game]()
+    job_id_pass1 = game_data["job_id"] + "-stability-p1"
+    job_id_pass2 = game_data["job_id"] + "-stability-p2"
+
+    # Resolve library file path
+    family_name = game_data["family_brief"].get("family_name", "unknown")
+    slug = family_name.lower().replace(" ", "-").replace("_", "-")
+    library_file = REPO_ROOT / "artifacts" / "misconception_library" / f"{slug}-misconceptions.json"
+
+    if not library_file.exists():
+        print(f"ERROR: Library file not found: {library_file}")
+        return 1
+
+    print("=" * 60)
+    print(f"STABILITY CHECK: {args.game}")
+    print("=" * 60)
+
+    # --- Build LLM callables ---
+    targeted_llm_p1, rewrite_c1 = _make_counted_llm(args.rewrite_model, "rewrite-p1")
+    gate_llm_p1, gate_c1 = _make_counted_llm(args.gate_model, "gate-p1")
+
+    # --- Pass 1: run against current library ---
+    print(f"\nPass 1: running against current library...")
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp = Path(tmpdir)
+        for name, key in [("lowest_viable_loop_brief", "loop_brief"),
+                          ("family_architecture_brief", "family_brief"),
+                          ("interaction_decision_memo", "interaction_memo")]:
+            (tmp / f"{name}.json").write_text(json.dumps(game_data[key], indent=2))
+        artifact_paths = {
+            name: tmp / f"{name}.json"
+            for name in ["lowest_viable_loop_brief", "family_architecture_brief", "interaction_decision_memo"]
+        }
+        result1 = run_agent(
+            repo_root=REPO_ROOT, job_id=job_id_pass1,
+            artifact_paths=artifact_paths,
+            targeted_llm=targeted_llm_p1, gate_llm=gate_llm_p1,
+            enable_writeback=True,
+        )
+
+    counts1 = _extract_counts(result1.artifact)
+    llm1 = _extract_llm_counts(result1.artifact.get("notes", ""))
+
+    print(f"  Kept: {counts1['kept']}, Revised: {counts1['revised']}, Added: {counts1['added']}")
+    print(f"  LLM revised: {llm1['llm_revised']}, LLM added: {llm1['llm_added']}")
+    print(f"  API calls: gate={gate_c1['calls']}, rewrite={rewrite_c1['calls']}")
+
+    if llm1["llm_revised"] == 0 and llm1["llm_added"] == 0:
+        print(f"\n  PASS — Already stable. No revisions needed on current library.")
+        return 0
+
+    # --- Simulate write-back: temporarily patch library ---
+    print(f"\nSimulating write-back into library...")
+    original_library = library_file.read_text(encoding="utf-8")
+    library_data = json.loads(original_library)
+
+    # Apply revised primary entries from pass 1 into library
+    patched = 0
+    for m in result1.artifact.get("misconceptions", []):
+        if m.get("priority") != "primary":
+            continue
+        rationale = m.get("change_rationale", "")
+        if not ("Updated" in rationale or "Extended" in rationale):
+            continue
+        cat = m["category"]
+        # Replace in library
+        for i, lib_m in enumerate(library_data["misconceptions"]):
+            if lib_m.get("category") == cat:
+                # Write only the 10 core fields
+                for field in ["id", "category", "label", "description", "likely_cause",
+                              "how_it_appears_in_play", "detection_signal",
+                              "best_feedback_response", "best_clean_replay_task",
+                              "reflection_prompt"]:
+                    if field in m:
+                        library_data["misconceptions"][i][field] = m[field]
+                patched += 1
+                break
+
+    print(f"  Patched {patched} entries in temporary library copy.")
+
+    # Write patched library
+    library_file.write_text(
+        json.dumps(library_data, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+
+    # --- Pass 2: run against patched library ---
+    print(f"\nPass 2: running against patched library...")
+    targeted_llm_p2, rewrite_c2 = _make_counted_llm(args.rewrite_model, "rewrite-p2")
+    gate_llm_p2, gate_c2 = _make_counted_llm(args.gate_model, "gate-p2")
+
+    try:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+            for name, key in [("lowest_viable_loop_brief", "loop_brief"),
+                              ("family_architecture_brief", "family_brief"),
+                              ("interaction_decision_memo", "interaction_memo")]:
+                (tmp / f"{name}.json").write_text(json.dumps(game_data[key], indent=2))
+            artifact_paths = {
+                name: tmp / f"{name}.json"
+                for name in ["lowest_viable_loop_brief", "family_architecture_brief", "interaction_decision_memo"]
+            }
+            result2 = run_agent(
+                repo_root=REPO_ROOT, job_id=job_id_pass2,
+                artifact_paths=artifact_paths,
+                targeted_llm=targeted_llm_p2, gate_llm=gate_llm_p2,
+            )
+    finally:
+        # Always restore original library
+        library_file.write_text(original_library, encoding="utf-8")
+        print(f"  Library restored to original.")
+
+    counts2 = _extract_counts(result2.artifact)
+    llm2 = _extract_llm_counts(result2.artifact.get("notes", ""))
+
+    print(f"  Kept: {counts2['kept']}, Revised: {counts2['revised']}, Added: {counts2['added']}")
+    print(f"  LLM revised: {llm2['llm_revised']}, LLM added: {llm2['llm_added']}")
+    print(f"  API calls: gate={gate_c2['calls']}, rewrite={rewrite_c2['calls']}")
+
+    # --- Compare ---
+    print()
+    print("=" * 60)
+    print("STABILITY COMPARISON")
+    print("=" * 60)
+    print(f"  {'Metric':<30s} {'Pass 1':>10s} {'Pass 2':>10s} {'Delta':>10s}")
+    print(f"  {'-'*30} {'-'*10} {'-'*10} {'-'*10}")
+
+    for label, v1, v2 in [
+        ("Kept", counts1["kept"], counts2["kept"]),
+        ("Revised", counts1["revised"], counts2["revised"]),
+        ("Added", counts1["added"], counts2["added"]),
+        ("Secondaries", counts1["secondaries"], counts2["secondaries"]),
+        ("LLM revised", llm1["llm_revised"], llm2["llm_revised"]),
+        ("LLM added", llm1["llm_added"], llm2["llm_added"]),
+        ("Sonnet calls", rewrite_c1["calls"], rewrite_c2["calls"]),
+        ("Haiku calls", gate_c1["calls"], gate_c2["calls"]),
+        ("Total API calls", gate_c1["calls"] + rewrite_c1["calls"],
+                            gate_c2["calls"] + rewrite_c2["calls"]),
+    ]:
+        delta = v2 - v1
+        sign = "+" if delta > 0 else ""
+        print(f"  {label:<30s} {v1:>10d} {v2:>10d} {sign}{delta:>9d}")
+
+    # Verdict
+    stable = llm2["llm_revised"] == 0 and llm2["llm_added"] == 0
+    revision_dropped = (llm2["llm_revised"] + llm2["llm_added"]) < (llm1["llm_revised"] + llm1["llm_added"])
+
+    print()
+    if stable:
+        print("  PASS — Fixed point reached. Write-back eliminated all revision pressure.")
+    elif revision_dropped:
+        print("  PARTIAL — Revision pressure reduced but not eliminated.")
+    else:
+        print("  FAIL — Revision pressure did not decrease after write-back.")
+
+    return 0 if stable else 1
+
+
 def main():
     parser = argparse.ArgumentParser(description="Run Misconception Architect stub on a current game.")
     parser.add_argument(
@@ -725,7 +922,19 @@ def main():
         default=False,
         help="Write pending library write-back files for revised primary entries",
     )
+    parser.add_argument(
+        "--stability-check",
+        action="store_true",
+        default=False,
+        help="Run two passes to verify write-back produces a stable fixed point. Requires --llm.",
+    )
     args = parser.parse_args()
+
+    if args.stability_check:
+        if not args.llm:
+            print("ERROR: --stability-check requires --llm (needs real API calls for both passes)")
+            sys.exit(1)
+        return stability_check(args)
 
     game_data = GAME_FACTORIES[args.game]()
     job_id = game_data["job_id"]
