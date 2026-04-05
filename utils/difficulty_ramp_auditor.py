@@ -128,7 +128,18 @@ class GameRampAudit:
 
 
 # ---------------------------------------------------------------------------
-# Pre-built parameter profiles
+# Last-resort fallback configs
+#
+# These are used ONLY when audit_bakery_level_configs() is called without a
+# prototype_spec artifact, or when the spec lacks difficulty_profile.parameters.
+#
+# PRIMARY AUTHORITY: the difficulty_profile.parameters block inside the game's
+# prototype_spec artifact (e.g. memory/job_workspaces/.../prototype_spec.v1.json).
+# These defaults exist so the convenience wrapper degrades gracefully when no
+# spec is available — they are NOT the design source of truth.
+#
+# Proof: audit_from_prototype_spec() with the Bakery spec produces identical
+# results to audit_bakery_level_configs(), confirming the spec is authoritative.
 # ---------------------------------------------------------------------------
 
 BAKERY_PARAMETER_CONFIGS: List[ParameterConfig] = [
@@ -136,25 +147,25 @@ BAKERY_PARAMETER_CONFIGS: List[ParameterConfig] = [
         name="beltDuration",
         direction="lower_is_harder",
         unit="s",
-        level_1_teaching_min=7.0,           # Level 1 belt must give ≥7s per scroll cycle
-        max_step_pct=35.0,                  # >35% speed-up in one level = spike
+        level_1_teaching_min=7.0,           # mirrors difficulty_profile.parameters in Bakery spec
+        max_step_pct=35.0,
         min_step_pct=5.0,
-        weight=2.0,                         # most perceptible pressure axis in Bakery
+        weight=2.0,
     ),
     ParameterConfig(
         name="patience",
         direction="lower_is_harder",
         unit="s",
-        level_1_teaching_min=15.0,          # Level 1 customer patience ≥15s
+        level_1_teaching_min=15.0,          # mirrors difficulty_profile.parameters in Bakery spec
         max_step_pct=30.0,
         min_step_pct=5.0,
         weight=1.5,
     ),
     ParameterConfig(
-        name="targetPoolMax",               # maximum value in the target pool per level
+        name="targetPoolMax",
         direction="higher_is_harder",
         unit="",
-        level_1_teaching_max=10.0,          # Level 1 max target ≤10
+        level_1_teaching_max=10.0,          # mirrors difficulty_profile.parameters in Bakery spec
         max_step_pct=40.0,
         min_step_pct=5.0,
         weight=1.0,
@@ -594,44 +605,71 @@ def audit_from_prototype_spec(
 
 
 # ---------------------------------------------------------------------------
-# Bakery convenience entry point
+# Bakery convenience wrapper
+#
+# Handles Bakery-schema extraction (beltDuration, patience, max(targetPool))
+# and delegates to audit_from_prototype_spec() with BAKERY_PARAMETER_CONFIGS
+# as a last-resort fallback.
+#
+# Preferred call pattern (spec as primary authority):
+#
+#     import json
+#     spec = json.load(open("memory/job_workspaces/<job_id>/prototype_spec.v1.json"))
+#     audit = audit_bakery_level_configs(level_configs, spec=spec)
+#
+# Fallback call pattern (no spec available):
+#
+#     audit = audit_bakery_level_configs(level_configs)
+#     # Uses BAKERY_PARAMETER_CONFIGS defaults — thresholds not sourced from any artifact.
 # ---------------------------------------------------------------------------
 
-def audit_bakery_level_configs(level_configs: List[Dict[str, Any]]) -> GameRampAudit:
+def audit_bakery_level_configs(
+    level_configs: List[Dict[str, Any]],
+    spec: Optional[Dict[str, Any]] = None,
+) -> GameRampAudit:
     """
-    Convenience function: audit Bakery LEVEL_CONFIGS directly.
+    Convenience wrapper: audit Bakery LEVEL_CONFIGS directly.
 
-    Accepts the LEVEL_CONFIGS list from the Bakery game (or an equivalent
-    Python representation of the JS object), extracts relevant parameters,
-    and runs the full ramp audit.
+    Extracts beltDuration, patience, and max(targetPool) from the Bakery
+    level config schema, then delegates entirely to audit_from_prototype_spec().
 
-    Expected level_config shape:
-        {
-            "beltDuration": float,      # seconds per full belt cycle
-            "patience":     float,      # seconds before customer leaves
-            "targetPool":   List[int],  # possible order target values
-            "scoreThreshold": int,
-        }
+    Thresholds are sourced from (in priority order):
+      1. spec["difficulty_profile"]["parameters"]  — artifact, primary authority
+      2. BAKERY_PARAMETER_CONFIGS                  — fallback defaults, last resort
 
-    Example:
-        configs = [
-            {"beltDuration": 9,   "targetPool": [4,5,6,7,8],  "patience": 20, ...},
-            {"beltDuration": 4,   "targetPool": [5,6,7,8,10,12], "patience": 18, ...},
-            ...
-        ]
-        audit = audit_bakery_level_configs(configs)
-        print(audit.summary)
+    Args:
+        level_configs:  List of Bakery level dicts, each containing at minimum
+                        "beltDuration" (float), "patience" (float),
+                        "targetPool" (List[int]).
+        spec:           Parsed prototype_spec artifact dict. When provided and
+                        the spec contains difficulty_profile.parameters, those
+                        thresholds are used instead of the hardcoded fallback.
+                        Pass None to use BAKERY_PARAMETER_CONFIGS as fallback.
+
+    Returns:
+        GameRampAudit — full advisory report, never blocking.
     """
-    belt_durations   = [c["beltDuration"]          for c in level_configs]
-    patiences        = [c["patience"]               for c in level_configs]
-    target_pool_maxs = [max(c["targetPool"])        for c in level_configs]
+    belt_durations   = [c["beltDuration"]   for c in level_configs]
+    patiences        = [c["patience"]        for c in level_configs]
+    target_pool_maxs = [max(c["targetPool"]) for c in level_configs]
 
+    param_values = {
+        "beltDuration":  belt_durations,
+        "patience":      patiences,
+        "targetPoolMax": target_pool_maxs,
+    }
+
+    if spec is not None:
+        return audit_from_prototype_spec(
+            game_name="Bakery Rush",
+            parameter_values=param_values,
+            spec=spec,
+            fallback_configs=BAKERY_PARAMETER_CONFIGS,
+        )
+
+    # No spec provided — use last-resort fallback configs directly.
     return audit_game_ramp(
         game_name="Bakery Rush",
-        parameter_values={
-            "beltDuration":   belt_durations,
-            "patience":       patiences,
-            "targetPoolMax":  target_pool_maxs,
-        },
+        parameter_values=param_values,
         parameter_configs=BAKERY_PARAMETER_CONFIGS,
     )
