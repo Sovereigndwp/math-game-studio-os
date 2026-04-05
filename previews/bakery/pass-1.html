@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Bakery Rush — Pass 1 (Component Architecture)</title>
+  <title>Bakery Rush — Pass 1</title>
   <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -514,12 +514,7 @@
             </div>
           )}
 
-          <div className="hud-patience-bar">
-            <div
-              className="hud-patience-fill"
-              style={{ width: `${Math.max(0, patiencePercent * 100)}%`, backgroundColor: fillColor }}
-            />
-          </div>
+          {/* patience shown on the OrderTicket directly below the customer — removed from HUD */}
         </div>
       );
     }
@@ -636,6 +631,18 @@
         );
       }
 
+      if (feedbackMode === 'customer_left') {
+        return (
+          <div className="feedback-overlay overlay-overshoot">
+            <div className="overlay-inner">
+              <span className="overlay-emoji">⏰</span>
+              <div className="overlay-title">Too slow!</div>
+              <div className="overlay-subtitle">The customer left.</div>
+            </div>
+          </div>
+        );
+      }
+
       if (feedbackMode === 'end_of_shift') {
         return (
           <div className="feedback-overlay overlay-end">
@@ -712,7 +719,8 @@
           if (nextLives <= 0) {
             setFeedbackMode('end_of_shift');
           } else {
-            doAdvanceCustomer(levelIndexRef.current);
+            setFeedbackMode('customer_left');
+            setTimeout(() => doAdvanceCustomer(levelIndexRef.current), 900);
           }
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -809,7 +817,7 @@
       /* ── Customer speech ── */
       function customerSpeech() {
         const remaining = currentTarget - currentTotal;
-        if (remaining === currentTarget) return `"I'd like ${currentTarget} points worth, please!"`;
+        if (remaining === currentTarget) return `"I'd like ${currentTarget} pastries, please!"`;
         if (remaining <= 0)              return '"Thank you so much!"';
         return `"Just ${remaining} more to go…"`;
       }
@@ -817,7 +825,7 @@
       return (
         <div className="bakery-rush">
           <div className="game-header">
-            Bakery Rush — Pass 1 (Component Architecture)
+            Bakery Rush — Pass 1
           </div>
 
           <ShiftHUD

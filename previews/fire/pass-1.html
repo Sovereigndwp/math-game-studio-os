@@ -733,9 +733,11 @@
           wrapClass: 'overlay-success',
           emoji: '✅',
           title: 'Incident Resolved!',
-          subtitle: summaryStats && summaryStats.streak > 1
-            ? `${summaryStats.streak}x streak! +${summaryStats.pointsEarned} pts`
-            : `+${summaryStats ? summaryStats.pointsEarned : 10} pts`,
+          subtitle: summaryStats && summaryStats.urgency === 'high'
+            ? `🔴 High priority! +${summaryStats.pointsEarned} pts`
+            : summaryStats && summaryStats.streak > 1
+              ? `${summaryStats.streak}x streak! +${summaryStats.pointsEarned} pts`
+              : `+${summaryStats ? summaryStats.pointsEarned : 10} pts`,
         },
         timeout: {
           wrapClass: 'overlay-timeout',
@@ -914,7 +916,11 @@
         if (dispatched.length === 0) return;
         const demand = currentIncident ? currentIncident.demandValue : 0;
         if (totalCapacity === demand) {
-          const pts = 10 + streak * 2;
+          // urgency multiplier: HIGH incidents are worth more, LOW worth less
+          const urgencyMult = currentIncident.urgency === 'high' ? 1.5
+                            : currentIncident.urgency === 'low'  ? 0.8
+                            : 1.0;
+          const pts = Math.round((10 + streak * 2) * urgencyMult);
           setLastPoints(pts);
           setScore(s => {
             const newScore = s + pts;
@@ -931,7 +937,8 @@
               setLevelIndex(prevLevel => {
                 const lvl = LEVEL_CONFIGS[prevLevel];
                 let nextLevel = prevLevel;
-                if (prevScore + pts >= lvl.scoreThreshold && prevLevel < 4) {
+                // prevScore is already post-pts (first setScore applied before setTimeout fired)
+                if (prevScore >= lvl.scoreThreshold && prevLevel < 4) {
                   nextLevel = prevLevel + 1;
                 }
                 spawnIncident(nextLevel);
@@ -1054,6 +1061,7 @@
               levelIndex,
               streak,
               pointsEarned: lastPoints,
+              urgency: currentIncident ? currentIncident.urgency : null,
             }}
             onPlayAgain={startGame}
           />

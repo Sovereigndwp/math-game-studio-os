@@ -415,7 +415,7 @@
 
     // ─── FeedbackPanel ───────────────────────────────────────────────────────
 
-    function FeedbackPanel({ feedbackMode, deltaAngleDeg, correctAngleDeg }) {
+    function FeedbackPanel({ feedbackMode, deltaAngleDeg, correctAngleDeg, onRetry, retryAvailable }) {
       if (!feedbackMode) return null;
 
       const exact = COMMON_ANGLES[correctAngleDeg];
@@ -424,7 +424,7 @@
       let panelClass = 'feedback-panel ';
       let verdict = '';
       if (feedbackMode === 'correct') { panelClass += 'feedback-correct'; verdict = '🎯 Perfect!'; }
-      else if (feedbackMode === 'close')  { panelClass += 'feedback-close';   verdict = '🟡 Close! Try again.'; }
+      else if (feedbackMode === 'close')  { panelClass += 'feedback-close';   verdict = '🟡 Close — adjust your aim'; }
       else                                { panelClass += 'feedback-miss';    verdict = '❌ Not quite.'; }
 
       return (
@@ -439,6 +439,20 @@
                 <span className="feedback-answer">
                   {correctAngleDeg}° = {rad} rad → ({exact.cos}, {exact.sin})
                 </span>
+              )}
+              {feedbackMode === 'close' && retryAvailable && (
+                <button
+                  onClick={onRetry}
+                  style={{
+                    marginTop: 10, padding: '6px 20px',
+                    background: '#d97706', color: '#fff',
+                    border: 'none', borderRadius: 20,
+                    fontWeight: 700, fontSize: '0.85rem',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Try Again ↺
+                </button>
               )}
             </>
           )}
@@ -611,19 +625,41 @@
       const [score,           setScore]            = useState(0);
       const [streak,          setStreak]           = useState(0);
       const [sessionComplete, setSessionComplete]  = useState(false);
+      // retryState: null → no retry; 'offered' → showing "Try Again" button;
+      // 'active' → player clicked Try Again and is placing a second topping
+      // Ghost stays visible in both 'offered' and 'active' states
+      const [retryState,      setRetryState]      = useState(null); // null | 'offered' | 'active'
 
       const currentRound   = ROUND_CONFIGS[roundIndex];
       const targetAngleDeg = currentRound.targetAngleDeg;
       const toleranceDeg   = currentRound.toleranceDeg;
 
       const delta = deltaAngle(currentAngleDeg, targetAngleDeg);
-      const showCorrectPosition = submitted && feedbackMode !== 'correct';
+      // Ghost is visible after a close/miss, while retry is offered, and while placing
+      // the second topping — so the player can use it as a placement guide
+      const showCorrectPosition = (submitted && feedbackMode !== 'correct')
+                                || retryState === 'offered'
+                                || retryState === 'active';
 
       const handleAngleChange = useCallback((deg) => {
         if (submitted) return;
         setCurrentAngleDeg(deg);
         setToppingPlaced(true);
+        // ghost stays on during active retry; no state change needed here
       }, [submitted]);
+
+      const advanceRound = useCallback(() => {
+        if (roundIndex < ROUNDS_PER_SESSION - 1) {
+          setRoundIndex(i => i + 1);
+          setCurrentAngleDeg(0);
+          setToppingPlaced(false);
+          setSubmitted(false);
+          setFeedbackMode(null);
+          setRetryState(null);
+        } else {
+          setSessionComplete(true);
+        }
+      }, [roundIndex]);
 
       const handleSubmit = useCallback(() => {
         if (!toppingPlaced || submitted) return;
@@ -644,18 +680,23 @@
         setSubmitted(true);
         setFeedbackMode(mode);
 
-        setTimeout(() => {
-          if (roundIndex < ROUNDS_PER_SESSION - 1) {
-            setRoundIndex(i => i + 1);
-            setCurrentAngleDeg(0);
-            setToppingPlaced(false);
-            setSubmitted(false);
-            setFeedbackMode(null);
-          } else {
-            setSessionComplete(true);
-          }
-        }, ADVANCE_MS);
-      }, [toppingPlaced, submitted, currentAngleDeg, targetAngleDeg, toleranceDeg, roundIndex]);
+        if (mode === 'close' && retryState === null) {
+          // first close: pause here and offer one retry; ghost appears as guide
+          setRetryState('offered');
+        } else {
+          // correct, miss, or second attempt: auto-advance
+          setRetryState(null);
+          setTimeout(advanceRound, ADVANCE_MS);
+        }
+      }, [toppingPlaced, submitted, currentAngleDeg, targetAngleDeg, toleranceDeg, retryState, advanceRound]);
+
+      const handleRetry = useCallback(() => {
+        // Player clicked "Try Again" — reset placement but keep ghost visible via retryState='active'
+        setSubmitted(false);
+        setToppingPlaced(false);
+        setFeedbackMode(null);
+        setRetryState('active');
+      }, []);
 
       const handleRestart = () => {
         setRoundIndex(0);
@@ -666,6 +707,7 @@
         setScore(0);
         setStreak(0);
         setSessionComplete(false);
+        setRetryState(null);
       };
 
       if (sessionComplete) {
@@ -709,28 +751,33 @@
             onAngleChange={handleAngleChange}
           />
 
-          {!toppingPlaced && !submitted && (
+          {!toppingPlaced && !submitted && retryState !== 'active' && (
             <p className="hint-text">Click on the circle to place your topping</p>
+          )}
+          {retryState === 'active' && !toppingPlaced && (
+            <p className="hint-text" style={{ color: '#d97706' }}>Aim at the green ghost — click to place</p>
           )}
 
           {/* Live readouts */}
           <AngleReadout angleDeg={currentAngleDeg} />
           <CoordinateDisplay angleDeg={currentAngleDeg} />
 
-          {/* Feedback */}
-          {submitted && (
+          {/* Feedback — shown after submit, or while retry is offered */}
+          {(submitted || retryState === 'offered') && (
             <FeedbackPanel
               feedbackMode={feedbackMode}
               deltaAngleDeg={delta}
               correctAngleDeg={targetAngleDeg}
+              onRetry={handleRetry}
+              retryAvailable={retryState === 'offered'}
             />
           )}
 
-          {/* Submit */}
-          {!submitted && (
+          {/* Submit — hidden while retry button is showing */}
+          {!submitted && retryState !== 'offered' && (
             <button
               className="submit-btn"
-              disabled={!toppingPlaced || submitted}
+              disabled={!toppingPlaced}
               onClick={handleSubmit}
             >
               Confirm Topping ✓
