@@ -89,7 +89,39 @@ def _bakery_rush_briefs() -> dict:
             "Static belt with single +1 and +2 item; target = 3. "
             "Confirms core loop before any belt movement is introduced."
         ),
-        "notes": "Pass 2 ramp: [18s, 13s, 9s, 6s, 4s]. Reflection beat not yet implemented.",
+        "reflection_beat": {
+            "trigger": (
+                "After the same misconception category is detected on 2 consecutive "
+                "orders within a level. Detection uses the misconception_map signals "
+                "(e.g., 3+ taps within 1500ms for impulsive_guess, item count equals "
+                "target for concept_confusion)."
+            ),
+            "delivery": (
+                "Belt pauses. A speech bubble appears above the customer with the "
+                "reflection prompt from the misconception library entry matching "
+                "the detected category. Player taps to dismiss. Belt resumes at "
+                "the same speed. No score penalty. No life cost."
+            ),
+            "prompt_selection": (
+                "Use the reflection_prompt field from the misconception_map entry "
+                "whose detection_signal matched the observed error pattern. "
+                "If multiple categories triggered in the same order, use the one "
+                "with the higher repeat count in the current level."
+            ),
+            "frequency_cap": (
+                "Maximum one reflection beat per level per category. "
+                "Maximum two reflection beats per level total. "
+                "If a third category triggers, log it for the session diagnostic "
+                "but do not pause play again."
+            ),
+            "clean_replay_escalation": (
+                "If the same category triggers a reflection beat on 2 separate "
+                "levels in the same session, offer the clean_replay_task from the "
+                "misconception library instead of the reflection prompt. "
+                "This is a voluntary side-track, not a forced interruption."
+            ),
+        },
+        "notes": "Pass 2 ramp: [18s, 13s, 9s, 6s, 4s]. Reflection beat now specified.",
     }
 
     family_brief = {
@@ -118,7 +150,7 @@ def _bakery_rush_briefs() -> dict:
         "family_overlap_warnings": [
             "Allocate-and-balance overlap if two target boxes are introduced — would require redesign."
         ],
-        "notes": "Loop Purity Score: 0.90 (PURE). Reflection beat is the one remaining gap.",
+        "notes": "Loop Purity Score: 0.90 (PURE). Reflection beat specified in loop brief.",
     }
 
     interaction_memo = {

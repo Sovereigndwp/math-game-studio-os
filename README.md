@@ -57,6 +57,16 @@ python scripts/run_benchmarks.py --report
 
 Expected output: 5/5 passed.
 
+To run the misconception workflow regression tests (no API key needed):
+
+```bash
+python -m unittest tests.test_misconception_workflow -v
+```
+
+Expected output: 27 tests, all passing.
+
+These tests also run automatically on push and PR via GitHub Actions.
+
 To run a single concept through the pipeline directly:
 
 ```python

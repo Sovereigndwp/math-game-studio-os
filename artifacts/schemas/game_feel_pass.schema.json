@@ -1,0 +1,135 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "game_feel_pass",
+  "description": "One focused visual and motion design pass for a working game prototype. Produced by the Visual and Motion Design Agent. Covers visual hierarchy, depth, color, motion, and state-to-feedback mapping.",
+  "type": "object",
+  "required": [
+    "job_id",
+    "artifact_name",
+    "version",
+    "game_name",
+    "pass_number",
+    "timestamp",
+    "produced_by",
+    "main_visual_problem",
+    "why_it_matters",
+    "proposed_pass",
+    "changes",
+    "priority_order",
+    "state_feedback_map",
+    "reusable_tokens",
+    "verification_plan"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "job_id": { "type": "string", "minLength": 1 },
+    "artifact_name": { "type": "string", "const": "game_feel_pass" },
+    "version": { "type": "integer", "minimum": 1 },
+    "game_name": {
+      "type": "string",
+      "description": "Human-readable game title."
+    },
+    "pass_number": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Sequential visual pass index."
+    },
+    "timestamp": {
+      "type": "string",
+      "description": "ISO-8601 timestamp."
+    },
+    "produced_by": {
+      "type": "string",
+      "const": "Visual and Motion Design Agent"
+    },
+    "main_visual_problem": {
+      "type": "string",
+      "minLength": 20,
+      "description": "One-paragraph diagnosis of the primary visual or game-feel issue."
+    },
+    "why_it_matters": {
+      "type": "string",
+      "minLength": 20,
+      "description": "Why this visual problem affects learning, engagement, or readability."
+    },
+    "proposed_pass": {
+      "type": "string",
+      "minLength": 20,
+      "description": "One-sentence name and summary of the pass."
+    },
+    "changes": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Ordered list of concrete visual/motion changes.",
+      "items": {
+        "type": "object",
+        "required": ["id", "area", "what", "why", "implementation"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]*$",
+            "description": "Short slug for this change."
+          },
+          "area": {
+            "type": "string",
+            "description": "Which component or visual area this affects."
+          },
+          "what": {
+            "type": "string",
+            "minLength": 10,
+            "description": "What changes visually or in motion."
+          },
+          "why": {
+            "type": "string",
+            "minLength": 10,
+            "description": "Why this change improves feel, hierarchy, or readability."
+          },
+          "implementation": {
+            "type": "string",
+            "minLength": 10,
+            "description": "Concrete implementation guidance — CSS, animation values, color codes, component changes."
+          }
+        }
+      }
+    },
+    "priority_order": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Change IDs in order of visual impact. Implement in this order."
+    },
+    "state_feedback_map": {
+      "type": "object",
+      "description": "Maps game states to their visual/motion feedback treatment.",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["visual", "motion", "audio_hint"],
+        "additionalProperties": false,
+        "properties": {
+          "visual": {
+            "type": "string",
+            "description": "Color, glow, border, or surface treatment for this state."
+          },
+          "motion": {
+            "type": "string",
+            "description": "Animation or transition for this state."
+          },
+          "audio_hint": {
+            "type": "string",
+            "description": "Suggested audio cue (not implemented — for future reference)."
+          }
+        }
+      }
+    },
+    "reusable_tokens": {
+      "type": "object",
+      "description": "Color, spacing, timing, and shadow tokens that can be reused across games in this family.",
+      "additionalProperties": { "type": "string" }
+    },
+    "verification_plan": {
+      "type": "string",
+      "minLength": 20,
+      "description": "How to verify the pass worked — what to look for during playtest."
+    }
+  }
+}

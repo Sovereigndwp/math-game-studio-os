@@ -1,0 +1,228 @@
+"""
+Visual and Motion Design Agent — deterministic stub.
+
+Takes a mechanically working game and produces one focused visual/motion
+pass artifact (game_feel_pass) that improves depth, feedback, and hierarchy
+without redesigning the core loop.
+
+Placement in workflow:
+  After: Loop Designer, Adaptation Designer, Reflection Writer
+  Before: Prototype Test Director, Teacher Guide Builder, Output Composer
+
+Prerequisites:
+  - lowest_viable_loop_brief must exist and pass its gate
+  - misconception_map is optional but improves state-feedback mapping
+"""
+from __future__ import annotations
+
+import json
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Dict
+
+from utils.shared_agent_runner import AgentSpec, SharedAgentRunner
+
+
+def visual_motion_design_stub(context: Dict[str, Any]) -> Dict[str, Any]:
+    """Deterministic stub that produces a game_feel_pass artifact.
+
+    In stub mode, returns a template pass based on the game family's
+    interaction type. With a real model_callable, the agent would analyze
+    the prototype's current visual state and produce targeted changes.
+    """
+    loop_brief = context["artifact_inputs"].get("lowest_viable_loop_brief", {})
+    misconception_map = context["artifact_inputs"].get("misconception_map")
+
+    game_name = loop_brief.get("game_family", loop_brief.get("job_id", "Unknown Game"))
+    # Try to get a cleaner name from the brief
+    if "bakery" in game_name.lower():
+        game_name = "Bakery Rush"
+    elif "fire" in game_name.lower() or "dispatch" in game_name.lower():
+        game_name = "Fire Dispatch"
+
+    # Build state-feedback map from misconception categories if available
+    state_map = {
+        "idle": {
+            "visual": "Warm ambient glow, neutral borders, invitation pulse on interactive elements",
+            "motion": "Gentle breathing animation on empty containers, subtle belt movement",
+            "audio_hint": "Soft ambient bakery hum",
+        },
+        "active_play": {
+            "visual": "Full color saturation, interactive elements highlighted with warm borders",
+            "motion": "Belt moves at level speed, items bob gently, tappable elements have hover lift",
+            "audio_hint": "Upbeat background rhythm matching belt speed",
+        },
+        "approaching_target": {
+            "visual": "Target card pulses with warm glow, running total highlights amber, box border brightens",
+            "motion": "Target number gentle scale pulse (1.0-1.03), running total spring animation on change",
+            "audio_hint": "Rising tone as total approaches target",
+        },
+        "success": {
+            "visual": "Green-emerald glow on box, celebration overlay, gold accents",
+            "motion": "Items bounce briefly, score flies up and fades, box lid closes with spring",
+            "audio_hint": "Bright success chime, customer delight sound",
+        },
+        "overshoot": {
+            "visual": "Red flash vignette, box border pulses red, patience bar drops visibly",
+            "motion": "Last item shakes (x oscillation) then fades, customer emoji shifts to annoyed with scale pulse",
+            "audio_hint": "Soft error tone, item bounce-back sound",
+        },
+        "patience_low": {
+            "visual": "Patience bar shifts to red gradient, timer text turns red, subtle screen edge vignette",
+            "motion": "Patience bar animated drain, urgency pulse on timer",
+            "audio_hint": "Ticking clock acceleration",
+        },
+        "customer_lost": {
+            "visual": "Gray-out overlay, customer fades, life heart shrinks and desaturates",
+            "motion": "Customer slides away, heart deflation animation",
+            "audio_hint": "Disappointed tone, door close",
+        },
+        "reflection_beat": {
+            "visual": "Calm overlay, warm amber border on speech bubble, belt visually paused",
+            "motion": "Gentle fade-in, no urgency animations, dismiss button has soft pulse",
+            "audio_hint": "Calm thinking chime, ambient pause",
+        },
+        "level_complete": {
+            "visual": "Celebration overlay with warm tones, stats glow, next-level button highlighted",
+            "motion": "Stats count up with spring, emoji celebration, confetti-style particle burst",
+            "audio_hint": "Level complete fanfare",
+        },
+    }
+
+    # Build reusable tokens
+    tokens = {
+        "color-bg-deep": "#0f0d0b",
+        "color-bg-warm": "#1a1412",
+        "color-bg-card": "#1c1614",
+        "color-border-warm": "rgba(217,119,6,0.20)",
+        "color-border-active": "rgba(217,119,6,0.40)",
+        "color-surface-cream": "#fef3c7",
+        "color-surface-amber": "#fde68a",
+        "color-text-warm": "#78350f",
+        "color-text-label": "#92400e",
+        "color-success-glow": "rgba(16,185,129,0.20)",
+        "color-error-glow": "rgba(239,68,68,0.15)",
+        "color-approaching-glow": "rgba(217,119,6,0.12)",
+        "shadow-card": "0 4px 16px rgba(0,0,0,0.25)",
+        "shadow-item-float": "0 4px 16px rgba(217,119,6,0.15), 0 2px 4px rgba(0,0,0,0.3)",
+        "shadow-item-rest": "0 2px 6px rgba(0,0,0,0.2)",
+        "shadow-inset-track": "inset 0 2px 8px rgba(0,0,0,0.5)",
+        "timing-spring-stiff": "stiffness: 400, damping: 20",
+        "timing-spring-soft": "stiffness: 300, damping: 25",
+        "timing-pulse": "duration: 1.2s, ease: easeInOut, repeat: infinite",
+        "timing-bob": "duration: 2s, ease: easeInOut, repeat: infinite",
+        "timing-overshoot-recovery": "900ms",
+        "timing-success-overlay": "900ms",
+        "radius-card": "1.5rem",
+        "radius-item": "1.5rem",
+    }
+
+    changes = [
+        {
+            "id": "warm-background",
+            "area": "Page background and ambient layer",
+            "what": "Replace flat neutral-950 with a warm brown gradient and add an amber radial glow behind the play area.",
+            "why": "The flat dark background makes the game feel like an admin panel. Warm tones create a bakery atmosphere and provide depth separation between the background and the interactive surface.",
+            "implementation": "Body: linear-gradient(180deg, #1a1412, #0f0d0b, #1a1412). Ambient: fixed div with radial-gradient(ellipse 60% 40% at 50% 40%, rgba(217,119,6,0.06), transparent 70%). All cards shift to #1a1412/#1c1614 with border-color rgba(217,119,6,0.20).",
+        },
+        {
+            "id": "pastry-box-feedback",
+            "area": "Pastry box container and items",
+            "what": "Make the box border react to game state (amber glow approaching target, green on success, red on overshoot). Items enter with spring animation and shake on bounce-back. Empty state pulses warmly.",
+            "why": "Every tap should feel meaningful. The box is where the player's decisions accumulate — it needs to reflect progress toward the target visually, not just numerically.",
+            "implementation": "Border: motion.div with animate keyed on state. Item enter: initial scale 1.15, spring stiffness 400 damping 20. Overshoot item: x oscillation [-8,8,-4,0] over 400ms. Empty state: opacity pulse [0.4, 0.7, 0.4] over 2.5s. Running total: motion.div with key={total}, initial scale 1.2 color #f59e0b.",
+        },
+        {
+            "id": "conveyor-depth",
+            "area": "Conveyor belt track and items",
+            "what": "Replace flat dark cards with warm cream-gradient pastry cards on a layered brown belt track. Items bob gently as they travel. Hover produces a warm glow lift.",
+            "why": "The belt is the main interactive surface but currently looks like a row of database entries. A layered track with warm, floating items creates the sense of a real surface with tangible objects.",
+            "implementation": "Track: linear-gradient(180deg, #3d2e1e, #2a1f14, #3d2e1e) with inset shadow. Items: linear-gradient(180deg, #fef3c7, #fde68a) with brown icons (#b45309), +value badge. Bob: animate y [0,-2,0] duration 2s+stagger. Hover: scale 1.06 y -4 with glow shadow.",
+        },
+        {
+            "id": "success-overshoot-polish",
+            "area": "Success overlay, overshoot feedback, score awards",
+            "what": "Success gets a celebration emoji and emerald glow. Overshoot drains patience visibly and shows penalty in the status message. Score and award text animate on change.",
+            "why": "Success and failure need to feel emotionally distinct. Currently both are brief text changes. The player should feel a small celebration on success and a real consequence on overshoot.",
+            "implementation": "Success overlay: add 🎉 emoji, emerald tint bg. Overshoot: patience -= penalty seconds, customer emoji → 😠 with scale pulse, message includes penalty amount. Score: motion.div key={score} initial scale 1.15. Award: motion.span key={lastAward} initial scale 1.2 color #fbbf24.",
+        },
+        {
+            "id": "order-ticket-warmth",
+            "area": "Order ticket card and patience bar",
+            "what": "Target card gets a warm cream gradient with brown text and pulses when approaching target. Patience bar uses a warm-to-red animated gradient. Customer mood emoji reacts to overshoots.",
+            "why": "The order ticket is the player's goal reference — it should feel warm and inviting, then shift to urgency as patience drains. The approaching-target pulse creates anticipation.",
+            "implementation": "Target card: linear-gradient(180deg, #fffbeb, #fef3c7), text #78350f. Approaching: boxShadow pulse between 8px and 20px amber glow, text changes to 'Almost there!'. Patience bar: motion.div width animation, gradient shifts from amber→orange→red based on percent. Customer: 😊 default, 😠 on overshoot with scale transition.",
+        },
+    ]
+
+    return {
+        "game_name": game_name,
+        "pass_number": 1,
+        "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "produced_by": "Visual and Motion Design Agent",
+        "main_visual_problem": (
+            "The game uses a flat dark-mode palette with uniform neutral-800/900/950 cards on a neutral-950 background. "
+            "Every element — conveyor belt, pastry box, order ticket, dashboard — has the same visual weight and the same "
+            "cold surface treatment. Nothing glows, nothing breathes, nothing reacts to what the player is doing. "
+            "Success and failure are brief text changes, not emotional moments. The game looks like a dark-mode admin "
+            "panel, not a bakery."
+        ),
+        "why_it_matters": (
+            "Visual flatness undermines learning in three ways: (1) the player cannot quickly distinguish interactive "
+            "elements from passive displays, reducing decision speed; (2) success and failure feel the same, removing "
+            "the emotional reinforcement that makes correct actions memorable; (3) the absence of warmth and atmosphere "
+            "makes the game feel like work rather than play, reducing the time-on-task that the learning loop requires."
+        ),
+        "proposed_pass": (
+            "Warm bakery pass — shift the entire color palette from cold neutral to warm brown/amber, add reactive "
+            "feedback to the pastry box, give the conveyor belt visual depth, and make success and overshoot feel "
+            "emotionally distinct."
+        ),
+        "changes": changes,
+        "priority_order": [c["id"] for c in changes],
+        "state_feedback_map": state_map,
+        "reusable_tokens": tokens,
+        "verification_plan": (
+            "Play L1 through L2 and evaluate five questions: (1) Does the screen feel warm instead of cold? "
+            "(2) Does each tap into the pastry box feel satisfying — spring animation, number pulse, border response? "
+            "(3) Does the conveyor belt look like a surface with tangible objects, not a row of database cards? "
+            "(4) Does completing an order feel like a small celebration — green glow, emoji, spring? "
+            "(5) Does overshooting feel consequential — red flash, shake, patience drain, angry customer? "
+            "The test is subjective: someone watching over your shoulder should say 'that is a game' not 'what spreadsheet is that'."
+        ),
+    }
+
+
+def build_spec(repo_root: Path) -> AgentSpec:
+    return AgentSpec(
+        agent_name="visual_motion_design",
+        expected_output_artifact="game_feel_pass",
+        expected_produced_by="Visual and Motion Design Agent",
+        prompt_path=repo_root / "agents" / "visual_motion_design" / "prompt.md",
+        config_path=repo_root / "agents" / "visual_motion_design" / "config.yaml",
+        allowed_reads=["lowest_viable_loop_brief"],
+        allowed_writes=["game_feel_pass"],
+        max_revision_count=1,
+    )
+
+
+def run(
+    repo_root: Path,
+    job_id: str,
+    artifact_paths: Dict[str, Path],
+    model_callable=None,
+):
+    """Run the Visual and Motion Design Agent."""
+    runner = SharedAgentRunner(repo_root)
+
+    if model_callable is None:
+        def _stub_wrapper(context: Dict[str, Any]) -> Dict[str, Any]:
+            return visual_motion_design_stub(context)
+        model_callable = _stub_wrapper
+
+    return runner.run(
+        spec=build_spec(repo_root),
+        job_id=job_id,
+        artifact_paths=artifact_paths,
+        model_callable=model_callable,
+    )
