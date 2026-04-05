@@ -1707,7 +1707,7 @@ def write_pending_writeback(
     path = pending_dir / filename
 
     with open(path, "w") as f:
-        json.dump(writeback, f, indent=2)
+        json.dump(writeback, f, indent=2, ensure_ascii=False)
 
     return path
 
@@ -1716,6 +1716,7 @@ def apply_library_writeback(
     writeback_path: Path,
     repo_root: Path,
     dry_run: bool = True,
+    only_categories: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
     """Apply a pending write-back to the library.
 
@@ -1723,18 +1724,21 @@ def apply_library_writeback(
         writeback_path: Path to the pending write-back JSON file.
         repo_root: Repository root.
         dry_run: If True, report what would change without modifying files.
+        only_categories: If set, apply only entries whose category is in this list.
+                         Entries not in the list are left in pending status.
 
     Returns a dict with:
       - "applied": bool (False if dry_run)
       - "library_file": path to the library file
       - "entries_updated": list of category names updated
+      - "entries_skipped": list of category names skipped (partial apply)
       - "backup_path": path to the backup file (only if applied)
     """
     with open(writeback_path) as f:
         writeback = json.load(f)
 
-    if writeback.get("status") != "pending_review":
-        return {"applied": False, "error": f"Status is '{writeback.get('status')}', expected 'pending_review'"}
+    if writeback.get("status") not in ("pending_review", "partially_applied"):
+        return {"applied": False, "error": f"Status is '{writeback.get('status')}', expected 'pending_review' or 'partially_applied'"}
 
     library_file = repo_root / "artifacts" / "misconception_library" / writeback["library_file"]
     if not library_file.exists():
@@ -1744,14 +1748,26 @@ def apply_library_writeback(
         library = json.load(f)
 
     entries_updated = []
+    entries_skipped = []
     for candidate in writeback["entries_to_update"]:
         cat = candidate["category"]
+
+        # Skip already-applied entries in a partially_applied file
+        if candidate.get("applied"):
+            continue
+
+        # Filter by only_categories if specified
+        if only_categories and cat not in only_categories:
+            entries_skipped.append(cat)
+            continue
+
         revised = candidate["revised_entry"]
 
         for i, m in enumerate(library["misconceptions"]):
             if m.get("category") == cat:
                 if not dry_run:
                     library["misconceptions"][i] = revised
+                    candidate["applied"] = True
                 entries_updated.append(cat)
                 break
 
@@ -1759,6 +1775,7 @@ def apply_library_writeback(
         "applied": not dry_run,
         "library_file": str(library_file),
         "entries_updated": entries_updated,
+        "entries_skipped": entries_skipped,
     }
 
     if not dry_run and entries_updated:
@@ -1767,7 +1784,6 @@ def apply_library_writeback(
         backup_dir.mkdir(parents=True, exist_ok=True)
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
         backup_path = backup_dir / f"{writeback['library_file']}.{timestamp}.bak"
-        # Read original again for backup
         with open(library_file) as f:
             original_text = f.read()
         with open(backup_path, "w") as f:
@@ -1776,14 +1792,21 @@ def apply_library_writeback(
 
         # Write updated library
         with open(library_file, "w") as f:
-            json.dump(library, f, indent=2)
+            json.dump(library, f, indent=2, ensure_ascii=False)
             f.write("\n")
 
-        # Mark writeback as applied
-        writeback["status"] = "applied"
-        writeback["applied_at"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        # Update writeback status
+        all_applied = all(
+            e.get("applied", False) for e in writeback["entries_to_update"]
+        )
+        if all_applied:
+            writeback["status"] = "applied"
+        else:
+            writeback["status"] = "partially_applied"
+        writeback["last_applied_at"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        writeback["last_applied_categories"] = entries_updated
         with open(writeback_path, "w") as f:
-            json.dump(writeback, f, indent=2)
+            json.dump(writeback, f, indent=2, ensure_ascii=False)
 
     return result
 
