@@ -102,17 +102,34 @@ function weightedChoice(items, weights) {
   return items[items.length - 1];
 }
 
+const CUSTOMER_TEMPLATES = [
+  { name: "Mia",    emoji: "👩",  requestLine: "For my daughter's birthday party!",   successLine: "She'll love these!",          overshootLine: "Careful with those!" },
+  { name: "Leo",    emoji: "👨",  requestLine: "Office meeting in 10 minutes.",       successLine: "Perfect, right on time!",     overshootLine: "I'm in a rush here..." },
+  { name: "Ava",    emoji: "👧",  requestLine: "My friends are waiting outside!",     successLine: "You're the best!",            overshootLine: "That's too many..." },
+  { name: "Noah",   emoji: "🧑",  requestLine: "Breakfast for the whole family.",     successLine: "Just what we needed!",        overshootLine: "That won't fit the box..." },
+  { name: "Sofia",  emoji: "👩‍🍳", requestLine: "I need this exact amount, please.",    successLine: "Precision! Love it.",         overshootLine: "I said exact!" },
+  { name: "Lucas",  emoji: "👦",  requestLine: "Saving up for a big picnic.",         successLine: "Picnic is going to be great!",overshootLine: "Whoa, slow down!" },
+  { name: "Emma",   emoji: "👵",  requestLine: "For my book club this evening.",      successLine: "They'll be so pleased!",      overshootLine: "Oh dear, that's extra..." },
+  { name: "Mateo",  emoji: "👨‍🍳", requestLine: "I know what I want — let's go.",       successLine: "Fast and clean. Respect.",    overshootLine: "Come on, focus!" },
+  { name: "Luna",   emoji: "🧒",  requestLine: "Can I get exactly this many? Please?",successLine: "Yay!! Thank you!!",           overshootLine: "Oops! Too many!" },
+  { name: "Elena",  emoji: "👩‍💼", requestLine: "Client meeting in an hour.",           successLine: "Professional. Thank you.",    overshootLine: "I don't have time for this." },
+  { name: "Owen",   emoji: "🧓",  requestLine: "Same order as every Tuesday.",        successLine: "You remembered! Wonderful.",   overshootLine: "That's not my usual..." },
+  { name: "Nina",   emoji: "👩‍🎨", requestLine: "Treats for the studio crew!",          successLine: "The crew will love you!",     overshootLine: "We don't need that many!" },
+];
+
 function buildCustomerQueue(config) {
-  const names = ["Mia", "Leo", "Ava", "Noah", "Sofia", "Lucas", "Emma", "Mateo", "Luna", "Elena", "Owen", "Nina"];
   const pool = [...config.targetPool];
+  const templates = [...CUSTOMER_TEMPLATES].sort(() => Math.random() - 0.5);
   const selectedTargets = [];
   for (let i = 0; i < config.customerCount; i++) {
     if (pool.length === 0) pool.push(...config.targetPool);
     const index = Math.floor(Math.random() * pool.length);
     selectedTargets.push(pool.splice(index, 1)[0]);
   }
-  return selectedTargets.map((target, index) => ({
-    id: index + 1, target, name: names[index % names.length],
+  return selectedTargets.map((target, i) => ({
+    id: i + 1,
+    target,
+    ...templates[i % templates.length],
   }));
 }
 
@@ -137,6 +154,17 @@ function SmallStat({ label, value, valueClassName = "text-amber-400" }) {
       <div className={`mt-2 text-3xl font-bold ${valueClassName}`}>{value}</div>
     </div>
   );
+}
+
+function getBakeryStatus(completed, missed, streak, lives) {
+  if (lives === 1) return { text: "🚨 Last chance — don't lose another customer!", color: "#fca5a5" };
+  if (missed >= 2) return { text: "😬 Boss is watching... 👀", color: "#fcd34d" };
+  if (missed === 1) return { text: "😬 The line is getting longer...", color: "#fcd34d" };
+  if (streak >= 4) return { text: "🔥 Rush hour! You're unstoppable!", color: "#86efac" };
+  if (streak >= 2) return { text: "🔥 Nice streak — keep it going!", color: "#fbbf24" };
+  if (completed >= 3) return { text: "☕ Getting busy now...", color: "#d6d3d1" };
+  if (completed >= 1) return { text: "☕ Good start. Next customer!", color: "#d6d3d1" };
+  return { text: "☕ Quiet morning. First customer of the day.", color: "#a8a29e" };
 }
 
 export default function BakeryRushPrototype() {
@@ -407,12 +435,43 @@ export default function BakeryRushPrototype() {
     setScore((prev) => prev + earned);
     setStreak((prev) => prev + 1);
     setLastAward(awardText);
-    setScreen("order_success");
-    setMessage("Perfect order. Box closed.");
-    successTimerRef.current = window.setTimeout(() => {
-      moveToNextCustomer("Nice work. Next customer.");
-      setScreen("playing");
-    }, 900);
+
+    // Tiered celebration based on target difficulty and performance
+    const target = currentCustomer?.target ?? 0;
+    const customerSuccess = currentCustomer?.successLine ?? "Thank you!";
+    const isFlawless = firstTryForCurrentOrder && target > 8;
+    const isHard = target > 10;
+    const isMedium = target >= 6;
+
+    if (isFlawless) {
+      setMessage(`💎 FLAWLESS! ${customerSuccess}`);
+      setScreen("order_success");
+      successTimerRef.current = window.setTimeout(() => {
+        moveToNextCustomer("Incredible work. Next customer!");
+        setScreen("playing");
+      }, 1200);
+    } else if (isHard) {
+      setMessage(`🎉 Incredible! ${customerSuccess}`);
+      setScreen("order_success");
+      successTimerRef.current = window.setTimeout(() => {
+        moveToNextCustomer("Great job. Next customer!");
+        setScreen("playing");
+      }, 900);
+    } else if (isMedium) {
+      setMessage(`🎯 Nice one! ${customerSuccess}`);
+      setScreen("order_success");
+      successTimerRef.current = window.setTimeout(() => {
+        moveToNextCustomer("Next customer.");
+        setScreen("playing");
+      }, 700);
+    } else {
+      // Easy order — quick transition, no overlay
+      setMessage(`✅ ${customerSuccess}`);
+      successTimerRef.current = window.setTimeout(() => {
+        moveToNextCustomer("Next customer.");
+        setScreen("playing");
+      }, 500);
+    }
   }
 
   function handlePastryTap(item) {
@@ -450,7 +509,8 @@ export default function BakeryRushPrototype() {
       setWrongMoves((prev) => prev + 1);
       setFirstTryForCurrentOrder(false);
       setStreak(0);
-      setMessage(`Too many! Lost ${penalty}s of patience. The last pastry bounced out.`);
+      const custOvershoot = currentCustomer?.overshootLine ?? "That's too many!";
+      setMessage(`${custOvershoot} (−${penalty}s patience)`);
       setLastAward(`Overshoot −${penalty}s`);
       overshootTimerRef.current = window.setTimeout(() => {
         setItemsInBox((prev) => { const clone = [...prev]; clone.pop(); return clone; });
@@ -546,6 +606,22 @@ export default function BakeryRushPrototype() {
           )}
         </AnimatePresence>
 
+        {/* Bakery status strip */}
+        {screen === "playing" && (() => {
+          const status = getBakeryStatus(completedOrders, missedOrders, streak, lives);
+          return (
+            <div className="rounded-2xl mx-auto px-4 py-2 text-center text-sm" style={{
+              color: status.color,
+              background: 'rgba(26,20,18,0.8)',
+              border: '1px solid rgba(217,119,6,0.08)',
+              maxWidth: '600px',
+              marginBottom: '-8px',
+            }}>
+              {status.text}
+            </div>
+          );
+        })()}
+
         <div className="grid gap-4 md:grid-cols-[1.15fr_1fr]">
           <Card className="rounded-3xl border-amber-900/20 bg-[#1c1614] shadow-2xl shadow-amber-950/10">
             <CardContent className="grid gap-5 p-6 md:p-8">
@@ -555,13 +631,21 @@ export default function BakeryRushPrototype() {
                   <h2 className="mt-2 text-2xl font-semibold md:text-3xl">
                     {currentCustomer ? (
                       <>
-                        <span>{customerMood === "annoyed" ? "😠" : "😊"}</span>
+                        <span>{
+                          patiencePercent < 25 ? "😢" :
+                          patiencePercent < 50 ? "😤" :
+                          customerMood === "annoyed" ? "😐" :
+                          currentCustomer.emoji || "😊"
+                        }</span>
                         {" "}{currentCustomer.name}'s order
                         {overshootsThisOrder > 0 && (
                           <span className="ml-2 text-base font-normal text-red-400">
                             ({overshootsThisOrder} overshoot{overshootsThisOrder > 1 ? "s" : ""})
                           </span>
                         )}
+                        <div className="mt-1 text-sm font-normal text-amber-200/60" style={{ fontStyle: 'italic' }}>
+                          "{currentCustomer.requestLine}"
+                        </div>
                       </>
                     ) : "Shift finished"}
                   </h2>
@@ -711,17 +795,30 @@ export default function BakeryRushPrototype() {
                         })}
                       </div>
                       <AnimatePresence>
-                        {screen === "order_success" && (
-                          <motion.div initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
-                            className="absolute inset-0 flex items-center justify-center rounded-3xl backdrop-blur-sm"
-                            style={{ background: "rgba(16,185,129,0.15)", border: "1px solid rgba(16,185,129,0.4)" }}>
-                            <div className="px-6 text-center">
-                              <div className="text-4xl">🎉</div>
-                              <div className="mt-2 text-3xl font-semibold text-white">Perfect order!</div>
-                              <div className="mt-2 text-sm text-emerald-200">The box closed right on target.</div>
-                            </div>
-                          </motion.div>
-                        )}
+                        {screen === "order_success" && (() => {
+                          const target = currentCustomer?.target ?? 0;
+                          const isFlawless = message.includes("💎");
+                          const isHard = message.includes("🎉");
+                          const bgColor = isFlawless
+                            ? "rgba(245,158,11,0.2)"
+                            : isHard
+                            ? "rgba(16,185,129,0.18)"
+                            : "rgba(16,185,129,0.12)";
+                          const borderColor = isFlawless
+                            ? "rgba(245,158,11,0.5)"
+                            : "rgba(16,185,129,0.4)";
+                          return (
+                            <motion.div initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
+                              className="absolute inset-0 flex items-center justify-center rounded-3xl backdrop-blur-sm"
+                              style={{ background: bgColor, border: `1px solid ${borderColor}` }}>
+                              <div className="px-6 text-center">
+                                <div className="text-4xl">{isFlawless ? "💎" : isHard ? "🎉" : "🎯"}</div>
+                                <div className="mt-2 text-2xl font-semibold text-white">{message}</div>
+                                <div className="mt-2 text-sm" style={{ color: isFlawless ? "#fcd34d" : "#86efac" }}>{lastAward}</div>
+                              </div>
+                            </motion.div>
+                          );
+                        })()}
                       </AnimatePresence>
                     </motion.div>
                     <div className="grid grid-cols-2 gap-4">
