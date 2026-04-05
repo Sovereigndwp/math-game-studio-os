@@ -587,11 +587,16 @@
     ];
 
     const LEVEL_CONFIGS = [
-      { timeLimit: 25, demandRange: [4,8],   trucksAvailable: ['hose','ladder','ambulance'],                        scoreThreshold: 40  },
-      { timeLimit: 20, demandRange: [5,12],  trucksAvailable: ['hose','ladder','ambulance','command'],              scoreThreshold: 100 },
-      { timeLimit: 18, demandRange: [6,15],  trucksAvailable: ['hose','ladder','ambulance','command','tanker'],     scoreThreshold: 180 },
-      { timeLimit: 15, demandRange: [8,18],  trucksAvailable: ['hose','ladder','command','tanker'],                 scoreThreshold: 280 },
-      { timeLimit: 12, demandRange: [10,20], trucksAvailable: ['hose','ladder','ambulance','command','tanker'],     scoreThreshold: 9999},
+      // L1: 3 trucks, small demands, generous timer — learn the mechanic
+      { timeLimit: 20, demandRange: [4,8],   trucksAvailable: ['hose','ladder','ambulance'],                        scoreThreshold: 40,  wrongDispatchPenalty: 0 },
+      // L2: add Command (+4), wider demand range, slightly tighter
+      { timeLimit: 18, demandRange: [5,12],  trucksAvailable: ['hose','ladder','ambulance','command'],              scoreThreshold: 100, wrongDispatchPenalty: 2 },
+      // L3: all 5 trucks, wider demands, wrong dispatch costs time
+      { timeLimit: 16, demandRange: [6,15],  trucksAvailable: ['hose','ladder','ambulance','command','tanker'],     scoreThreshold: 180, wrongDispatchPenalty: 3 },
+      // L4: all 5 trucks, high demands, real pressure
+      { timeLimit: 14, demandRange: [8,18],  trucksAvailable: ['hose','ladder','ambulance','command','tanker'],     scoreThreshold: 280, wrongDispatchPenalty: 3 },
+      // L5: all 5, highest demands, tight timer, clearable threshold
+      { timeLimit: 12, demandRange: [10,20], trucksAvailable: ['hose','ladder','ambulance','command','tanker'],     scoreThreshold: 400, wrongDispatchPenalty: 4 },
     ];
 
     const INCIDENTS = [
@@ -1152,11 +1157,13 @@
             setTutorialSuccess(true);
             return;
           }
-          // urgency multiplier: HIGH incidents are worth more, LOW worth less
+          // Scoring: base 20 + time bonus (remaining seconds) + streak + urgency
+          const timeBonus = Math.max(0, timeLeft);
+          const streakBonus = Math.min(streak * 5, 25); // cap at 25
           const urgencyMult = currentIncident.urgency === 'high' ? 1.5
                             : currentIncident.urgency === 'low'  ? 0.8
                             : 1.0;
-          const pts = Math.round((10 + streak * 2) * urgencyMult);
+          const pts = Math.round((20 + timeBonus + streakBonus) * urgencyMult);
           setLastPoints(pts);
           setScore(s => {
             const newScore = s + pts;
@@ -1193,9 +1200,14 @@
             });
           }, SUCCESS_MS);
         } else {
-          // partial dispatch — shake board
+          // Wrong dispatch — shake board and penalize time
           setBoardShaking(true);
           setTimeout(() => setBoardShaking(false), 400);
+          const penalty = currentLevel.wrongDispatchPenalty || 0;
+          if (penalty > 0 && tutorialRef.current < 0) {
+            setTimeLeft(prev => Math.max(0, prev - penalty));
+            overshootCount.current++;
+          }
         }
       }, [dispatched, totalCapacity, currentIncident, streak, incidentCount, spawnIncident]);
 
