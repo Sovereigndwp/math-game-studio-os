@@ -678,6 +678,89 @@ class GateEngine:
             failure_fields.append("prototype_readiness_score")
             revision_instructions.append("Readiness score below 0.5 indicates the spec is too underspecified to build.")
 
+        # ---- Dim 7: Core loop sentence (revise-level) ----
+        # A loop that cannot be stated in one sentence is not clear enough to build.
+        core_loop_sentence = artifact.get("core_loop_sentence", "").strip()
+        if not core_loop_sentence:
+            failure_fields.append("core_loop_sentence")
+            revision_instructions.append(
+                "core_loop_sentence is missing. State the entire core loop in one sentence. "
+                "If you cannot do this, the loop is not clear enough to build. Example: "
+                "'Player taps pastries to accumulate a target value, then the order auto-submits for score.'"
+            )
+
+        # ---- Dim 8: Interaction constraints (revise-level) ----
+        # The interaction_constraints block is optional for non-selection games but required
+        # whenever the prototype uses selectable options + a numeric or positional target.
+        ic = artifact.get("interaction_constraints")
+        interaction_type = artifact.get("concept_anchor", {}).get("primary_interaction_type", "")
+        selection_games = {"route_and_dispatch", "combine_and_build", "allocate_and_balance"}
+        if ic is None and interaction_type in selection_games:
+            failure_fields.append("interaction_constraints")
+            revision_instructions.append(
+                f"interaction_constraints is required for '{interaction_type}' games. "
+                "Declare: selection_rule, item_reuse_allowed, selected_items_disappear, "
+                "target_must_be_solvable, overshoot_recovery, exact_match_required."
+            )
+        elif ic is not None:
+            # Solvability commitment check
+            if ic.get("target_must_be_solvable") is False:
+                failure_fields.append("interaction_constraints.target_must_be_solvable")
+                revision_instructions.append(
+                    "interaction_constraints.target_must_be_solvable is false. "
+                    "Every generated target must be reachable under the declared selection_rule. "
+                    "Generating unsolvable targets is a fundamental game logic failure — "
+                    "the player cannot win fairly. Set to true and add generation_constraints "
+                    "in the implementation plan to guarantee this invariant."
+                )
+            # Fixed-set + disappear consistency check
+            if (ic.get("selection_rule") == "fixed_set_multi_select"
+                    and ic.get("selected_items_disappear") is False):
+                failure_fields.append("interaction_constraints.selected_items_disappear")
+                revision_instructions.append(
+                    "selection_rule is fixed_set_multi_select but selected_items_disappear is false. "
+                    "With fixed-set selection, selected items must visually leave the option pool — "
+                    "otherwise the player cannot tell which items they have already chosen."
+                )
+
+        # ---- Dim 9: Difficulty profile teaching-first (revise-level) ----
+        dp = artifact.get("difficulty_profile")
+        if dp is not None:
+            curve = dp.get("curve_type", "")
+            intro = dp.get("intro_pressure_level", "")
+            axes = dp.get("pressure_axes", [])
+            window = dp.get("level_1_teaching_window_seconds", None)
+
+            if curve == "spike":
+                failure_fields.append("difficulty_profile.curve_type")
+                revision_instructions.append(
+                    "difficulty_profile.curve_type is 'spike'. Spike curves cause players to quit "
+                    "before understanding the game. Use smooth_ramp: pressure arrives after "
+                    "the player has understood the loop."
+                )
+            if intro == "high":
+                failure_fields.append("difficulty_profile.intro_pressure_level")
+                revision_instructions.append(
+                    "difficulty_profile.intro_pressure_level is 'high'. "
+                    "Level 1 must optimize for comprehension before pressure. "
+                    "Set to 'teaching' or 'low' and ensure the first level gives the player "
+                    "enough time to read, decide, and act without meaningful time or motion pressure."
+                )
+            if len(axes) >= 3 and intro in ("teaching", "low"):
+                failure_fields.append("difficulty_profile.pressure_axes")
+                revision_instructions.append(
+                    f"difficulty_profile stacks {len(axes)} pressure axes ({axes}) on a '{intro}' "
+                    "intro level. Stacking 3+ pressure types on Level 1 prevents onboarding. "
+                    "Reduce to 1–2 axes on the introductory level."
+                )
+            if window is not None and window < 5 and intro in ("teaching", "low"):
+                failure_fields.append("difficulty_profile.level_1_teaching_window_seconds")
+                revision_instructions.append(
+                    f"level_1_teaching_window_seconds is {window}s, which is too short for a "
+                    f"'{intro}' intro level. A player needs at least 5–8 seconds to read the state, "
+                    "decide on an action, and execute it before pressure arrives."
+                )
+
         # Deduplicate failure_fields
         failure_fields = list(dict.fromkeys(failure_fields))
 

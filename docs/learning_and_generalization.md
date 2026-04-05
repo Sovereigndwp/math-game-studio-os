@@ -450,3 +450,114 @@ This is a 3-slot `AnimationContractTemplate` that could be pre-populated from `a
 Add a `PatchSequenceTemplate` that auto-generates the skeleton from `file_plan` (patch IDs, file paths, ordered phases, App.jsx last). This would reduce hand-authoring from ~300 lines per game to ~50 lines of `change_description` and `named_elements` content. The gate already handles validation. This is the highest-leverage move before attempting LLM generation.
 
 **Classification:** `document now` — the pattern is clear and consistent across three games. Implementation requires one more game to confirm the pattern holds before committing to the template structure.
+
+---
+
+## Living Record: What the GameForge Facilitator Curriculum Taught the OS
+
+*Added: 2026-04-04. Source: GameForge 10-Day Facilitator Guides, Days 1–10.*
+*See full extracted intelligence in: `docs/game_design_intelligence.md`*
+
+### New schema fields added to prototype_spec
+
+| Field | Type | Purpose | Gate? |
+|-------|------|---------|-------|
+| `core_loop_sentence` | string (1 sentence) | Forces loop clarity before build | Yes — Dim 7 revise if absent |
+| `interaction_constraints` | object | Declares selection rule, solvability, disappear behavior | Yes — Dim 8 required for selection games |
+| `difficulty_profile` | object | Declares curve type, intro pressure, pressure axes, teaching window | Yes — Dim 9 revises spike/high/short-window |
+| `luck_skill_ratio` | float 0–1 | Explicit skill vs luck declaration | No gate yet |
+| `player_type_targets` | string[] max 2 | Bartle types — forces design specificity | No gate yet |
+
+### New gate checks added (gate_prototype_spec)
+
+**Dim 7 — Core loop sentence:**
+Revise if `core_loop_sentence` is absent. A loop that cannot be stated in one sentence is not clear enough to build.
+
+**Dim 8 — Interaction constraints:**
+- Revise if `interaction_constraints` is absent for `route_and_dispatch`, `combine_and_build`, or `allocate_and_balance` games
+- Revise if `target_must_be_solvable` is `false` (fundamental game logic failure)
+- Revise if `selection_rule = fixed_set_multi_select` but `selected_items_disappear = false` (selection state ambiguity)
+
+**Dim 9 — Difficulty profile teaching-first:**
+- Revise if `curve_type = "spike"` (players quit before understanding)
+- Revise if `intro_pressure_level = "high"` (pressure before comprehension blocks learning)
+- Revise if ≥3 pressure axes stack on a teaching/low intro level
+- Revise if `level_1_teaching_window_seconds < 5` on a teaching/low intro level
+
+### Reusable rules confirmed across Bakery + Fire Dispatch proof cases
+
+**Solvability rule (fix_now — implemented):**
+> Every generated target must be reachable under the current selection rules.
+>
+> Implementation: enumerate all 2^n non-empty subset sums → filter to demand range → draw from intersection.
+> Applies to: any `route_and_dispatch`, `combine_and_build`, or `allocate_and_balance` game.
+
+**Teaching-first rule (fix_now — implemented):**
+> Level 1 must optimize for comprehension before pressure.
+> Speed, motion, and time constraints should arrive after the player has understood the loop.
+> Level 1 pacing parameters are teaching parameters, not difficulty parameters.
+
+**Interaction constraint declaration rule (fix_now — implemented):**
+> The selection model must be declared before implementation begins.
+> Ambiguous selection state (items stay visible but "selected") produces confused players.
+> Fixed-set multi-select → items disappear from option pool. No exceptions.
+
+### Rules documented for future passes (not yet gated)
+
+**Win condition ≠ victory path:** The win condition defines the soul of the game.
+Changing the win condition changes the game more than changing any mechanic.
+The OS should distinguish these at the spec level.
+
+**Layered goals (primary/secondary/hidden):** Current `success_condition` covers primary only.
+Secondary goals (streak, efficiency) exist in game code but are not captured in the spec schema.
+Future pass: add `secondary_goal` and `mastery_goal` fields to `prototype_spec`.
+
+**Feedback as mechanic (4 dimensions: timing/channel/clarity/consequence):**
+`interaction_model.feedback_timing` exists. `feedback_channels` and `feedback_clarity_test` are missing.
+Future pass: add these to `interaction_model`.
+
+**Playtest feedback categories (bug/balance/confusion/fun):**
+`playtest_diagnostic_report` should categorize findings by type.
+Currently unstructured narrative. Future pass: add `finding_category` field to each finding.
+
+**Designer's Curse (silent playtest protocol):**
+The designer cannot see their own confusing parts. Playtest protocol: designer silent, tester thinks aloud.
+The OS should encode this as a required protocol in any playtest_diagnostic instructions.
+
+**Two loop levels (moment-to-moment + session):**
+Current `core_loop_translation` captures only the moment-to-moment loop.
+Session loop (what keeps a player for 20–30 min) needs a separate field.
+Future pass: add `session_loop_description` to `prototype_spec`.
+
+**Onboarding requires no instruction overlay:**
+`first_visible_state` should imply `first_player_action` without text instructions.
+Future pass: add `onboarding_requires_instruction_overlay: boolean` as a flag field.
+
+### Classification summary
+
+| Finding | Classification |
+|---------|---------------|
+| Solvability rule | `fix_now` — implemented in getSolvableDemands + gate Dim 8 |
+| Teaching-first rule | `fix_now` — implemented in beltDuration fix + gate Dim 9 |
+| Interaction constraint declaration | `fix_now` — implemented in interaction_constraints schema + gate Dim 8 |
+| Core loop sentence test | `fix_now` — implemented in gate Dim 7 |
+| Win condition vs. victory path | `document now` |
+| Layered goals | `document now` — schema field deferred to Pass 2 |
+| Feedback dimensions | `document now` — schema field deferred to Pass 2 |
+| Playtest feedback categories | `document now` — schema field deferred when diagnostic agent is written |
+| Designer's Curse protocol | `document now` |
+| Two loop levels | `document now` — session_loop field deferred to Pass 2 |
+| Onboarding overlay flag | `document now` — field deferred to next prototype_spec revision |
+| Luck/skill ratio | `acceptable for now` — field added, gate deferred |
+| Player type targets | `acceptable for now` — field added, gate deferred |
+
+### Single most justified next improvement
+
+Add `solvability_auditor` as a standalone utility (not a full agent) that the implementation
+plan stub can call during generation. It takes `available_options: [{id, value}]` and
+`target_range: [lo, hi]` and returns `solvable_targets: number[]`. This encapsulates the
+`getSolvableDemands` pattern already proven in Fire Dispatch into a reusable helper that
+any future game with discrete selection can import. The pattern is now confirmed across
+Bakery (trivially solvable — any combo of any value works) and Fire Dispatch (non-trivially
+solvable — subset sum of fixed options). The helper would have caught the Fire Dispatch
+bug before Pass 1 was ever built.

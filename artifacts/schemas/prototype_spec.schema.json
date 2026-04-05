@@ -376,6 +376,112 @@
     },
     "notes": {
       "type": "string"
+    },
+    "core_loop_sentence": {
+      "type": "string",
+      "minLength": 10,
+      "maxLength": 200,
+      "description": "The entire core loop stated in one sentence. If you cannot state it in one sentence, the loop is not clear enough to build."
+    },
+    "luck_skill_ratio": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "description": "0.0 = pure luck, 1.0 = pure skill. Declare explicitly — it shapes difficulty curve and feedback design."
+    },
+    "player_type_targets": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["achiever", "explorer", "socializer", "killer"]
+      },
+      "minItems": 1,
+      "maxItems": 2,
+      "description": "Bartle player types this game is designed for. Pick at most 2. 'Our game is for everyone' is a design failure."
+    },
+    "interaction_constraints": {
+      "type": "object",
+      "description": "Explicit declaration of how selection and target-matching work. Required for any game with selectable options and a numeric or positional target.",
+      "properties": {
+        "selection_rule": {
+          "type": "string",
+          "enum": [
+            "fixed_set_multi_select",
+            "reusable_multi_select",
+            "single_select",
+            "drag_to_position",
+            "free_input"
+          ],
+          "description": "fixed_set_multi_select: each option usable once, disappears when chosen. reusable_multi_select: same option selectable multiple times. single_select: one at a time, replaced each round."
+        },
+        "item_reuse_allowed": {
+          "type": "boolean",
+          "description": "Can the same option be selected more than once in a single round?"
+        },
+        "selected_items_disappear": {
+          "type": "boolean",
+          "description": "When an item is selected, does it visually leave the option pool?"
+        },
+        "target_must_be_solvable": {
+          "type": "boolean",
+          "description": "Must every generated target be reachable under the current selection_rule? Should almost always be true. False requires explicit justification."
+        },
+        "overshoot_recovery": {
+          "type": "string",
+          "enum": ["blocked", "undo_last", "reset_all", "none"],
+          "description": "blocked: prevent the action. undo_last: remove the offending item. reset_all: clear the slate. none: allow overshoot (only valid for non-exact games)."
+        },
+        "exact_match_required": {
+          "type": "boolean",
+          "description": "Must the player reach the target exactly, or is within-tolerance acceptable?"
+        }
+      },
+      "required": [
+        "selection_rule",
+        "item_reuse_allowed",
+        "selected_items_disappear",
+        "target_must_be_solvable",
+        "overshoot_recovery",
+        "exact_match_required"
+      ],
+      "additionalProperties": false
+    },
+    "difficulty_profile": {
+      "type": "object",
+      "description": "How pressure scales across the game. Level 1 should teach before it pressures.",
+      "properties": {
+        "curve_type": {
+          "type": "string",
+          "enum": ["smooth_ramp", "spike", "flat", "stepped"],
+          "description": "smooth_ramp: ideal. spike: dangerous — gate will flag. flat: boring — gate will warn."
+        },
+        "intro_pressure_level": {
+          "type": "string",
+          "enum": ["teaching", "low", "medium", "high"],
+          "description": "teaching: Level 1 has no meaningful time/motion pressure. low: minimal pressure. medium: moderate. high: full pressure from Level 1 — gate will revise."
+        },
+        "pressure_axes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["timer", "motion", "choice", "memory", "social"]
+          },
+          "minItems": 1,
+          "description": "Which pressure types are active simultaneously? Stacking 3+ on Level 1 is a design smell."
+        },
+        "level_1_teaching_window_seconds": {
+          "type": "number",
+          "minimum": 0,
+          "description": "How long does a player have to understand the loop before pressure becomes meaningful? Under 5 seconds on Level 1 is a red flag."
+        }
+      },
+      "required": [
+        "curve_type",
+        "intro_pressure_level",
+        "pressure_axes",
+        "level_1_teaching_window_seconds"
+      ],
+      "additionalProperties": false
     }
   },
   "required": [
