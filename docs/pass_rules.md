@@ -1,47 +1,363 @@
 # Pass Rules
 
-Non-negotiable rules for every pass in the Math Game Studio OS.
+This document defines the pass system for every game in the OS.
+
+The goal is to stop vague iteration and make each pass:
+- focused
+- measurable
+- reusable
+- easier to stop at the right time
+
+A pass is not just "another round of edits."
+A pass is one focused attempt to improve one class of problem.
 
 ---
 
-## A. Rules for Every Pass
+# Core Rules for Every Pass
 
-### 1. One bottleneck only
-Every pass must name one primary bottleneck. Not three. Not "improve the game." One.
+These rules apply to every pass, regardless of game or pass number.
 
-### 2. One type of improvement only
-Each pass belongs to one category: viability, motivation, difficulty tuning, personality, replay, or ship readiness. Do not mix categories unless the second change is absolutely required for the first to work.
+## 1. One bottleneck only
+Every pass must name one primary bottleneck.
 
-### 3. One proof of success
-Every pass must define one thing that would prove it worked. If there is no proof target, the pass is too vague.
+Examples:
+- level 4 combines too many demands
+- no corrective review at session end
+- success feels flat
+- the game still feels like a tool
+- replay has no reason
 
-### 4. One playtest question
-Each pass must end with one simple question: "Did this feel fairer?" or "Did this make the run worth finishing?" That keeps validation human and fast.
+If a pass is trying to fix three unrelated things, it is too wide.
 
-### 5. One artifact of learning
-Every pass should leave behind one small reusable artifact: a pass record, design lesson, engagement rule, or audit result. Otherwise the repo improves the game but not the OS.
+## 2. One category of improvement only
+Every pass should belong to one category:
+- viability
+- motivation
+- difficulty tuning
+- personality and feel
+- replay
+- release readiness
 
-### 6. No hidden second system
-If a pass secretly introduces a second system, stop. Adding stars plus changing pacing plus changing consequences is three passes, not one.
+Do not mix categories unless the second change is strictly required for the first.
 
-### 7. No pass without a stop rule
-Every pass must define what "done enough" means and what is explicitly out of scope.
+## 3. One proof target
+Every pass must define one thing that would prove it worked.
 
-### 8. Reuse before invention
-Before adding a new mechanic, check: does ATC, Grocery Dash, Bakery Rush, or Fire Dispatch already solve this?
+Examples:
+- new player reaches level 3 without confusion
+- player notices the bakery status strip
+- overshoot rate drops
+- session debrief gives a useful takeaway
+- player voluntarily replays immediately
 
-### 9. If the player cannot feel it, it probably does not matter yet
-A pass should improve something the player can actually notice: fairness, clarity, payoff, tension, replay value, or emotion.
+If there is no proof target, the pass is too vague.
 
-### 10. Every pass must increase clarity, stakes, payoff, or replay
-If it does none of those, it is probably not worth doing yet.
+## 4. One playtest question
+Every pass should end with one simple question.
 
-### 11. No pass is complete until you can say what changed in player feeling
-Not in code. Not in features. In player feeling.
+Examples:
+- Did this feel fairer?
+- Did this make the game more alive?
+- Did this make the run worth finishing?
+- Did this make failure easier to learn from?
+
+## 5. One reusable artifact
+Every pass should leave behind one reusable learning artifact.
+
+Examples:
+- pass record
+- audit document
+- design lesson
+- engagement rule
+- game-feel artifact
+
+If the game improves but the OS learns nothing, the pass is incomplete.
+
+## 6. No hidden second system
+Do not let one pass secretly introduce a second system.
+
+Examples of bad bundling:
+- stars plus pacing plus new penalties
+- tutorial plus reward economy
+- personality plus random events plus progression rewrite
+
+If the pass creates a second independent problem, split it.
+
+## 7. Every pass needs a stop rule
+Every pass must define:
+- what "done enough" means
+- what is out of scope
+
+Without a stop rule, passes sprawl.
+
+## 8. Reuse before invention
+Before adding a new mechanic or pattern, check:
+- does ATC Math Tower already solve this
+- does Grocery Dash already solve this
+- does Bakery Rush already solve this
+- does Fire Dispatch already solve this
+
+Prefer inheritance over novelty unless novelty is necessary.
+
+## 9. If the player cannot feel it, it is not the next priority
+A pass should improve something the player can actually notice:
+- clarity
+- stakes
+- payoff
+- replay
+- tension
+- emotion
+- fairness
+
+## 10. Every pass must improve one of these
+A pass should increase at least one:
+- clarity
+- stakes
+- payoff
+- fairness
+- replay
+- emotional distinctness
+
+If it improves none of these, it is likely too low priority.
 
 ---
 
-## B. Onboarding Rule (Applies to Every Game)
+# Pass Definitions
+
+---
+
+# P0
+
+## Purpose
+Prove the idea is worth building.
+
+## Main question
+Is there a real game here, or only an exercise with a costume?
+
+## Typical focus
+- role-to-math fit
+- loop concept
+- fantasy
+- stickiness potential
+
+## Exit criteria
+Move out of P0 when:
+- the role naturally carries the math
+- the loop can be explained in one sentence
+- the concept has one real reason it could be sticky
+- the game is worth prototyping
+
+## P0 rules
+1. The role must justify the math
+2. The loop must be sayable in one sentence
+3. There must be one reason this could be sticky beyond "it teaches math"
+
+---
+
+# P1
+
+## Purpose
+Prove the core loop is understandable, playable, and real.
+
+## Main question
+Can a player understand it, play it, and fail for understandable reasons?
+
+## Typical focus
+- onboarding
+- controls
+- first-use experience
+- basic pressure
+- basic consequence
+- loop clarity
+
+## Exit criteria
+Move out of P1 when:
+- the goal is clear quickly
+- the player can complete or fail a run for understandable reasons
+- the math is genuinely the action
+- the game is rough but playable
+- the next bottleneck is about quality, not confusion
+
+## P1 rules
+1. The first-use experience must produce one quick success
+2. Early failure must be understandable
+3. The game must test the intended skill, not the wrong skill
+4. Level 1 must teach, not perform
+5. New demands must be introduced one at a time
+
+---
+
+# P2A
+
+## Purpose
+Make the run matter.
+
+## Main question
+Why would the player care, learn from the session, or replay immediately?
+
+## Typical focus
+- stars
+- ratings
+- streaks
+- debrief
+- review
+- end-of-session payoff
+- visible mastery
+
+## Exit criteria
+Move out of P2A when:
+- the end of a run answers "How did I do?"
+- the end of a run answers "What should I improve?"
+- the player has a reason to replay immediately
+- passing and mastering do not feel the same
+
+## P2A rules
+1. Every run must answer "How did I do?"
+2. Every run must answer "What should I improve?"
+3. The player must have a reason to replay immediately
+4. Success quality must be differentiated
+
+---
+
+# P2B
+
+## Purpose
+Make the challenge fair, intentional, and well-shaped.
+
+## Main question
+Does the game challenge the right thing at the right time?
+
+## Typical focus
+- speed tuning
+- pacing
+- tolerance
+- progression walls
+- consequence tuning
+- level role clarity
+- pressure balancing
+
+## Exit criteria
+Move out of P2B when:
+- difficulty feels fair
+- speed does not overpower the intended math
+- levels have distinct jobs
+- new cognitive demands are introduced in teachable steps
+- frustration comes from challenge, not mismatch
+
+## P2B rules
+1. Difficulty must deepen the math before increasing speed
+2. The hardest level should test mastery, not surprise the player
+3. Near miss and real miss must feel different
+4. Every level must have one job
+5. Tuning must target behavior, not vague aesthetics
+6. New cognitive demand means lower speed or clutter
+
+---
+
+# P3
+
+## Purpose
+Make the game feel alive, specific, and memorable.
+
+## Main question
+Does this still feel like a tool, or does it now feel like a world?
+
+## Typical focus
+- personality
+- world reaction
+- humor
+- surprise
+- atmosphere
+- emotional punctuation
+- game feel
+- visual and motion pass
+
+## Exit criteria
+Move out of P3 when:
+- the game no longer feels generic or pasted-on
+- the world reacts
+- success and failure feel emotionally distinct
+- the player remembers moments, not just scores
+- charm does not reduce clarity
+
+## P3 rules
+1. The world must react
+2. Success and failure must have emotional punctuation
+3. The game should be memorable in moments, not just mechanics
+4. Theme must carry the math, not sit on top of it
+5. Personality must not create clutter
+
+---
+
+# P4
+
+## Purpose
+Make replay worth it.
+
+## Main question
+Why would someone return after already understanding the game?
+
+## Typical focus
+- variation
+- randomization
+- advanced goals
+- optimization
+- alternate pressure states
+- unlock depth
+- replay hooks
+
+## Exit criteria
+Move out of P4 when:
+- another run feels meaningfully different
+- replay supports mastery, not repetition
+- the player has visible return goals
+- correctness is not the only thing that matters
+
+## P4 rules
+1. Replay must produce meaningful variation
+2. The second run should feel different for a reason
+3. Mastery must have visible goals
+4. Optimization above correctness should exist when appropriate
+
+---
+
+# P5
+
+## Purpose
+Make the game ready to survive real classroom and platform use.
+
+## Main question
+Is this stable, teachable, and friction-light enough to release?
+
+## Typical focus
+- teacher controls
+- unlock codes
+- persistence
+- restart behavior
+- accessibility
+- launch simplicity
+- release readiness
+
+## Exit criteria
+Move out of P5 when:
+- launch is friction-light
+- teacher can explain it quickly
+- student can enter and retry easily
+- the game survives normal misuse
+- it is stable enough to share
+
+## P5 rules
+1. Launch must be friction-light
+2. There must be one admin shortcut
+3. The game must survive normal misuse
+4. A teacher should be able to explain it in under 30 seconds
+5. The release version must have one clear "why this game is worth using" statement
+
+---
+
+# Onboarding Rule
+
+Applies to every game regardless of pass.
 
 Every game must have a zero-confusion first-use experience. Before real pressure starts, the player must know:
 - what the goal is
@@ -57,85 +373,70 @@ The first-use experience must:
 
 ---
 
-## C. Rules by Pass
+# Fast Diagnostic: Which Pass Am I In?
 
-### P0 — Prove the idea
-
-| # | Rule |
+| Symptom | Pass |
 |---|---|
-| P0.1 | The role must justify the math — the operation must feel natural in the role |
-| P0.2 | The loop must be sayable in one sentence |
-| P0.3 | There must be one reason this idea could be sticky (urgency, tension, optimization, fantasy, surprise, movement, or mastery) — not just "it teaches math" |
-
-### P1 — Prove the loop
-
-| # | Rule |
-|---|---|
-| P1.1 | The first-use experience must produce one quick success |
-| P1.2 | Early failure must be understandable — if the player fails and cannot explain why, P1 is not done |
-| P1.3 | The game must test the intended skill, not the wrong skill |
-| P1.4 | Level 1 must teach, not perform — L1 is not there to impress |
-| P1.5 | New demands must be introduced one at a time — no level should add new representation + more speed + more clutter + new penalty simultaneously |
-
-### P2A — Make the run matter
-
-| # | Rule |
-|---|---|
-| P2A.1 | The end of a session must answer "How did I do?" — stars, rating, grade, or shift result |
-| P2A.2 | The end of a session must answer "What should I improve?" — debrief, receipt, missed facts, hardest demands |
-| P2A.3 | The player must have a reason to replay immediately — better stars, cleaner run, faster time, fewer misses |
-| P2A.4 | Success quality must be differentiated — barely passing and mastering should not feel the same |
-
-### P2B — Make the challenge fair
-
-| # | Rule |
-|---|---|
-| P2B.1 | Difficulty must deepen the math before it increases speed |
-| P2B.2 | The hardest level should test mastery, not surprise the player — walls are usually pacing mistakes |
-| P2B.3 | Near miss and real miss must feel different |
-| P2B.4 | Difficulty changes must be explainable — you should be able to say what each level's job is |
-| P2B.5 | Tuning must target behavior, not aesthetics — change pacing because it changes decisions |
-| P2B.6 | New cognitive demand means lower speed or clutter — do not add both at once |
-
-### P3 — Make it feel alive
-
-| # | Rule |
-|---|---|
-| P3.1 | The world must react — not just the score. Customers, fires, environment, world state. |
-| P3.2 | Success and failure must have emotional punctuation — relief, satisfaction, urgency, comeback energy |
-| P3.3 | The game must be rememberable in moments, not just mechanics — a customer, a near miss, a save |
-| P3.4 | Theme must carry the math, not sit on top of it — if it feels like a worksheet in costume, P3 is not done |
-| P3.5 | Personality must not add clutter — charm is good, noise is not |
-
-### P4 — Make replay worth it
-
-| # | Rule |
-|---|---|
-| P4.1 | Replay must produce meaningful variation — not just tiny random differences |
-| P4.2 | The second run should feel different from the first for a reason |
-| P4.3 | Mastery must have visible goals — perfect stars, zero overshoots, flawless runs |
-| P4.4 | Optimization should exist above correctness when appropriate — correct is good, optimal is sticky |
-
-### P5 — Make it ready to ship
-
-| # | Rule |
-|---|---|
-| P5.1 | Launch must be friction-light — teachers and students should not fight setup |
-| P5.2 | There must be one admin shortcut — unlock code, skip system, or level access |
-| P5.3 | The game must survive misuse — refreshes, restarts, confusion, repeated use |
-| P5.4 | The game must be explainable by a teacher in under 30 seconds |
-| P5.5 | The release version must have a short "why this game is worth using" statement |
+| The player is confused | P1 |
+| The player understands but does not care | P2A or P3 |
+| The player cares but the challenge feels unfair | P2B |
+| The player understands and the game works, but it still feels dead | P3 |
+| The player enjoys it once but does not want another run | P4 |
+| The game is good but annoying to launch, teach, or manage | P5 |
 
 ---
 
-## D. Quick Reference — Highest-Value Rules
+# Pass Naming Convention
 
-If you only follow a handful, follow these:
+Use these labels consistently:
 
-1. **One bottleneck only per pass** — improves efficiency immediately
-2. **Every pass needs one proof target** — improves judgment immediately
-3. **Every new level must have one job** — dramatically improves progression
-4. **New cognitive demand means lower speed or clutter** — reduces unfair spikes
-5. **Every P2A must answer "How did I do?" and "What should I improve?"** — strengthens learning
-6. **Every P3 must make the world react** — stops games from feeling like tools
-7. **Every P4 must create meaningful replay variation** — stops games from going stale
+- `Game Name P0`
+- `Game Name P1`
+- `Game Name P2A`
+- `Game Name P2B`
+- `Game Name P3`
+- `Game Name P4`
+- `Game Name P5`
+
+Examples:
+- Bakery Rush P2A
+- Fire Dispatch P1
+- Unit Circle P2B
+- ATC Math Tower P3
+
+Do not use vague labels like "next pass" unless the pass type is already obvious.
+
+---
+
+# Current Game Status
+
+| Game | P0 | P1 | P2A | P2B | P3 | P4 | P5 |
+|---|---|---|---|---|---|---|---|
+| Bakery Rush | done | done | done | done | done | — | — |
+| Fire Dispatch | done | done | done | done | done | — | — |
+| Unit Circle | done | done | done | done | — | — | — |
+
+**ATC Math Tower** — gold-standard mature reference game. Strongest reference for urgency, loop purity, teacher fit, and mastery structure.
+
+**Grocery Dash** — gold-standard mature reference game. Strongest reference for contextual math, consequence, optimization, and replay depth.
+
+---
+
+# Final Meta Rule
+
+## No pass is complete until you can say what changed in player feeling
+
+Not just what changed in code.
+Not just what changed in features.
+
+What changed in player feeling.
+
+Examples:
+- now the player understands the loop quickly
+- now the player feels the consequence
+- now the run feels worth finishing
+- now the game feels alive
+- now the challenge feels fair
+- now replay feels worthwhile
+
+If you cannot say what changed in player feeling, the pass is probably not finished.
