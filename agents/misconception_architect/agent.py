@@ -498,9 +498,135 @@ def _risk_matches_category(risk_text: str, category: str) -> bool:
 
 
 def _find_matching_risk(confusion_risks: List[str], category: str) -> Optional[str]:
-    """Return the first confusion-risk string that matches *category*, or None."""
+    """Keyword fallback: return the first confusion-risk string that matches
+    *category*, or None. Used when no LLM routing is available."""
     for risk in confusion_risks:
         if _risk_matches_category(risk, category):
+            return risk
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Semantic risk routing — batch route all risks to categories via LLM
+# ---------------------------------------------------------------------------
+
+def _prompt_for_risk_routing(
+    confusion_risks: List[str],
+    categories: List[str],
+    library_entries: Optional[Dict[str, Dict[str, str]]],
+) -> str:
+    """Build a prompt asking the model to route each brief risk to the best
+    matching error category, or mark it as unmatched."""
+    risks_block = "\n".join(
+        f"  {i+1}. \"{r}\"" for i, r in enumerate(confusion_risks)
+    )
+
+    # Include library entry labels so the model can match risks to what exists
+    cat_block_parts = []
+    for cat in categories:
+        lib_info = ""
+        if library_entries and cat in library_entries:
+            lib_info = f" — current entry: \"{library_entries[cat].get('label', 'N/A')}\""
+        cat_block_parts.append(f"  - {cat}{lib_info}")
+    cat_block = "\n".join(cat_block_parts)
+
+    return _textwrap.dedent(f"""\
+        You are a misconception analyst for a math learning game.
+
+        Route each confusion risk from a game brief to the single best-matching
+        error category. A risk should match a category if it describes the same
+        kind of learner error — even if it uses different words.
+
+        ## Error categories (with current library entry labels where available)
+        {cat_block}
+
+        ## Confusion risks from the brief
+        {risks_block}
+
+        ## Rules
+        - Each risk maps to exactly ONE category, or "unmatched" if none fit.
+        - A risk about a learner misunderstanding a game rule → rule_misunderstanding
+        - A risk about cognitive overload from too many simultaneous demands → strategic_overload
+        - A risk about confusing what a number represents → concept_confusion
+        - A risk about visual/icon confusion → representation_mismatch
+        - A risk about arithmetic errors or losing track → procedure_slip
+        - A risk about acting before thinking → impulsive_guess
+        - Only mark "unmatched" if the risk genuinely does not fit ANY category.
+
+        Return a JSON object mapping each risk string (exactly as written above)
+        to its category or "unmatched":
+        {{
+          "<risk text 1>": "<category_or_unmatched>",
+          "<risk text 2>": "<category_or_unmatched>",
+          ...
+        }}
+
+        Return ONLY the JSON object. No markdown fences, no other text.
+    """)
+
+
+def _route_risks_semantically(
+    confusion_risks: List[str],
+    categories: List[str],
+    library_entries: Optional[Dict[str, Dict[str, str]]],
+    gate_llm: Optional[Callable[[str], str]],
+) -> Dict[str, str]:
+    """Route brief risks to categories using semantic LLM comparison.
+
+    Returns a dict mapping each risk string to a category name or "unmatched".
+    Falls back to keyword matching if no LLM is available.
+    """
+    if not gate_llm or not confusion_risks:
+        # Keyword fallback: build mapping from existing logic
+        result: Dict[str, str] = {}
+        for risk in confusion_risks:
+            matched = False
+            for cat in categories:
+                if _risk_matches_category(risk, cat):
+                    result[risk] = cat
+                    matched = True
+                    break
+            if not matched:
+                result[risk] = "unmatched"
+        return result
+
+    prompt = _prompt_for_risk_routing(confusion_risks, categories, library_entries)
+    raw = _call_targeted_llm(gate_llm, prompt)
+
+    if not raw or "_error" in raw:
+        # LLM failed — fall back to keyword matching
+        return _route_risks_semantically(
+            confusion_risks, categories, library_entries, gate_llm=None,
+        )
+
+    # Validate the response: must map each risk to a known category or "unmatched"
+    valid_targets = set(categories) | {"unmatched"}
+    result = {}
+    for risk in confusion_risks:
+        assigned = raw.get(risk)
+        if assigned in valid_targets:
+            result[risk] = assigned
+        else:
+            # Model returned unknown key — try keyword fallback for this risk
+            matched = False
+            for cat in categories:
+                if _risk_matches_category(risk, cat):
+                    result[risk] = cat
+                    matched = True
+                    break
+            if not matched:
+                result[risk] = "unmatched"
+
+    return result
+
+
+def _find_matching_risk_from_routing(
+    routing: Dict[str, str],
+    category: str,
+) -> Optional[str]:
+    """Given a pre-computed routing map, find the first risk assigned to *category*."""
+    for risk, assigned_cat in routing.items():
+        if assigned_cat == category:
             return risk
     return None
 
@@ -599,8 +725,13 @@ def _diff_library_entry(
     interaction_type: str,
     family_name: str,
     gate_llm: Optional[Callable[[str], str]] = None,
+    risk_routing: Optional[Dict[str, str]] = None,
 ) -> Dict[str, Dict[str, Any]]:
     """Diff seeded library entries against the current brief's confusion risks.
+
+    Args:
+        risk_routing: Pre-computed mapping of risk text -> category (or "unmatched").
+                      When provided, used instead of _find_matching_risk.
 
     Returns a dict keyed by category, each value containing:
       - "action": "keep" | "revise" | "add"
@@ -622,7 +753,10 @@ def _diff_library_entry(
 
     for category in _SIX_CATEGORIES:
         lib_m = lib_by_cat.get(category)
-        matching_risk = _find_matching_risk(confusion_risks, category)
+        if risk_routing:
+            matching_risk = _find_matching_risk_from_routing(risk_routing, category)
+        else:
+            matching_risk = _find_matching_risk(confusion_risks, category)
 
         if lib_m is None:
             # Library has no entry for this category
@@ -1188,13 +1322,28 @@ def misconception_architect_stub(
     library_entry = _load_library_entry(repo_root, family_name, interaction_type)
     library_used = library_entry is not None
 
+    # --- Semantic risk routing (one batch call) ---
+    # Route all brief risks to categories using haiku, or fall back to keywords.
+    effective_gate = gate_llm or targeted_llm
+    lib_by_cat_for_routing: Optional[Dict[str, Dict[str, str]]] = None
+    if library_entry:
+        lib_by_cat_for_routing = {}
+        for m in library_entry.get("misconceptions", []):
+            cat = m.get("category")
+            if cat:
+                lib_by_cat_for_routing[cat] = m
+
+    risk_routing = _route_risks_semantically(
+        confusion_risks, _SIX_CATEGORIES, lib_by_cat_for_routing, effective_gate,
+    )
+
     # --- Diff-and-extend: compare library against current brief ---
     # Use gate_llm (cheap model) for keep-vs-revise decisions;
     # fall back to targeted_llm, then to keyword heuristic.
-    effective_gate = gate_llm or targeted_llm
     diff_results = _diff_library_entry(
         library_entry, confusion_risks, interaction_type, family_name,
         gate_llm=effective_gate,
+        risk_routing=risk_routing,
     )
 
     # --- Generate one entry per category ---
@@ -1234,13 +1383,11 @@ def misconception_architect_stub(
                         misconceptions[i] = result
                         llm_revised_categories.append(cat)
 
-        # 2. Find unmatched risks (risks not matched to any category)
-        matched_risks = set()
-        for cat in _SIX_CATEGORIES:
-            risk = _find_matching_risk(confusion_risks, cat)
-            if risk:
-                matched_risks.add(risk)
-        unmatched_risks = [r for r in confusion_risks if r not in matched_risks]
+        # 2. Find unmatched risks using the pre-computed routing
+        unmatched_risks = [
+            risk for risk, assigned in risk_routing.items()
+            if assigned == "unmatched"
+        ]
 
         covered_cats = [m["category"] for m in misconceptions]
         for risk in unmatched_risks:
