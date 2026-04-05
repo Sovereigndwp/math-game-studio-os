@@ -433,12 +433,16 @@
     const PASTRY_VALUES = { '🥐': 1, '🍩': 2, '🧁': 3, '🍰': 4, '🎂': 5 };
     const PASTRY_EMOJIS = Object.keys(PASTRY_VALUES);
 
+    // Ramp validated by difficulty_ramp_auditor.py (pass-1 audit, 2026-04-04)
+    // beltDuration steps: 33%, 33%, 25%, 33%  — all ≤ 35% max
+    // targetPoolMax steps: 25%, 20%, 25%, 20% — all ≤ 40% max
+    // patience steps:       10%, 17%, 20%, 17% — all ≤ 30% max
     const LEVEL_CONFIGS = [
-      { beltDuration: 9,   targetPool: [4,5,6,7,8],         patience: 20, scoreThreshold: 30   },
-      { beltDuration: 4,   targetPool: [5,6,7,8,10,12],      patience: 18, scoreThreshold: 70   },
-      { beltDuration: 3,   targetPool: [5,7,9,12,15],         patience: 15, scoreThreshold: 120  },
-      { beltDuration: 2.5, targetPool: [6,8,10,14,18],        patience: 12, scoreThreshold: 180  },
-      { beltDuration: 2,   targetPool: [8,10,12,16,20],        patience: 10, scoreThreshold: 9999 },
+      { beltDuration: 9,   targetPool: [4,5,6,7,8],        patience: 20, scoreThreshold: 30   },
+      { beltDuration: 6,   targetPool: [5,6,7,8,9,10],     patience: 18, scoreThreshold: 70   },
+      { beltDuration: 4,   targetPool: [5,7,9,10,12],      patience: 15, scoreThreshold: 120  },
+      { beltDuration: 3,   targetPool: [6,8,10,12,15],     patience: 12, scoreThreshold: 180  },
+      { beltDuration: 2,   targetPool: [7,9,11,14,18],     patience: 10, scoreThreshold: 9999 },
     ];
 
     const SUCCESS_MS   = 1200;
