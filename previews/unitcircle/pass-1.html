@@ -314,6 +314,25 @@
 
     const ADVANCE_MS = 1800;
     const ROUNDS_PER_SESSION = ROUND_CONFIGS.length;
+    const MAX_LIVES = 3;
+
+    // Per-tier time limits (seconds)
+    const TIER_TIME = { 1: 20, 2: 15, 3: 10 };
+    function getTier(roundIndex) {
+      if (roundIndex < 4) return 1;
+      if (roundIndex < 10) return 2;
+      return 3;
+    }
+    function getTimeLimit(roundIndex) {
+      return TIER_TIME[getTier(roundIndex)];
+    }
+
+    // Tutorial steps
+    const TUTORIAL_STEPS = [
+      { title: 'THE UNIT CIRCLE', body: 'This is a circle where every point represents an angle.\nThe labels show 0°, 90°, 180°, 270° — the four main directions.', icon: '🔵' },
+      { title: 'PLACE YOUR TOPPING', body: 'Click anywhere on the circle to place your topping.\nTry to match the angle shown in the prompt.\nThe closer you are, the better your score.', icon: '🍕' },
+      { title: 'TIMER & LIVES', body: 'Each round has a timer. If you run out of time, you lose a life.\nMissing badly also costs a life. You have 3 lives total.\nClose placements get a free retry!', icon: '⏱️' },
+    ];
 
     // ─── Helpers ─────────────────────────────────────────────────────────────
 
@@ -617,6 +636,8 @@
     // ─── UnitCirclePrototype (root) ──────────────────────────────────────────
 
     function UnitCirclePrototype() {
+      const [screen,          setScreen]          = useState('tutorial'); // 'tutorial' | 'playing' | 'gameover' | 'complete'
+      const [tutorialStep,    setTutorialStep]    = useState(0);
       const [roundIndex,      setRoundIndex]      = useState(0);
       const [currentAngleDeg, setCurrentAngleDeg] = useState(0);
       const [toppingPlaced,   setToppingPlaced]   = useState(false);
@@ -625,10 +646,10 @@
       const [score,           setScore]            = useState(0);
       const [streak,          setStreak]           = useState(0);
       const [sessionComplete, setSessionComplete]  = useState(false);
-      // retryState: null → no retry; 'offered' → showing "Try Again" button;
-      // 'active' → player clicked Try Again and is placing a second topping
-      // Ghost stays visible in both 'offered' and 'active' states
-      const [retryState,      setRetryState]      = useState(null); // null | 'offered' | 'active'
+      const [lives,           setLives]           = useState(MAX_LIVES);
+      const [timeLeft,        setTimeLeft]        = useState(getTimeLimit(0));
+      const [retryState,      setRetryState]      = useState(null);
+      const submittedRef = useRef(false);
 
       const currentRound   = ROUND_CONFIGS[roundIndex];
       const targetAngleDeg = currentRound.targetAngleDeg;
@@ -641,6 +662,34 @@
                                 || retryState === 'offered'
                                 || retryState === 'active';
 
+      // Keep ref in sync for timer callback
+      submittedRef.current = submitted;
+
+      // Timer
+      useEffect(() => {
+        if (screen !== 'playing' || submitted || retryState === 'offered') return;
+        if (timeLeft <= 0) {
+          // Timeout = miss
+          setLives(prev => {
+            const next = prev - 1;
+            if (next <= 0) {
+              setScreen('gameover');
+            }
+            return next;
+          });
+          setStreak(0);
+          setSubmitted(true);
+          setFeedbackMode('miss');
+          setRetryState(null);
+          setTimeout(advanceRound, ADVANCE_MS);
+          return;
+        }
+        const id = setTimeout(() => {
+          if (!submittedRef.current) setTimeLeft(t => t - 1);
+        }, 1000);
+        return () => clearTimeout(id);
+      }, [screen, timeLeft, submitted, retryState]);
+
       const handleAngleChange = useCallback((deg) => {
         if (submitted) return;
         setCurrentAngleDeg(deg);
@@ -649,17 +698,21 @@
       }, [submitted]);
 
       const advanceRound = useCallback(() => {
+        if (lives <= 0) { setScreen('gameover'); return; }
         if (roundIndex < ROUNDS_PER_SESSION - 1) {
-          setRoundIndex(i => i + 1);
+          const nextIdx = roundIndex + 1;
+          setRoundIndex(nextIdx);
           setCurrentAngleDeg(0);
           setToppingPlaced(false);
           setSubmitted(false);
           setFeedbackMode(null);
           setRetryState(null);
+          setTimeLeft(getTimeLimit(nextIdx));
         } else {
           setSessionComplete(true);
+          setScreen('complete');
         }
-      }, [roundIndex]);
+      }, [roundIndex, lives]);
 
       const handleSubmit = useCallback(() => {
         if (!toppingPlaced || submitted) return;
@@ -676,6 +729,11 @@
         } else {
           mode = 'miss';
           setStreak(0);
+          setLives(prev => {
+            const next = prev - 1;
+            if (next <= 0) setTimeout(() => setScreen('gameover'), ADVANCE_MS);
+            return next;
+          });
         }
         setSubmitted(true);
         setFeedbackMode(mode);
@@ -708,9 +766,53 @@
         setStreak(0);
         setSessionComplete(false);
         setRetryState(null);
+        setLives(MAX_LIVES);
+        setTimeLeft(getTimeLimit(0));
+        setScreen('playing');
       };
 
-      if (sessionComplete) {
+      // ── Tutorial ──
+      if (screen === 'tutorial') {
+        const step = TUTORIAL_STEPS[tutorialStep];
+        return (
+          <div className="pizza-lab" style={{ justifyContent: 'center' }}>
+            <div className="session-complete" style={{ maxWidth: 380 }}>
+              <div style={{ fontSize: '2.5rem' }}>{step.icon}</div>
+              <h2 style={{ fontSize: '1.3rem' }}>{step.title}</h2>
+              <p style={{ whiteSpace: 'pre-line', lineHeight: 1.7 }}>{step.body}</p>
+              <div style={{ fontSize: 11, color: '#9ca3af' }}>Step {tutorialStep + 1} / {TUTORIAL_STEPS.length}</div>
+              <button className="restart-btn" onClick={() => {
+                if (tutorialStep < TUTORIAL_STEPS.length - 1) {
+                  setTutorialStep(tutorialStep + 1);
+                } else {
+                  setScreen('playing');
+                  setTimeLeft(getTimeLimit(0));
+                }
+              }}>
+                {tutorialStep < TUTORIAL_STEPS.length - 1 ? 'Next →' : 'Start Placing! 🍕'}
+              </button>
+            </div>
+          </div>
+        );
+      }
+
+      // ── Game Over ──
+      if (screen === 'gameover') {
+        return (
+          <div className="pizza-lab" style={{ justifyContent: 'center' }}>
+            <div className="session-complete">
+              <div style={{ fontSize: '2.5rem' }}>😔</div>
+              <h2>Out of Lives!</h2>
+              <div className="final-score">{score}/{roundIndex + 1}</div>
+              <p>You reached round {roundIndex + 1} and placed {score} toppings correctly.</p>
+              <button className="restart-btn" onClick={handleRestart}>Try Again</button>
+            </div>
+          </div>
+        );
+      }
+
+      // ── Complete ──
+      if (screen === 'complete' || sessionComplete) {
         return (
           <div className="pizza-lab" style={{ justifyContent: 'center' }}>
             <div className="session-complete">
@@ -718,22 +820,41 @@
               <h2>Pizza Lab Complete!</h2>
               <div className="final-score">{score}/{ROUNDS_PER_SESSION}</div>
               <p>You placed {score} toppings correctly across {ROUNDS_PER_SESSION} rounds.</p>
+              <p style={{ fontSize: '0.85rem', color: '#6b7280' }}>Lives remaining: {'❤️'.repeat(lives) + '🖤'.repeat(MAX_LIVES - lives)}</p>
               <button className="restart-btn" onClick={handleRestart}>Play Again</button>
             </div>
           </div>
         );
       }
 
+      // ── Playing ──
+      const livesDisplay = '❤️'.repeat(lives) + '🖤'.repeat(MAX_LIVES - lives);
+      const timerPct = (timeLeft / getTimeLimit(roundIndex)) * 100;
+      const timerUrgent = timeLeft <= 5;
+
       return (
         <div className="pizza-lab">
-          <div className="lab-title">🍕 Unit Circle Pizza Lab — Pass 1</div>
+          <div className="lab-title">🍕 Unit Circle Pizza Lab</div>
 
           {/* HUD */}
           <div className="session-hud">
             <span className="round-counter">Round {roundIndex + 1} / {ROUNDS_PER_SESSION}</span>
+            <span style={{ fontSize: '1rem' }}>{livesDisplay}</span>
             <span className="session-score">Score: {score}</span>
             {streak >= 2 && <span className="streak-badge">🔥 {streak} streak</span>}
           </div>
+
+          {/* Timer bar */}
+          <div style={{ width: '100%', maxWidth: 320, height: 6, background: '#e5e7eb', borderRadius: 3, overflow: 'hidden' }}>
+            <div style={{
+              width: `${timerPct}%`,
+              height: '100%',
+              background: timerUrgent ? '#ef4444' : timerPct > 50 ? '#22c55e' : '#f59e0b',
+              transition: 'width 1s linear, background 0.3s',
+              borderRadius: 3,
+            }} />
+          </div>
+          {timerUrgent && <div style={{ fontSize: 11, color: '#ef4444', fontWeight: 700 }}>⏱️ {timeLeft}s remaining!</div>}
 
           {/* Order */}
           <OrderPanel
