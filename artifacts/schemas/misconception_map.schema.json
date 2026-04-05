@@ -1,0 +1,157 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "misconception_map",
+  "description": "Pipeline artifact produced by the Misconception Architect for a game in active design. Captures predicted learner error patterns before the prototype is built. Gate threshold: >= 3 entries with all required fields populated. See docs/os_spec_2026.md Section 4.1.",
+  "type": "object",
+  "required": [
+    "job_id",
+    "artifact_name",
+    "version",
+    "produced_by",
+    "timestamp",
+    "status",
+    "game_family",
+    "interaction_type",
+    "source_confusion_risks",
+    "library_reference_used",
+    "gate_threshold_met",
+    "valid_misconception_count",
+    "misconceptions",
+    "notes"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "job_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "artifact_name": {
+      "type": "string",
+      "const": "misconception_map"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "produced_by": {
+      "type": "string",
+      "const": "Misconception Architect"
+    },
+    "timestamp": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": ["pass", "revise", "reject"]
+    },
+    "game_family": {
+      "type": "string",
+      "description": "Interaction family name, e.g. 'Bakery Rush'. From family_architecture_brief.family_name."
+    },
+    "interaction_type": {
+      "type": "string",
+      "enum": [
+        "combine_and_build",
+        "route_and_dispatch",
+        "allocate_and_balance",
+        "transform_and_manipulate",
+        "navigate_and_position",
+        "sequence_and_predict"
+      ],
+      "description": "Primary interaction type driving the misconception predictions."
+    },
+    "source_confusion_risks": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "The expected_confusion_risks array from lowest_viable_loop_brief, used as primary seed."
+    },
+    "library_reference_used": {
+      "type": "boolean",
+      "description": "True if an existing artifacts/misconception_library/ entry was cross-referenced."
+    },
+    "gate_threshold_met": {
+      "type": "boolean",
+      "description": "True if >= 3 misconceptions have all required fields. Pipeline gate requires true to advance."
+    },
+    "valid_misconception_count": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Count of misconceptions with all 9 required fields populated."
+    },
+    "misconceptions": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Predicted misconceptions covering all six error categories. Should cover procedure_slip, concept_confusion, representation_mismatch, impulsive_guess, rule_misunderstanding, strategic_overload.",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "category",
+          "label",
+          "description",
+          "likely_cause",
+          "how_it_appears_in_play",
+          "detection_signal",
+          "best_feedback_response",
+          "best_clean_replay_task",
+          "reflection_prompt"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9_-]+$"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "procedure_slip",
+              "concept_confusion",
+              "representation_mismatch",
+              "impulsive_guess",
+              "rule_misunderstanding",
+              "strategic_overload"
+            ]
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "type": "string",
+            "minLength": 10
+          },
+          "likely_cause": {
+            "type": "string",
+            "minLength": 10
+          },
+          "how_it_appears_in_play": {
+            "type": "string",
+            "minLength": 10
+          },
+          "detection_signal": {
+            "type": "string",
+            "minLength": 5
+          },
+          "best_feedback_response": {
+            "type": "string",
+            "minLength": 10
+          },
+          "best_clean_replay_task": {
+            "type": "string",
+            "minLength": 10
+          },
+          "reflection_prompt": {
+            "type": "string",
+            "minLength": 10
+          }
+        }
+      }
+    },
+    "notes": {
+      "type": "string",
+      "description": "Agent reasoning, library cross-reference results, or warnings about coverage gaps."
+    }
+  }
+}
