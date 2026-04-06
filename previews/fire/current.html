@@ -662,16 +662,32 @@
       return [...reachable].filter(s => s >= lo && s <= hi);
     }
 
-    function generateIncident(levelConfig) {
-      const solvable = getSolvableDemands(levelConfig);
+    function generateIncident(levelConfig, lvlIdx) {
+      // P2B: at L3+ (index >= 2), exclude one truck per incident to break constant-total shortcut
+      let trucksForCall = levelConfig.trucksAvailable;
+      let excludedTruckId = null;
+      if (lvlIdx >= 2 && levelConfig.trucksAvailable.length >= 5) {
+        // L5 (index 4): only exclude small trucks to keep enough solvable demands
+        const excludable = lvlIdx >= 4
+          ? ['ladder', 'ambulance']
+          : levelConfig.trucksAvailable;
+        excludedTruckId = randPick(excludable);
+        trucksForCall = levelConfig.trucksAvailable.filter(id => id !== excludedTruckId);
+      }
+
+      // Generate demand from the per-incident truck subset
+      const incidentConfig = { ...levelConfig, trucksAvailable: trucksForCall };
+      const solvable = getSolvableDemands(incidentConfig);
       const demand   = solvable.length > 0
         ? solvable[Math.floor(Math.random() * solvable.length)]
-        : levelConfig.demandRange[0]; // fallback — should never be needed
+        : levelConfig.demandRange[0];
       const base = randPick(INCIDENTS);
       return {
         ...base,
         demandValue: demand,
         urgency: Math.random() < 0.33 ? 'high' : Math.random() < 0.5 ? 'medium' : 'low',
+        trucksForCall,
+        excludedTruckId,
       };
     }
 
@@ -731,31 +747,40 @@
     }
 
     /* ─────────────────── TruckYard ─────────────────── */
-    function TruckYard({ trucks, onTruckToggle, shakingId }) {
+    function TruckYard({ trucks, onTruckToggle, shakingId, excludedTruck }) {
       return (
         <div className="truck-yard">
           <div className="yard-heading">Available Units — tap to dispatch</div>
           <div className="truck-grid">
-            {trucks.length === 0
+            {trucks.length === 0 && !excludedTruck
               ? <span style={{ color: '#64748b', fontSize: 13, fontStyle: 'italic' }}>All units queued ↑</span>
-              : trucks.map(truck => {
-                  const shaking  = shakingId === truck.id;
-                  const cardClass = `truck-card${shaking ? ' truck-blocked' : ''}`;
-                  return (
-                    <div
-                      key={truck.id}
-                      className={cardClass}
-                      onClick={() => onTruckToggle(truck.id)}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') onTruckToggle(truck.id); }}
-                    >
-                      <span className="truck-emoji">{truck.emoji}</span>
-                      <div className="truck-label">{truck.label}</div>
-                      <span className="truck-capacity">🔥 +{truck.fireCapacity}</span>
+              : <>
+                  {trucks.map(truck => {
+                    const shaking  = shakingId === truck.id;
+                    const cardClass = `truck-card${shaking ? ' truck-blocked' : ''}`;
+                    return (
+                      <div
+                        key={truck.id}
+                        className={cardClass}
+                        onClick={() => onTruckToggle(truck.id)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') onTruckToggle(truck.id); }}
+                      >
+                        <span className="truck-emoji">{truck.emoji}</span>
+                        <div className="truck-label">{truck.label}</div>
+                        <span className="truck-capacity">🔥 +{truck.fireCapacity}</span>
+                      </div>
+                    );
+                  })}
+                  {excludedTruck && (
+                    <div className="truck-card" style={{ opacity: 0.3, cursor: 'not-allowed', position: 'relative' }}>
+                      <span className="truck-emoji">{excludedTruck.emoji}</span>
+                      <div className="truck-label">{excludedTruck.label}</div>
+                      <span style={{ fontSize: 9, color: '#94a3b8', fontStyle: 'italic' }}>on another call</span>
                     </div>
-                  );
-                })
+                  )}
+                </>
             }
           </div>
         </div>
@@ -989,7 +1014,12 @@
       const tutorialConfig  = tutorialActive ? TUTORIAL_STEPS[tutorialStep] : null;
       const activeTruckIds  = tutorialActive
         ? tutorialConfig.trucksAvailable
-        : currentLevel.trucksAvailable;
+        : (currentIncident && currentIncident.trucksForCall)
+          ? currentIncident.trucksForCall
+          : currentLevel.trucksAvailable;
+      const excludedTruck   = (!tutorialActive && currentIncident && currentIncident.excludedTruckId)
+        ? truckById(currentIncident.excludedTruckId)
+        : null;
       const availableTrucks = TRUCK_TYPES.filter(t => activeTruckIds.includes(t.id));
       // trucks visible in the yard = available minus those already queued on the board
       const yardTrucks      = availableTrucks.filter(t => !dispatched.includes(t.id));
@@ -1008,7 +1038,7 @@
       /* init incident */
       const spawnIncident = useCallback((lvlIdx) => {
         const lvl = LEVEL_CONFIGS[lvlIdx];
-        setCurrentIncident(generateIncident(lvl));
+        setCurrentIncident(generateIncident(lvl, lvlIdx));
         setDispatched([]);
         setTotalCapacity(0);
         setTimeLeft(lvl.timeLimit);
@@ -1381,6 +1411,7 @@
             trucks={yardTrucks}
             onTruckToggle={handleTruckToggle}
             shakingId={shakingId}
+            excludedTruck={excludedTruck}
           />
 
           {/* Dispatch button */}
