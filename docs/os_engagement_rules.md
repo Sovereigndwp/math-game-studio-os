@@ -122,6 +122,22 @@ at the current pressure level before the next element appears.
 
 *Grocery Dash: L1-L3 learn the loop (no NPCs). L4 adds NPCs + distractors. L5 increases scaling. L6 adds another NPC. One thing per step across 12 levels.*
 
+### Rule 16 — Scoring Must Signal What Matters Most
+The scoring hierarchy should explicitly teach the player which action is most
+important. If math is the core skill, the math action must be worth more points
+than any other action. The player should be able to read the scoring table and
+know what the game values most — without being told in words.
+
+*ATC: correct math = +100, successful dispatch = +40. The numbers teach: math is the point, dispatch is the vehicle. A player who solves perfectly but dispatches slowly still outscores a player who dispatches fast but answers wrong.*
+
+### Rule 17 — Neglect Must Cost Catastrophically More Than Honest Mistakes
+A wrong answer should be cheap and recoverable. Ignoring a problem entirely
+(plane aborts, customer leaves, timer expires with no attempt) should cost
+many times more. This teaches self-correction without punishing exploration,
+while making total inaction unacceptable.
+
+*ATC: wrong answer = -20 (recoverable, 1/5 of a correct). Plane aborted from neglect = -200 (catastrophic, 10x a wrong answer). The penalty structure teaches: try and fail is fine, ignore and lose is not.*
+
 ---
 
 ## 3. Urgency and Pressure Patterns
