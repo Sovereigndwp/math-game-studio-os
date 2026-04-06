@@ -49,10 +49,15 @@ Every game follows the same three-pass structure. A new pass file is created onl
 ```
 previews/
   [game-name]/
-    pass-1.html     ← core loop proof
-    pass-2.html     ← pressure and progression proof
-    pass-3.html     ← UI, feedback, and feel proof
+    current.html    ← live playable version (always the latest)
+    pass-3.html     ← frozen P3 snapshot (historical checkpoint)
 ```
+
+### Naming rule
+
+- `current.html` is the **source of truth** — all new fixes and passes go here
+- `pass-N.html` files are **frozen snapshots** created only when you need a historical checkpoint
+- History lives in pass records, scorecards, and git — not in filename proliferation
 
 ---
 
@@ -60,11 +65,24 @@ previews/
 
 ### bakery/
 
-| File | Pass | What it proves |
-|------|------|----------------|
-| `pass-1.html` | Core loop | Count-matching loop · customer character · flying pastry arc · full-screen feedback overlay |
-| `pass-2.html` | Pressure + progression | Moving conveyor belt · 5 unlockable shifts · lives · patience timer · streak bonuses · score thresholds |
-| `pass-3.html` | Feel + UI layer | Customer character reaction on success · scale-in full-screen overlay · arc animation from belt to box · stronger reward rhythm |
+| File | Role |
+|------|------|
+| `current.html` | Live playable version (P3: chef character, status strip, tiered celebration) |
+| `pass-3.html` | Frozen P3 checkpoint |
+
+### fire/
+
+| File | Role |
+|------|------|
+| `current.html` | Live playable version (P3: incident personality, dispatch status strip, L5 victory) |
+| `pass-3.html` | Frozen P3 checkpoint |
+
+### unitcircle/
+
+| File | Role |
+|------|------|
+| `current.html` | Live playable version (P3: Chef Cosina, lab status strip, tiered celebration) |
+| `pass-3.html` | Frozen P3 checkpoint |
 
 ---
 
@@ -76,8 +94,8 @@ These files are the output of **Phase D: Playable Pass Generation** in the pipel
 Phase A  →  Idea intake          (Stages 0–5)
 Phase B  →  Prototype shaping    (Stages 6–8)
 Phase C  →  Implementation       (Stages 9–10)
-Phase D  →  Playable passes      previews/[game]/pass-N.html
+Phase D  →  Playable passes      previews/[game]/current.html
 Phase E  →  Improvement loop     playtest_diagnostic → revision_brief → next patch
 ```
 
-Each pass file corresponds to one completed `implementation_patch_plan` artifact from Stage 10.
+Each game's `current.html` reflects the latest completed pass.
