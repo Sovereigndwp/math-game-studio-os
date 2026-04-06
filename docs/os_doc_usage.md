@@ -23,6 +23,12 @@ Tell the workflow which OS document to consult for which kind of task.
 
 ## Document Router
 
+### "Is this game ready to build?" (before implementation)
+→ `docs/game_experience_spec.md` — core fantasy, feelings, stickiness, memorable moments, failure modes
+
+### "Will this game be boring?" (before implementation)
+→ `docs/delight_gate.md` — surprise, delight, personality, success quality, failure interest, tell-a-friend test
+
 ### "What pass am I in?" / "What are the rules for this pass?"
 → `docs/pass_rules.md` — pass labels, diagnostic table, non-negotiable constraints, exit criteria, per-pass rules
 
@@ -56,7 +62,9 @@ Tell the workflow which OS document to consult for which kind of task.
 
 When multiple docs seem relevant, consult in this order:
 
-1. **pass_rules.md** — am I following the rules for this pass type?
+1. **game_experience_spec.md** — has the experience been designed? (new games only)
+2. **delight_gate.md** — will it be wonderful, not just correct? (new games only)
+3. **pass_rules.md** — am I following the rules for this pass type?
 2. **pass_fail_scorecard.md** — how will I know if this pass worked?
 3. **engagement_failure_modes.md** — what specific problem am I fixing?
 4. **level_role_map.md** — is the progression well-shaped? (P2B only)
