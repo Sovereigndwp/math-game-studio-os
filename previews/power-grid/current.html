@@ -8,73 +8,107 @@
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <style>
-  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-  body{background:#0a0f1a;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;display:flex;justify-content:center;padding:16px}
-  #root{width:100%;max-width:560px}
-  .g{display:flex;flex-direction:column;align-items:center;gap:14px}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:#0a0f1a;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;display:flex;justify-content:center;padding:16px}
+#root{width:100%;max-width:640px}
+.g{display:flex;flex-direction:column;align-items:center;gap:12px}
 
-  .hud{display:flex;justify-content:space-between;align-items:center;width:100%;padding:10px 16px;background:rgba(10,20,40,.95);border:1px solid #1e3a5f;border-radius:10px}
-  .hud-t{font-size:14px;font-weight:700;color:#22c55e;letter-spacing:2px;text-transform:uppercase;text-shadow:0 0 8px rgba(34,197,94,.4)}
-  .hs{font-size:12px;color:#94a3b8}.hs span{color:#fbbf24;font-weight:700;font-size:16px}
+/* HUD */
+.hud{display:flex;justify-content:space-between;align-items:center;width:100%;padding:8px 16px;background:rgba(10,20,40,.95);border:1px solid #1e3a5f;border-radius:10px}
+.hud-t{font-size:13px;font-weight:700;color:#22c55e;letter-spacing:2px;text-transform:uppercase;text-shadow:0 0 8px rgba(34,197,94,.4)}
+.hs{font-size:12px;color:#94a3b8}.hs span{color:#fbbf24;font-weight:700;font-size:15px}
 
-  .strip{text-align:center;font-size:13px;padding:6px 16px;border-radius:999px;background:rgba(10,20,40,.8);border:1px solid #1e3a5f;font-weight:600}
-  .radio{font-size:11px;text-align:center;min-height:16px;font-weight:600}
+.strip{text-align:center;font-size:12px;padding:5px 14px;border-radius:999px;background:rgba(10,20,40,.8);border:1px solid #1e3a5f;font-weight:600}
+.radio{font-size:11px;text-align:center;min-height:14px;font-weight:600}
 
-  .pool{width:100%;padding:12px 16px;background:rgba(15,25,45,.95);border:2px solid #3b82f6;border-radius:12px;text-align:center}
-  .pool-label{font-size:11px;color:#3b82f6;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:4px}
-  .pool-val{font-size:28px;font-weight:900;color:#3b82f6;text-shadow:0 0 12px rgba(59,130,246,.4)}
-  .pool-val.low{color:#f59e0b;text-shadow:0 0 12px rgba(245,158,11,.4)}
-  .pool-val.empty{color:#ef4444;text-shadow:0 0 12px rgba(239,68,68,.4)}
-  .pool-sub{font-size:11px;color:#64748b;margin-top:2px}
+/* ── GRID LAYOUT ── */
+.grid-layout{width:100%;display:flex;flex-direction:column;align-items:center;gap:0}
 
-  .d{background:rgba(15,25,45,.95);border:2px solid #1e3a5f;border-radius:14px;padding:16px 20px;width:100%;transition:all .4s}
-  .d.powered{border-color:#22c55e;box-shadow:0 0 20px rgba(34,197,94,.2)}
-  .d.brownout{border-color:#f59e0b;box-shadow:0 0 16px rgba(245,158,11,.15);animation:flicker 1.5s ease-in-out infinite}
-  .d.blackout{border-color:#ef4444;box-shadow:0 0 16px rgba(239,68,68,.15);opacity:.5}
-  @keyframes flicker{0%,100%{opacity:1}50%{opacity:.7}}
+/* Reserve (top center) */
+.reserve{width:280px;padding:14px 20px;background:rgba(10,20,50,.95);border:2px solid #3b82f6;border-radius:14px;text-align:center;position:relative;z-index:2}
+.reserve-label{font-size:10px;color:#3b82f6;letter-spacing:2px;text-transform:uppercase;font-weight:700}
+.reserve-icon{font-size:28px;margin:4px 0}
+.reserve-val{font-size:32px;font-weight:900;letter-spacing:2px;transition:color .3s}
+.reserve-bar{width:100%;height:10px;background:#1e293b;border-radius:5px;overflow:hidden;margin:6px 0}
+.reserve-fill{height:100%;border-radius:5px;transition:width .6s ease-out,background .3s}
+.reserve-sub{font-size:10px;color:#64748b}
 
-  .d-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
-  .d-name{font-size:16px;font-weight:700}
-  .badge{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:2px 8px;border-radius:4px;margin-left:6px}
-  .badge.crit{background:rgba(239,68,68,.15);color:#ef4444}
-  .badge.std{background:rgba(245,158,11,.15);color:#f59e0b}
-  .badge.ok{background:rgba(34,197,94,.15);color:#22c55e}
-  .badge.dark{background:rgba(239,68,68,.15);color:#ef4444}
+/* Connectors */
+.connectors{display:flex;justify-content:center;width:100%;height:40px;position:relative}
+.conn-left,.conn-right{position:absolute;top:0;width:2px;height:40px}
+.conn-left{left:calc(25% + 10px);background:linear-gradient(to bottom,#334155,#334155)}
+.conn-right{right:calc(25% + 10px);background:linear-gradient(to bottom,#334155,#334155)}
+.conn-left.active{background:linear-gradient(to bottom,#22c55e,#22c55e);box-shadow:0 0 8px rgba(34,197,94,.4);animation:pulse .8s ease-out}
+.conn-right.active{background:linear-gradient(to bottom,#22c55e,#22c55e);box-shadow:0 0 8px rgba(34,197,94,.4);animation:pulse .8s ease-out}
+.conn-left.partial{background:linear-gradient(to bottom,#f59e0b,#f59e0b);box-shadow:0 0 6px rgba(245,158,11,.3)}
+.conn-right.partial{background:linear-gradient(to bottom,#f59e0b,#f59e0b);box-shadow:0 0 6px rgba(245,158,11,.3)}
+/* Branch splits */
+.branch-split{width:calc(50% - 20px);height:2px;position:absolute;top:0}
+.branch-split.left{left:calc(25% + 10px);background:#334155}
+.branch-split.right{right:calc(25% + 10px);background:#334155}
+/* Vertical from center */
+.conn-trunk{position:absolute;left:50%;top:-2px;width:2px;height:12px;background:#334155;transform:translateX(-1px)}
+@keyframes pulse{0%{box-shadow:0 0 16px rgba(34,197,94,.6)}100%{box-shadow:0 0 4px rgba(34,197,94,.2)}}
 
-  .bar{height:4px;background:#1e293b;border-radius:2px;overflow:hidden;margin:4px 0}
-  .bar-fill{height:100%;border-radius:2px;transition:width 1s linear,background .3s}
+/* Districts (bottom row) */
+.districts{display:flex;gap:12px;width:100%}
+.d{flex:1;background:rgba(15,25,45,.95);border:2px solid #1e3a5f;border-radius:14px;padding:14px 16px;transition:all .4s;min-width:0}
+.d.powered{border-color:#22c55e;box-shadow:0 0 20px rgba(34,197,94,.2)}
+.d.brownout{border-color:#f59e0b;box-shadow:0 0 16px rgba(245,158,11,.15);animation:flicker 1.5s ease-in-out infinite}
+.d.blackout{border-color:#ef4444;box-shadow:0 0 16px rgba(239,68,68,.15);opacity:.45}
+@keyframes flicker{0%,100%{opacity:1}50%{opacity:.7}}
 
-  .meter{display:flex;justify-content:space-between;font-size:12px;margin:4px 0}
-  .meter .lbl{color:#64748b}.meter .val{font-weight:700}
+.d-name{font-size:15px;font-weight:700;margin-bottom:2px}
+.badge{font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:2px 6px;border-radius:4px;display:inline-block;margin-bottom:6px}
+.badge.crit{background:rgba(239,68,68,.15);color:#ef4444}
+.badge.std{background:rgba(245,158,11,.15);color:#f59e0b}
+.badge.ok{background:rgba(34,197,94,.15);color:#22c55e}
+.badge.dark{background:rgba(239,68,68,.15);color:#ef4444}
 
-  .eq{background:#0f1729;border:1px solid #1e3a5f;border-radius:10px;padding:12px;margin:8px 0;text-align:center}
-  .eq-text{font-size:22px;font-weight:800;letter-spacing:2px}
-  .eq-text .x{color:#fbbf24;text-shadow:0 0 8px rgba(251,191,36,.4)}
-  .eq-hint{font-size:11px;color:#64748b;margin-top:4px}
-  .solve-row{display:flex;gap:8px;align-items:center;justify-content:center;margin-top:8px}
-  .si{width:80px;padding:8px 12px;font-size:18px;font-weight:700;text-align:center;background:#0a0f1a;border:2px solid #334155;border-radius:8px;color:#fbbf24;outline:none}
-  .si:focus{border-color:#fbbf24;box-shadow:0 0 8px rgba(251,191,36,.3)}
-  .sb{padding:8px 20px;font-size:14px;font-weight:700;background:#22c55e;color:#0a0f1a;border:none;border-radius:8px;cursor:pointer}
-  .sb:hover{background:#16a34a}.sb:disabled{background:#334155;color:#64748b;cursor:not-allowed}
+/* Power bar in district */
+.pbar{width:100%;height:8px;background:#1e293b;border-radius:4px;overflow:hidden;margin:4px 0}
+.pbar-fill{height:100%;border-radius:4px;transition:width .5s ease-out,background .3s}
+.pbar-label{display:flex;justify-content:space-between;font-size:10px;color:#64748b}
+.pbar-label .val{font-weight:700}
 
-  .rb{padding:10px 24px;font-size:14px;font-weight:700;background:#3b82f6;color:#fff;border:none;border-radius:8px;cursor:pointer;margin-top:6px}
-  .rb:hover{background:#2563eb}.rb:disabled{background:#1e293b;color:#475569;cursor:not-allowed}
+.stab-bar{width:100%;height:4px;background:#1e293b;border-radius:2px;overflow:hidden;margin:3px 0}
+.stab-fill{height:100%;border-radius:2px;transition:width 1s linear,background .3s}
+.stab-label{font-size:9px;text-align:right}
 
-  .fb{text-align:center;padding:8px;border-radius:8px;font-size:12px;font-weight:600;margin-top:4px}
-  .fb.ok{background:rgba(34,197,94,.1);color:#22c55e;border:1px solid rgba(34,197,94,.3)}
-  .fb.bad{background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.3)}
+/* Equation */
+.eq{background:#0f1729;border:1px solid #1e3a5f;border-radius:8px;padding:10px;margin:6px 0;text-align:center}
+.eq-text{font-size:20px;font-weight:800;letter-spacing:2px}
+.eq-text .x{color:#fbbf24;text-shadow:0 0 8px rgba(251,191,36,.4)}
+.eq-hint{font-size:10px;color:#64748b;margin-top:2px}
+.solve-row{display:flex;gap:6px;align-items:center;justify-content:center;margin-top:6px}
+.si{width:70px;padding:6px 10px;font-size:16px;font-weight:700;text-align:center;background:#0a0f1a;border:2px solid #334155;border-radius:6px;color:#fbbf24;outline:none}
+.si:focus{border-color:#fbbf24;box-shadow:0 0 6px rgba(251,191,36,.3)}
+.sb{padding:6px 16px;font-size:13px;font-weight:700;background:#22c55e;color:#0a0f1a;border:none;border-radius:6px;cursor:pointer}
+.sb:hover{background:#16a34a}.sb:disabled{background:#334155;color:#64748b;cursor:not-allowed}
 
-  .ov{position:fixed;inset:0;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;z-index:100}
-  .ov-c{background:#0f1729;border:2px solid #22c55e;border-radius:16px;padding:32px;max-width:440px;text-align:center}
-  .ov-c.partial{border-color:#f59e0b}
-  .ov-c h2{font-size:20px;margin-bottom:8px;text-shadow:0 0 12px rgba(34,197,94,.4)}
-  .ov-c.partial h2{color:#f59e0b;text-shadow:0 0 12px rgba(245,158,11,.4)}
-  .sl{font-size:13px;color:#94a3b8;margin:4px 0}.sl span{color:#fbbf24;font-weight:700}
-  .tl{font-size:12px;margin:6px 0;padding:8px;border-radius:6px}
-  .tl.saved{background:rgba(34,197,94,.08);color:#22c55e;border:1px solid rgba(34,197,94,.2)}
-  .tl.lost{background:rgba(239,68,68,.08);color:#ef4444;border:1px solid rgba(239,68,68,.2)}
-  .nb{margin-top:16px;padding:10px 28px;font-size:14px;font-weight:700;background:#22c55e;color:#0a0f1a;border:none;border-radius:8px;cursor:pointer}
-  .nb:hover{background:#16a34a}
+.rb{width:100%;padding:8px;font-size:12px;font-weight:700;background:#3b82f6;color:#fff;border:none;border-radius:6px;cursor:pointer;margin-top:4px}
+.rb:hover{background:#2563eb}.rb:disabled{background:#1e293b;color:#475569;cursor:not-allowed}
+
+.fb{text-align:center;padding:6px;border-radius:6px;font-size:11px;font-weight:600;margin-top:4px}
+.fb.ok{background:rgba(34,197,94,.1);color:#22c55e;border:1px solid rgba(34,197,94,.3)}
+.fb.bad{background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.3)}
+
+/* Single-district layout (L1/L2) */
+.single-layout{width:100%;display:flex;flex-direction:column;align-items:center;gap:8px}
+.single-d{width:100%;max-width:360px}
+
+/* Overlay */
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;z-index:100}
+.ov-c{background:#0f1729;border:2px solid #22c55e;border-radius:16px;padding:28px;max-width:420px;text-align:center}
+.ov-c.partial{border-color:#f59e0b}
+.ov-c h2{font-size:18px;margin-bottom:8px;text-shadow:0 0 12px rgba(34,197,94,.4)}
+.ov-c.partial h2{color:#f59e0b;text-shadow:0 0 12px rgba(245,158,11,.4)}
+.sl{font-size:13px;color:#94a3b8;margin:3px 0}.sl span{color:#fbbf24;font-weight:700}
+.tl{font-size:12px;margin:5px 0;padding:7px;border-radius:6px}
+.tl.saved{background:rgba(34,197,94,.08);color:#22c55e;border:1px solid rgba(34,197,94,.2)}
+.tl.lost{background:rgba(239,68,68,.08);color:#ef4444;border:1px solid rgba(239,68,68,.2)}
+.nb{margin-top:14px;padding:9px 24px;font-size:13px;font-weight:700;background:#22c55e;color:#0a0f1a;border:none;border-radius:8px;cursor:pointer}
+.nb:hover{background:#16a34a}
 </style>
 </head>
 <body>
@@ -83,33 +117,32 @@
 const{useState,useEffect,useRef}=React;
 
 const LEVELS=[
-  { level:1,name:'Training Shift',sub:'One district, no timer',
+  {level:1,name:'Training Shift',sub:'One district, no timer',
     districts:[{id:'downtown',name:'Downtown',emoji:'🏙️',demand:[10,16],current:[3,7],priority:'standard',timer:null}],
-    reserve:null },// no shared pool — single district, reserve = exactly what's needed
-  { level:2,name:'Harbor Shift',sub:'Soft timer — 60 seconds',globalTimer:60,
+    reserve:null},
+  {level:2,name:'Harbor Shift',sub:'Soft timer — 60 seconds',globalTimer:60,
     districts:[{id:'harbor',name:'Harbor District',emoji:'⚓',demand:[12,18],current:[4,8],priority:'standard',timer:null}],
-    reserve:null },
-  { level:'3A',name:'Scarcity Tutorial',sub:'Two districts — not enough for both. No timer.',
+    reserve:null},
+  {level:'3A',name:'Scarcity Tutorial',sub:'Two districts — not enough for both. No timer.',
     districts:[
       {id:'hospital',name:'Hospital',emoji:'🏥',demand:8,current:3,priority:'critical',timer:null},
       {id:'homes',name:'Residential',emoji:'🏘️',demand:6,current:2,priority:'standard',timer:null},
-    ],reserve:7 },// needs 5+4=9, has 7
-  { level:'3B',name:'Triage Shift',sub:'Two districts, real pressure. Choose wisely.',
+    ],reserve:7},
+  {level:'3B',name:'Triage Shift',sub:'Two districts, real pressure. Choose wisely.',
     districts:[
       {id:'hospital',name:'Hospital',emoji:'🏥',demand:10,current:4,priority:'critical',timer:20},
       {id:'transit',name:'Transit Station',emoji:'🚉',demand:9,current:5,priority:'standard',timer:30},
-    ],reserve:8 },// needs 6+4=10, has 8
+    ],reserve:8},
 ];
 
 function buildRound(cfg){
   const ds=cfg.districts.map(d=>{
     const demand=Array.isArray(d.demand)?d.demand[0]+Math.floor(Math.random()*(d.demand[1]-d.demand[0]+1)):d.demand;
     const current=Array.isArray(d.current)?d.current[0]+Math.floor(Math.random()*(d.current[1]-d.current[0]+1)):d.current;
-    const missing=demand-current;
-    return{...d,demand,current,missing,solved:false,solvedVal:null,routed:false,blackout:false,stability:d.timer,maxStab:d.timer};
+    return{...d,demand,current,missing:demand-current,solved:false,solvedVal:null,routed:false,partial:false,blackout:false,stability:d.timer,maxStab:d.timer};
   });
   const totalMissing=ds.reduce((s,d)=>s+d.missing,0);
-  const reserve=cfg.reserve!==null?cfg.reserve:ds[0].missing;// single-district: reserve = exactly what's needed
+  const reserve=cfg.reserve!==null?cfg.reserve:ds[0].missing;
   return{districts:ds,reserve,reserveLeft:reserve,totalMissing,scarcity:cfg.reserve!==null&&cfg.reserve<totalMissing};
 }
 
@@ -127,16 +160,16 @@ function PowerGrid(){
   const[gTimer,setGTimer]=useState(null);
   const resRef=useRef(0);
   const orderRef=useRef([]);
+  const[connState,setConnState]=useState({});// districtId -> 'active'|'partial'|null
 
   function start(idx){
     const c=LEVELS[idx];const r=buildRound(c);
     setLi(idx);setRound(r);setInput('');setActive(0);setFb(null);setScore(0);
     setRadio({t:'',c:''});setShowOv(false);setOvData(null);
     setGTimer(c.globalTimer||null);resRef.current=r.reserve;orderRef.current=[];
-    setScreen('playing');
+    setConnState({});setScreen('playing');
   }
 
-  // Global timer
   useEffect(()=>{
     if(screen!=='playing'||gTimer===null||gTimer<=0)return;
     const id=setTimeout(()=>setGTimer(t=>t-1),1000);
@@ -144,7 +177,6 @@ function PowerGrid(){
   },[screen,gTimer]);
   useEffect(()=>{if(gTimer===0&&screen==='playing')finish();},[gTimer,screen]);
 
-  // District stability timers
   useEffect(()=>{
     if(screen!=='playing'||!round)return;
     const live=round.districts.some(d=>d.stability!==null&&d.stability>0&&!d.routed&&!d.blackout);
@@ -159,13 +191,12 @@ function PowerGrid(){
               setRadio({t:`🚨 ${d.name} — BLACKOUT! Stability reached zero.`,c:'r'});
               return{...d,stability:0,blackout:true};
             }
-            if(next===5)setRadio({t:`⚠️ ${d.name} — critical! Only ${next}s left!`,c:'y'});
+            if(next===5)setRadio({t:`⚠️ ${d.name} — critical! ${next}s left!`,c:'y'});
             return{...d,stability:next};
           }
           return d;
         });
-        const allDone=ds.every(d=>d.routed||d.blackout);
-        if(allDone)setTimeout(()=>finish(),800);
+        if(ds.every(d=>d.routed||d.blackout))setTimeout(()=>finish(),800);
         return{...prev,districts:ds};
       });
     },1000);
@@ -174,128 +205,114 @@ function PowerGrid(){
 
   function finish(){
     if(!round)return;
-    const saved=round.districts.filter(d=>d.routed);
-    const lost=round.districts.filter(d=>!d.routed);
-    setOvData({saved,lost,score,order:[...orderRef.current]});
+    setOvData({saved:round.districts.filter(d=>d.routed),lost:round.districts.filter(d=>!d.routed),score,order:[...orderRef.current]});
     setShowOv(true);setScreen('complete');
   }
 
   function solve(){
     if(!round||!input)return;
-    const d=round.districts[active];
-    const ans=parseInt(input,10);
+    const d=round.districts[active];const ans=parseInt(input,10);
     if(ans===d.missing){
       setScore(s=>s+100);
       setRound(prev=>({...prev,districts:prev.districts.map((dd,i)=>i===active?{...dd,solved:true,solvedVal:ans}:dd)}));
-      setFb({t:'ok',m:`✓ ${d.name} needs ${ans} MW from the grid.`,id:d.id});
-      setRadio({t:`📻 ${d.name} — shortfall confirmed: ${ans} MW needed.`,c:'g'});
+      setFb({t:'ok',m:`✓ ${d.name} needs ${ans} MW from the reserve.`,id:d.id});
+      setRadio({t:`📻 ${d.name} — shortfall confirmed: ${ans} MW.`,c:'g'});
     }else{
       setScore(s=>s-20);
-      setFb({t:'bad',m:`✗ Not ${ans}. ${d.name} has ${d.current} MW and needs ${d.demand} MW total.`,id:d.id});
-      setRadio({t:`📻 ${d.name} — recalculate! That doesn't balance.`,c:'r'});
+      setFb({t:'bad',m:`✗ Not ${ans}. ${d.name} has ${d.current} and needs ${d.demand}.`,id:d.id});
+      setRadio({t:`📻 ${d.name} — recalculate!`,c:'r'});
     }
     setInput('');
   }
 
   function route(id){
-    const d=round.districts.find(dd=>dd.id===id);
-    const cost=d.solvedVal;
-    if(resRef.current<cost){
-      setRadio({t:`⚠️ Only ${resRef.current} MW left — not enough for ${d.name}'s ${cost} MW!`,c:'y'});
-      // Partial power — send what's left
-      if(resRef.current>0){
-        const partial=resRef.current;
-        resRef.current=0;
-        orderRef.current.push(id);
-        setScore(s=>s+20);// partial credit
-        setRound(prev=>({...prev,reserveLeft:0,districts:prev.districts.map(dd=>
-          dd.id===id?{...dd,routed:true,partial:true}:dd
-        )}));
-        setRadio({t:`📻 ${d.name} — received ${partial} MW. Brownout, but holding.`,c:'y'});
-        setFb(null);
-        checkEnd();
-      }
-      return;
-    }
-    resRef.current-=cost;
+    const d=round.districts.find(dd=>dd.id===id);const cost=d.solvedVal;
+    const avail=resRef.current;
+    if(avail<=0){setRadio({t:`⚠️ Reserve empty!`,c:'r'});return;}
+
+    const isPartial=avail<cost;
+    const sent=isPartial?avail:cost;
+    resRef.current-=sent;
     orderRef.current.push(id);
-    setScore(s=>s+40);
+    setScore(s=>s+(isPartial?20:40));
+    setConnState(prev=>({...prev,[id]:isPartial?'partial':'active'}));
+
     setRound(prev=>({...prev,reserveLeft:resRef.current,districts:prev.districts.map(dd=>
-      dd.id===id?{...dd,routed:true}:dd
+      dd.id===id?{...dd,routed:true,partial:isPartial,received:sent}:dd
     )}));
-    setRadio({t:`📻 ${d.name} — fully powered! Grid stable.`,c:'g'});
+
+    setRadio({t:isPartial
+      ?`📻 ${d.name} — received ${sent} MW. Brownout, but holding.`
+      :`📻 ${d.name} — fully powered! ⚡`,c:isPartial?'y':'g'});
     setFb(null);
 
-    // If reserve is now insufficient for remaining districts, warn
+    // Check if remaining districts can be saved
     setTimeout(()=>{
       setRound(prev=>{
         if(!prev)return prev;
         const remaining=prev.districts.filter(dd=>!dd.routed&&!dd.blackout);
-        const remainingNeed=remaining.reduce((s,dd)=>s+(dd.solvedVal||dd.missing),0);
-        if(remaining.length>0&&resRef.current<remainingNeed){
-          const names=remaining.map(dd=>dd.name).join(', ');
-          setRadio({t:`⚠️ Reserve: ${resRef.current} MW. ${names} still needs ${remainingNeed} MW. Not enough.`,c:'y'});
+        const remNeed=remaining.reduce((s,dd)=>s+(dd.solvedVal||dd.missing),0);
+        if(remaining.length>0&&resRef.current<remNeed&&resRef.current===0){
+          // Auto-blackout remaining
+          const updated={...prev,districts:prev.districts.map(dd=>
+            !dd.routed&&!dd.blackout?{...dd,blackout:true}:dd
+          )};
+          setRadio({t:`🚨 Reserve depleted. ${remaining.map(dd=>dd.name).join(', ')} lost power.`,c:'r'});
+          setTimeout(()=>finish(),1000);
+          return updated;
         }
-        const allDone=prev.districts.every(dd=>dd.routed||dd.blackout);
-        if(allDone)setTimeout(()=>finish(),600);
+        if(remaining.length>0&&resRef.current>0&&resRef.current<remNeed){
+          setRadio({t:`⚠️ ${resRef.current} MW left — ${remaining[0].name} needs ${remaining[0].solvedVal||remaining[0].missing}. Not enough for full power.`,c:'y'});
+        }
+        if(prev.districts.every(dd=>dd.routed||dd.blackout))setTimeout(()=>finish(),600);
         return prev;
       });
+      // Move to next unsolved
+      const next=round.districts.findIndex((dd,i)=>!dd.routed&&!dd.blackout&&i!==active);
+      if(next>=0)setActive(next);
     },300);
-
-    // Move to next unsolved/unrouted
-    const next=round.districts.findIndex((dd,i)=>!dd.routed&&!dd.blackout&&i!==active);
-    if(next>=0)setActive(next);
-  }
-
-  function checkEnd(){
-    setTimeout(()=>{
-      setRound(prev=>{
-        if(!prev)return prev;
-        const allDone=prev.districts.every(dd=>dd.routed||dd.blackout);
-        if(allDone)setTimeout(()=>finish(),600);
-        return prev;
-      });
-    },500);
   }
 
   // ── MENU ──
   if(screen==='menu')return(
     <div className="g">
-      <div style={{textAlign:'center',marginTop:40}}>
-        <div style={{fontSize:48}}>⚡</div>
-        <h1 style={{color:'#22c55e',fontSize:24,marginTop:8,textShadow:'0 0 16px rgba(34,197,94,.4)',letterSpacing:3}}>POWER GRID</h1>
-        <h2 style={{color:'#94a3b8',fontSize:14,letterSpacing:2,fontWeight:400}}>OPERATOR</h2>
-        <p style={{color:'#64748b',fontSize:13,maxWidth:340,margin:'16px auto',lineHeight:1.7}}>
+      <div style={{textAlign:'center',marginTop:32}}>
+        <div style={{fontSize:44}}>⚡</div>
+        <h1 style={{color:'#22c55e',fontSize:22,marginTop:6,textShadow:'0 0 14px rgba(34,197,94,.4)',letterSpacing:3}}>POWER GRID</h1>
+        <h2 style={{color:'#94a3b8',fontSize:13,letterSpacing:2,fontWeight:400}}>OPERATOR</h2>
+        <p style={{color:'#64748b',fontSize:12,maxWidth:320,margin:'12px auto',lineHeight:1.7}}>
           Districts need power. Solve for the shortfall. Distribute your reserve. Keep the lights on.
         </p>
       </div>
       {LEVELS.map((lv,i)=>(
         <button key={i} onClick={()=>start(i)} style={{
-          width:'100%',padding:'14px 20px',background:'rgba(15,25,45,.95)',
+          width:'100%',padding:'12px 18px',background:'rgba(15,25,45,.95)',
           border:'1px solid #1e3a5f',borderRadius:10,cursor:'pointer',
           textAlign:'left',color:'#e2e8f0',display:'flex',justifyContent:'space-between',alignItems:'center',
         }}>
           <div>
-            <div style={{fontSize:14,fontWeight:700}}>Level {lv.level} — {lv.name}</div>
-            <div style={{fontSize:11,color:'#64748b',marginTop:2}}>{lv.sub}</div>
+            <div style={{fontSize:13,fontWeight:700}}>Level {lv.level} — {lv.name}</div>
+            <div style={{fontSize:10,color:'#64748b',marginTop:2}}>{lv.sub}</div>
           </div>
-          <div style={{fontSize:11,color:'#22c55e',fontWeight:600}}>▶ PLAY</div>
+          <div style={{fontSize:10,color:'#22c55e',fontWeight:600}}>▶ PLAY</div>
         </button>
       ))}
-      <div style={{fontSize:10,color:'#334155',textAlign:'center',marginTop:8}}>Power Grid Operator — P1 Prototype</div>
+      <div style={{fontSize:9,color:'#334155',textAlign:'center',marginTop:6}}>Power Grid Operator — P1</div>
     </div>
   );
 
   if(!round)return null;
   const cfg=LEVELS[li];
   const tPct=gTimer!==null&&cfg.globalTimer?(gTimer/cfg.globalTimer)*100:100;
+  const resPct=round.reserve>0?(round.reserveLeft/round.reserve)*100:100;
+  const isMulti=round.districts.length>1;
 
   // ── PLAYING ──
   return(
     <div className="g">
       <div className="hud">
         <div className="hud-t">⚡ Power Grid</div>
-        <div style={{display:'flex',gap:16}}>
+        <div style={{display:'flex',gap:14}}>
           <div className="hs">LVL <span>{cfg.level}</span></div>
           <div className="hs">SCORE <span>{score}</span></div>
           {gTimer!==null&&<div className="hs" style={{color:gTimer<=15?'#ef4444':undefined}}>⏱️ <span style={{color:gTimer<=15?'#ef4444':'#fbbf24'}}>{gTimer}s</span></div>}
@@ -303,112 +320,151 @@ function PowerGrid(){
       </div>
 
       {gTimer!==null&&(
-        <div style={{width:'100%',height:5,background:'#1e293b',borderRadius:3,overflow:'hidden'}}>
-          <div style={{width:`${tPct}%`,height:'100%',background:gTimer<=15?'#ef4444':tPct>50?'#22c55e':'#f59e0b',transition:'width 1s linear',borderRadius:3}}/>
+        <div style={{width:'100%',height:4,background:'#1e293b',borderRadius:2,overflow:'hidden'}}>
+          <div style={{width:`${tPct}%`,height:'100%',background:gTimer<=15?'#ef4444':tPct>50?'#22c55e':'#f59e0b',transition:'width 1s linear',borderRadius:2}}/>
         </div>
       )}
 
       <div className="strip" style={{color:round.scarcity?'#f59e0b':'#22c55e'}}>
-        {round.scarcity?`⚠️ Reserve is limited — ${round.reserve} MW for ${round.totalMissing} MW total shortfall`:'⚡ Solve the shortfall. Route the power.'}
+        {round.scarcity?`⚠️ Reserve: ${round.reserve} MW — Total shortfall: ${round.totalMissing} MW — Deficit: ${round.totalMissing-round.reserve} MW`:'⚡ Solve the shortfall. Route the power.'}
       </div>
 
       <div className="radio" style={{color:radio.c==='r'?'#ef4444':radio.c==='g'?'#22c55e':radio.c==='y'?'#f59e0b':'#64748b'}}>{radio.t}</div>
 
-      {/* Shared reserve pool — shown for scarcity levels */}
-      {round.scarcity&&(
-        <div className="pool">
-          <div className="pool-label">Grid Reserve</div>
-          <div className={`pool-val ${round.reserveLeft<=2?'empty':round.reserveLeft<=4?'low':''}`}>{round.reserveLeft} MW</div>
-          <div className="pool-sub">
-            {round.reserveLeft===round.reserve?`Distribute to districts (need ${round.totalMissing} MW total)`:
-             round.reserveLeft>0?`${round.reserve-round.reserveLeft} MW assigned · ${round.reserveLeft} MW remaining`:
-             'Reserve depleted'}
+      {isMulti?(
+        <div className="grid-layout">
+          {/* Reserve at top */}
+          <div className="reserve">
+            <div className="reserve-label">Shared Reserve</div>
+            <div className="reserve-icon">🔋</div>
+            <div className="reserve-val" style={{color:round.reserveLeft<=2?'#ef4444':round.reserveLeft<=4?'#f59e0b':'#3b82f6'}}>{round.reserveLeft} MW</div>
+            <div className="reserve-bar">
+              <div className="reserve-fill" style={{width:`${resPct}%`,background:round.reserveLeft<=2?'#ef4444':round.reserveLeft<=4?'#f59e0b':'#3b82f6'}}/>
+            </div>
+            <div className="reserve-sub">{round.reserveLeft===round.reserve?`Distribute to ${round.districts.length} districts`:`${round.reserve-round.reserveLeft} MW sent · ${round.reserveLeft} MW remaining`}</div>
+          </div>
+
+          {/* Connector lines */}
+          <div className="connectors">
+            <div className="conn-trunk"/>
+            <div className="branch-split left"/>
+            <div className="branch-split right"/>
+            <div className={`conn-left ${connState[round.districts[0]?.id]||''}`}/>
+            <div className={`conn-right ${connState[round.districts[1]?.id]||''}`}/>
+          </div>
+
+          {/* Districts side by side */}
+          <div className="districts">
+            {round.districts.map((d,i)=>{
+              const isAct=i===active&&!d.routed&&!d.blackout;
+              const cls=d.routed?(d.partial?'brownout':'powered'):d.blackout?'blackout':'';
+              const fillPct=d.routed&&!d.partial?100:d.routed&&d.partial?((d.current+(d.received||0))/d.demand)*100:(d.current/d.demand)*100;
+              return(
+                <div key={d.id} className={`d ${cls}`}
+                  onClick={()=>{if(!d.routed&&!d.blackout){setActive(i);setFb(null);setInput('');}}}
+                  style={{cursor:!d.routed&&!d.blackout?'pointer':'default'}}>
+
+                  <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:2}}>
+                    <span style={{fontSize:20}}>{d.emoji}</span>
+                    <span className="d-name">{d.name}</span>
+                  </div>
+                  <span className={`badge ${d.priority==='critical'?'crit':'std'}`}>{d.priority}</span>
+                  {d.routed&&!d.partial&&<span className="badge ok" style={{marginLeft:4}}>⚡ POWERED</span>}
+                  {d.routed&&d.partial&&<span className="badge std" style={{marginLeft:4}}>⚡ PARTIAL</span>}
+                  {d.blackout&&<span className="badge dark" style={{marginLeft:4}}>⛔ BLACKOUT</span>}
+
+                  {/* Power bar */}
+                  <div className="pbar-label"><span>Power</span><span className="val">{d.routed?d.partial?`${d.current+(d.received||0)}/${d.demand}`:`${d.demand}/${d.demand}`:`${d.current}/${d.demand}`} MW</span></div>
+                  <div className="pbar">
+                    <div className="pbar-fill" style={{width:`${fillPct}%`,background:fillPct>=100?'#22c55e':fillPct>50?'#f59e0b':'#ef4444'}}/>
+                  </div>
+
+                  {/* Stability bar */}
+                  {d.maxStab&&!d.routed&&!d.blackout&&(
+                    <>
+                      <div className="stab-bar"><div className="stab-fill" style={{
+                        width:`${(d.stability/d.maxStab)*100}%`,
+                        background:d.stability>d.maxStab*.5?'#22c55e':d.stability>d.maxStab*.25?'#f59e0b':'#ef4444',
+                      }}/></div>
+                      <div className="stab-label" style={{color:d.stability<=5?'#ef4444':'#64748b'}}>⏱ {d.stability}s</div>
+                    </>
+                  )}
+
+                  {/* Shortfall */}
+                  <div className="pbar-label" style={{marginTop:4}}>
+                    <span>Shortfall</span>
+                    <span className="val" style={{color:d.solved?'#22c55e':'#fbbf24'}}>{d.solved?`${d.solvedVal} MW`:'? MW'}</span>
+                  </div>
+
+                  {/* Equation */}
+                  {isAct&&!d.solved&&!d.blackout&&(
+                    <div className="eq">
+                      <div className="eq-text">{d.current} + <span className="x">x</span> = {d.demand}</div>
+                      <div className="eq-hint">How much more does {d.name} need?</div>
+                      <div className="solve-row">
+                        <input className="si" type="number" value={input}
+                          onChange={e=>setInput(e.target.value)}
+                          onKeyDown={e=>{if(e.key==='Enter')solve();}}
+                          placeholder="x" autoFocus/>
+                        <button className="sb" onClick={solve} disabled={!input}>SOLVE</button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Route button */}
+                  {d.solved&&!d.routed&&!d.blackout&&isAct&&(
+                    <button className="rb" onClick={()=>route(d.id)} disabled={round.reserveLeft<=0}>
+                      ⚡ SEND {Math.min(d.solvedVal,round.reserveLeft)} MW
+                    </button>
+                  )}
+
+                  {fb&&fb.id===d.id&&<div className={`fb ${fb.t}`}>{fb.m}</div>}
+                </div>
+              );
+            })}
           </div>
         </div>
-      )}
-
-      {/* District cards */}
-      {round.districts.map((d,i)=>{
-        const isAct=i===active&&!d.routed&&!d.blackout;
-        const cls=d.routed?(d.partial?'brownout':'powered'):d.blackout?'blackout':(d.stability!==null&&d.stability<8)?'brownout':'';
-        return(
-          <div key={d.id} className={`d ${cls}`}
-            onClick={()=>{if(!d.routed&&!d.blackout){setActive(i);setFb(null);setInput('');}}}
-            style={{cursor:!d.routed&&!d.blackout?'pointer':'default'}}>
-
-            <div className="d-head">
-              <div style={{display:'flex',alignItems:'center'}}>
-                <span className="d-name">{d.emoji} {d.name}</span>
-                <span className={`badge ${d.priority==='critical'?'crit':'std'}`}>{d.priority}</span>
-              </div>
-              <div>
-                {d.routed&&!d.partial&&<span className="badge ok">⚡ POWERED</span>}
-                {d.routed&&d.partial&&<span className="badge std">⚡ PARTIAL</span>}
-                {d.blackout&&<span className="badge dark">⛔ BLACKOUT</span>}
-                {!d.routed&&!d.blackout&&d.solved&&<span className="badge std">ROUTE NOW</span>}
-                {!d.routed&&!d.blackout&&!d.solved&&isAct&&<span className="badge std">SOLVE</span>}
-              </div>
-            </div>
-
-            {/* Stability bar */}
-            {d.maxStab&&!d.routed&&!d.blackout&&(
-              <>
-                <div className="bar"><div className="bar-fill" style={{
-                  width:`${(d.stability/d.maxStab)*100}%`,
-                  background:d.stability>d.maxStab*.5?'#22c55e':d.stability>d.maxStab*.25?'#f59e0b':'#ef4444',
-                }}/></div>
-                <div style={{fontSize:10,color:d.stability<=5?'#ef4444':'#64748b',textAlign:'right'}}>Stability: {d.stability}s</div>
-              </>
-            )}
-
-            {/* Power meter */}
-            <div className="meter">
-              <span className="lbl">Current</span>
-              <span className="val" style={{color:'#22c55e'}}>{d.current} MW</span>
-            </div>
-            <div className="meter">
-              <span className="lbl">Demand</span>
-              <span className="val" style={{color:'#fbbf24'}}>{d.demand} MW</span>
-            </div>
-            <div className="meter">
-              <span className="lbl">Shortfall</span>
-              <span className="val" style={{color:d.solved?'#22c55e':'#ef4444'}}>{d.solved?`${d.solvedVal} MW (solved)`:`? MW`}</span>
-            </div>
-
-            {/* Equation */}
-            {isAct&&!d.solved&&!d.blackout&&(
-              <div className="eq">
-                <div className="eq-text">{d.current} + <span className="x">x</span> = {d.demand}</div>
-                <div className="eq-hint">How much more does {d.name} need?</div>
-                <div className="solve-row">
-                  <input className="si" type="number" value={input}
-                    onChange={e=>setInput(e.target.value)}
-                    onKeyDown={e=>{if(e.key==='Enter')solve();}}
-                    placeholder="x" autoFocus/>
-                  <button className="sb" onClick={solve} disabled={!input}>SOLVE</button>
+      ):(
+        /* Single-district layout for L1/L2 */
+        <div className="single-layout">
+          {round.districts.map((d,i)=>{
+            const isAct=!d.routed&&!d.blackout;
+            const cls=d.routed?'powered':'';
+            const fillPct=d.routed?100:(d.current/d.demand)*100;
+            return(
+              <div key={d.id} className={`d single-d ${cls}`}>
+                <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:4}}>
+                  <span style={{fontSize:24}}>{d.emoji}</span>
+                  <span className="d-name">{d.name}</span>
+                  <span className={`badge std`}>{d.priority}</span>
+                  {d.routed&&<span className="badge ok" style={{marginLeft:4}}>⚡ POWERED</span>}
                 </div>
-              </div>
-            )}
+                <div className="pbar-label"><span>Power</span><span className="val">{d.routed?`${d.demand}/${d.demand}`:`${d.current}/${d.demand}`} MW</span></div>
+                <div className="pbar"><div className="pbar-fill" style={{width:`${fillPct}%`,background:fillPct>=100?'#22c55e':fillPct>50?'#f59e0b':'#ef4444'}}/></div>
+                <div className="pbar-label" style={{marginTop:4}}><span>Shortfall</span><span className="val" style={{color:d.solved?'#22c55e':'#fbbf24'}}>{d.solved?`${d.solvedVal} MW`:'? MW'}</span></div>
 
-            {/* Route button */}
-            {d.solved&&!d.routed&&!d.blackout&&isAct&&(
-              <div style={{textAlign:'center',marginTop:8}}>
-                <button className="rb" onClick={()=>route(d.id)}
-                  disabled={round.reserveLeft!==undefined&&round.reserveLeft<d.solvedVal&&round.reserveLeft<=0}>
-                  ⚡ SEND {d.solvedVal} MW TO {d.name.toUpperCase()}
-                </button>
-                {round.scarcity&&round.reserveLeft<d.solvedVal&&round.reserveLeft>0&&(
-                  <div style={{fontSize:11,color:'#f59e0b',marginTop:4}}>
-                    Only {round.reserveLeft} MW left — {d.name} needs {d.solvedVal}. Will receive partial power.
+                {isAct&&!d.solved&&(
+                  <div className="eq">
+                    <div className="eq-text">{d.current} + <span className="x">x</span> = {d.demand}</div>
+                    <div className="eq-hint">How much more does {d.name} need?</div>
+                    <div className="solve-row">
+                      <input className="si" type="number" value={input}
+                        onChange={e=>setInput(e.target.value)}
+                        onKeyDown={e=>{if(e.key==='Enter')solve();}}
+                        placeholder="x" autoFocus/>
+                      <button className="sb" onClick={solve} disabled={!input}>SOLVE</button>
+                    </div>
                   </div>
                 )}
+                {d.solved&&!d.routed&&isAct&&(
+                  <button className="rb" onClick={()=>route(d.id)}>⚡ SEND {d.solvedVal} MW</button>
+                )}
+                {fb&&fb.id===d.id&&<div className={`fb ${fb.t}`}>{fb.m}</div>}
               </div>
-            )}
-
-            {fb&&fb.id===d.id&&<div className={`fb ${fb.t}`}>{fb.m}</div>}
-          </div>
-        );
-      })}
+            );
+          })}
+        </div>
+      )}
 
       {/* Overlay */}
       {showOv&&ovData&&(
@@ -418,27 +474,16 @@ function PowerGrid(){
               {ovData.lost.length===0?'⚡ ALL DISTRICTS POWERED':'⚡ SHIFT COMPLETE'}
             </h2>
             <div className="sl">Score: <span>{ovData.score}</span></div>
-            {ovData.saved.map(d=>(
-              <div key={d.id} className="tl saved">✅ {d.emoji} {d.name} — {d.partial?'partial power (brownout)':'fully powered'} ({d.priority})</div>
-            ))}
-            {ovData.lost.map(d=>(
-              <div key={d.id} className="tl lost">⛔ {d.emoji} {d.name} — lost power ({d.priority})</div>
-            ))}
+            {ovData.saved.map(d=><div key={d.id} className="tl saved">✅ {d.emoji} {d.name} — {d.partial?'partial power':'fully powered'} ({d.priority})</div>)}
+            {ovData.lost.map(d=><div key={d.id} className="tl lost">⛔ {d.emoji} {d.name} — lost power ({d.priority})</div>)}
             {round.scarcity&&ovData.order.length>0&&(
-              <div style={{fontSize:11,color:'#64748b',marginTop:8}}>
-                Your call: {ovData.order.map(id=>round.districts.find(d=>d.id===id)?.name).join(' first, then ')}
-              </div>
+              <div style={{fontSize:11,color:'#64748b',marginTop:6}}>Your call: {ovData.order.map(id=>round.districts.find(d=>d.id===id)?.name).join(' first, then ')}</div>
             )}
             {round.scarcity&&ovData.lost.length>0&&(
-              <div style={{fontSize:12,color:'#94a3b8',marginTop:8,fontStyle:'italic'}}>
-                Not enough reserve for all districts. You had to choose.
-              </div>
+              <div style={{fontSize:11,color:'#94a3b8',marginTop:6,fontStyle:'italic'}}>Not enough reserve for all districts. You had to choose.</div>
             )}
-            {li<LEVELS.length-1?(
-              <button className="nb" onClick={()=>start(li+1)}>NEXT SHIFT →</button>
-            ):(
-              <button className="nb" onClick={()=>{setScreen('menu');setScore(0);}}>BACK TO MENU</button>
-            )}
+            {li<LEVELS.length-1?<button className="nb" onClick={()=>start(li+1)}>NEXT SHIFT →</button>
+            :<button className="nb" onClick={()=>{setScreen('menu');setScore(0);}}>BACK TO MENU</button>}
           </div>
         </div>
       )}
