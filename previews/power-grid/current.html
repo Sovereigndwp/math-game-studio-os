@@ -8,561 +8,436 @@
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: #0a0f1a; color: #e2e8f0; font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; display: flex; justify-content: center; padding: 16px; }
-  #root { width: 100%; max-width: 600px; }
-  .grid-game { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0a0f1a;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;display:flex;justify-content:center;padding:16px}
+  #root{width:100%;max-width:560px}
+  .g{display:flex;flex-direction:column;align-items:center;gap:14px}
 
-  .hud { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 10px 16px; background: rgba(10,20,40,0.95); border: 1px solid #1e3a5f; border-radius: 10px; }
-  .hud-title { font-size: 14px; font-weight: 700; color: #22c55e; letter-spacing: 2px; text-transform: uppercase; text-shadow: 0 0 8px rgba(34,197,94,0.4); }
-  .hud-stat { font-size: 12px; color: #94a3b8; }
-  .hud-stat span { color: #fbbf24; font-weight: 700; font-size: 16px; }
+  .hud{display:flex;justify-content:space-between;align-items:center;width:100%;padding:10px 16px;background:rgba(10,20,40,.95);border:1px solid #1e3a5f;border-radius:10px}
+  .hud-t{font-size:14px;font-weight:700;color:#22c55e;letter-spacing:2px;text-transform:uppercase;text-shadow:0 0 8px rgba(34,197,94,.4)}
+  .hs{font-size:12px;color:#94a3b8}.hs span{color:#fbbf24;font-weight:700;font-size:16px}
 
-  .status-strip { text-align: center; font-size: 13px; padding: 6px 16px; border-radius: 999px; background: rgba(10,20,40,0.8); border: 1px solid #1e3a5f; font-weight: 600; }
-  .radio { font-size: 11px; color: #64748b; font-style: italic; text-align: center; min-height: 16px; }
-  .radio.alert { color: #ef4444; font-style: normal; font-weight: 600; }
-  .radio.success { color: #22c55e; }
-  .radio.warn { color: #f59e0b; }
+  .strip{text-align:center;font-size:13px;padding:6px 16px;border-radius:999px;background:rgba(10,20,40,.8);border:1px solid #1e3a5f;font-weight:600}
+  .radio{font-size:11px;text-align:center;min-height:16px;font-weight:600}
 
-  .district { background: rgba(15,25,45,0.95); border: 2px solid #1e3a5f; border-radius: 14px; padding: 16px 20px; width: 100%; transition: all 0.4s; position: relative; }
-  .district.powered { border-color: #22c55e; box-shadow: 0 0 24px rgba(34,197,94,0.25); }
-  .district.degrading { border-color: #f59e0b; animation: flicker 1.5s ease-in-out infinite; }
-  .district.blackout { border-color: #ef4444; box-shadow: 0 0 20px rgba(239,68,68,0.2); opacity: 0.5; }
-  @keyframes flicker { 0%,100% { opacity: 1; } 50% { opacity: 0.7; } }
+  .pool{width:100%;padding:12px 16px;background:rgba(15,25,45,.95);border:2px solid #3b82f6;border-radius:12px;text-align:center}
+  .pool-label{font-size:11px;color:#3b82f6;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:4px}
+  .pool-val{font-size:28px;font-weight:900;color:#3b82f6;text-shadow:0 0 12px rgba(59,130,246,.4)}
+  .pool-val.low{color:#f59e0b;text-shadow:0 0 12px rgba(245,158,11,.4)}
+  .pool-val.empty{color:#ef4444;text-shadow:0 0 12px rgba(239,68,68,.4)}
+  .pool-sub{font-size:11px;color:#64748b;margin-top:2px}
 
-  .district-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-  .district-name { font-size: 16px; font-weight: 700; }
-  .district-demand { font-size: 13px; color: #fbbf24; font-weight: 600; }
-  .priority-badge { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: 2px 8px; border-radius: 4px; margin-left: 8px; }
-  .priority-badge.critical { background: rgba(239,68,68,0.15); color: #ef4444; }
-  .priority-badge.standard { background: rgba(245,158,11,0.15); color: #f59e0b; }
-  .status-badge { font-size: 10px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; padding: 2px 8px; border-radius: 4px; margin-left: 6px; }
-  .status-badge.ok { background: rgba(34,197,94,0.15); color: #22c55e; }
-  .status-badge.warn { background: rgba(245,158,11,0.15); color: #f59e0b; }
-  .status-badge.dark { background: rgba(239,68,68,0.15); color: #ef4444; }
+  .d{background:rgba(15,25,45,.95);border:2px solid #1e3a5f;border-radius:14px;padding:16px 20px;width:100%;transition:all .4s}
+  .d.powered{border-color:#22c55e;box-shadow:0 0 20px rgba(34,197,94,.2)}
+  .d.brownout{border-color:#f59e0b;box-shadow:0 0 16px rgba(245,158,11,.15);animation:flicker 1.5s ease-in-out infinite}
+  .d.blackout{border-color:#ef4444;box-shadow:0 0 16px rgba(239,68,68,.15);opacity:.5}
+  @keyframes flicker{0%,100%{opacity:1}50%{opacity:.7}}
 
-  .stability-bar { height: 4px; background: #1e293b; border-radius: 2px; overflow: hidden; margin: 6px 0; }
-  .stability-fill { height: 100%; border-radius: 2px; transition: width 1s linear, background 0.3s; }
+  .d-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+  .d-name{font-size:16px;font-weight:700}
+  .badge{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:2px 8px;border-radius:4px;margin-left:6px}
+  .badge.crit{background:rgba(239,68,68,.15);color:#ef4444}
+  .badge.std{background:rgba(245,158,11,.15);color:#f59e0b}
+  .badge.ok{background:rgba(34,197,94,.15);color:#22c55e}
+  .badge.dark{background:rgba(239,68,68,.15);color:#ef4444}
 
-  .equation-block { background: #0f1729; border: 1px solid #1e3a5f; border-radius: 10px; padding: 14px; margin: 8px 0; text-align: center; }
-  .equation-text { font-size: 22px; font-weight: 800; letter-spacing: 2px; }
-  .equation-text .unknown { color: #fbbf24; text-shadow: 0 0 8px rgba(251,191,36,0.4); }
+  .bar{height:4px;background:#1e293b;border-radius:2px;overflow:hidden;margin:4px 0}
+  .bar-fill{height:100%;border-radius:2px;transition:width 1s linear,background .3s}
 
-  .sources { display: flex; gap: 8px; flex-wrap: wrap; margin: 6px 0; }
-  .source-chip { background: #0f1729; border: 1px solid #334155; border-radius: 8px; padding: 5px 10px; font-size: 11px; display: flex; align-items: center; gap: 5px; }
-  .source-chip .val { color: #22c55e; font-weight: 700; }
+  .meter{display:flex;justify-content:space-between;font-size:12px;margin:4px 0}
+  .meter .lbl{color:#64748b}.meter .val{font-weight:700}
 
-  .solve-row { display: flex; gap: 8px; align-items: center; justify-content: center; margin-top: 8px; }
-  .solve-input { width: 80px; padding: 8px 12px; font-size: 18px; font-weight: 700; text-align: center; background: #0a0f1a; border: 2px solid #334155; border-radius: 8px; color: #fbbf24; outline: none; }
-  .solve-input:focus { border-color: #fbbf24; box-shadow: 0 0 8px rgba(251,191,36,0.3); }
-  .solve-btn { padding: 8px 20px; font-size: 14px; font-weight: 700; background: #22c55e; color: #0a0f1a; border: none; border-radius: 8px; cursor: pointer; }
-  .solve-btn:hover { background: #16a34a; }
-  .solve-btn:disabled { background: #334155; color: #64748b; cursor: not-allowed; }
+  .eq{background:#0f1729;border:1px solid #1e3a5f;border-radius:10px;padding:12px;margin:8px 0;text-align:center}
+  .eq-text{font-size:22px;font-weight:800;letter-spacing:2px}
+  .eq-text .x{color:#fbbf24;text-shadow:0 0 8px rgba(251,191,36,.4)}
+  .eq-hint{font-size:11px;color:#64748b;margin-top:4px}
+  .solve-row{display:flex;gap:8px;align-items:center;justify-content:center;margin-top:8px}
+  .si{width:80px;padding:8px 12px;font-size:18px;font-weight:700;text-align:center;background:#0a0f1a;border:2px solid #334155;border-radius:8px;color:#fbbf24;outline:none}
+  .si:focus{border-color:#fbbf24;box-shadow:0 0 8px rgba(251,191,36,.3)}
+  .sb{padding:8px 20px;font-size:14px;font-weight:700;background:#22c55e;color:#0a0f1a;border:none;border-radius:8px;cursor:pointer}
+  .sb:hover{background:#16a34a}.sb:disabled{background:#334155;color:#64748b;cursor:not-allowed}
 
-  .route-btn { padding: 10px 24px; font-size: 14px; font-weight: 700; background: #3b82f6; color: #fff; border: none; border-radius: 8px; cursor: pointer; margin-top: 4px; }
-  .route-btn:hover { background: #2563eb; }
+  .rb{padding:10px 24px;font-size:14px;font-weight:700;background:#3b82f6;color:#fff;border:none;border-radius:8px;cursor:pointer;margin-top:6px}
+  .rb:hover{background:#2563eb}.rb:disabled{background:#1e293b;color:#475569;cursor:not-allowed}
 
-  .feedback { text-align: center; padding: 8px; border-radius: 8px; font-size: 12px; font-weight: 600; margin-top: 4px; }
-  .feedback.correct { background: rgba(34,197,94,0.1); color: #22c55e; border: 1px solid rgba(34,197,94,0.3); }
-  .feedback.wrong { background: rgba(239,68,68,0.1); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); }
+  .fb{text-align:center;padding:8px;border-radius:8px;font-size:12px;font-weight:600;margin-top:4px}
+  .fb.ok{background:rgba(34,197,94,.1);color:#22c55e;border:1px solid rgba(34,197,94,.3)}
+  .fb.bad{background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.3)}
 
-  .deficit-warning { text-align: center; font-size: 12px; color: #f59e0b; font-weight: 600; padding: 10px; background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.2); border-radius: 8px; }
-
-  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: flex; align-items: center; justify-content: center; z-index: 100; }
-  .overlay-card { background: #0f1729; border: 2px solid #22c55e; border-radius: 16px; padding: 32px; max-width: 440px; text-align: center; }
-  .overlay-card h2 { color: #22c55e; font-size: 20px; margin-bottom: 8px; text-shadow: 0 0 12px rgba(34,197,94,0.4); }
-  .overlay-card.failed { border-color: #f59e0b; }
-  .overlay-card.failed h2 { color: #f59e0b; text-shadow: 0 0 12px rgba(245,158,11,0.4); }
-  .stat-line { font-size: 13px; color: #94a3b8; margin: 4px 0; }
-  .stat-line span { color: #fbbf24; font-weight: 700; }
-  .triage-line { font-size: 12px; margin: 6px 0; padding: 8px; border-radius: 6px; }
-  .triage-line.saved { background: rgba(34,197,94,0.08); color: #22c55e; border: 1px solid rgba(34,197,94,0.2); }
-  .triage-line.lost { background: rgba(239,68,68,0.08); color: #ef4444; border: 1px solid rgba(239,68,68,0.2); }
-  .next-btn { margin-top: 16px; padding: 10px 28px; font-size: 14px; font-weight: 700; background: #22c55e; color: #0a0f1a; border: none; border-radius: 8px; cursor: pointer; }
-  .next-btn:hover { background: #16a34a; }
+  .ov{position:fixed;inset:0;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;z-index:100}
+  .ov-c{background:#0f1729;border:2px solid #22c55e;border-radius:16px;padding:32px;max-width:440px;text-align:center}
+  .ov-c.partial{border-color:#f59e0b}
+  .ov-c h2{font-size:20px;margin-bottom:8px;text-shadow:0 0 12px rgba(34,197,94,.4)}
+  .ov-c.partial h2{color:#f59e0b;text-shadow:0 0 12px rgba(245,158,11,.4)}
+  .sl{font-size:13px;color:#94a3b8;margin:4px 0}.sl span{color:#fbbf24;font-weight:700}
+  .tl{font-size:12px;margin:6px 0;padding:8px;border-radius:6px}
+  .tl.saved{background:rgba(34,197,94,.08);color:#22c55e;border:1px solid rgba(34,197,94,.2)}
+  .tl.lost{background:rgba(239,68,68,.08);color:#ef4444;border:1px solid rgba(239,68,68,.2)}
+  .nb{margin-top:16px;padding:10px 28px;font-size:14px;font-weight:700;background:#22c55e;color:#0a0f1a;border:none;border-radius:8px;cursor:pointer}
+  .nb:hover{background:#16a34a}
 </style>
 </head>
 <body>
 <div id="root"></div>
 <script type="text/babel">
-const { useState, useEffect, useRef } = React;
+const{useState,useEffect,useRef}=React;
 
-// ─── Level Configs ───────────────────────────────────────────────────────────
-
-const LEVELS = [
-  {
-    level: 1, name: 'Training Shift', subtitle: 'One district, no timer',
-    districts: [
-      { id: 'downtown', name: 'Downtown', emoji: '🏙️', demand: null, priority: 'standard', stabilityTime: null },
-    ],
-    sources: [
-      { id: 'wind', name: 'Wind Farm', emoji: '🌬️', fixed: true },
-      { id: 'battery', name: 'Battery', emoji: '🔋', fixed: false },
-    ],
-    totalExtra: null, // unlimited — single district, always solvable
-  },
-  {
-    level: 2, name: 'Harbor Shift', subtitle: 'Soft timer — 60 seconds',
-    globalTimer: 60,
-    districts: [
-      { id: 'harbor', name: 'Harbor District', emoji: '⚓', demand: null, priority: 'standard', stabilityTime: null },
-    ],
-    sources: [
-      { id: 'solar', name: 'Solar Array', emoji: '☀️', fixed: true },
-      { id: 'battery', name: 'Battery', emoji: '🔋', fixed: false },
-    ],
-    totalExtra: null,
-  },
-  {
-    level: '3A', name: 'Scarcity Tutorial', subtitle: 'Two districts — not enough for both. No timer.',
-    districts: [
-      { id: 'hospital', name: 'Hospital', emoji: '🏥', demand: 8, priority: 'critical', knownPower: 3, stabilityTime: null },
-      { id: 'homes', name: 'Residential', emoji: '🏘️', demand: 6, priority: 'standard', knownPower: 2, stabilityTime: null },
-    ],
-    sources: [
-      { id: 'solar', name: 'Solar Array', emoji: '☀️', fixed: true },
-      { id: 'wind', name: 'Wind Farm', emoji: '🌬️', fixed: true },
-      { id: 'battery', name: 'Battery Reserve', emoji: '🔋', fixed: false },
-    ],
-    totalExtra: 7, // hospital needs 5, homes needs 4, total needed = 9, available = 7
-    scarcity: true,
-  },
-  {
-    level: '3B', name: 'Triage Shift', subtitle: 'Two districts, real pressure. Choose wisely.',
-    districts: [
-      { id: 'hospital', name: 'Hospital', emoji: '🏥', demand: 10, priority: 'critical', knownPower: 4, stabilityTime: 20 },
-      { id: 'transit', name: 'Transit Station', emoji: '🚉', demand: 9, priority: 'standard', knownPower: 5, stabilityTime: 30 },
-    ],
-    sources: [
-      { id: 'wind', name: 'Wind Farm', emoji: '🌬️', fixed: true },
-      { id: 'solar', name: 'Solar Array', emoji: '☀️', fixed: true },
-      { id: 'battery', name: 'Battery Reserve', emoji: '🔋', fixed: false },
-    ],
-    totalExtra: 8, // hospital needs 6, transit needs 4, total needed = 10, available = 8
-    scarcity: true,
-  },
+const LEVELS=[
+  { level:1,name:'Training Shift',sub:'One district, no timer',
+    districts:[{id:'downtown',name:'Downtown',emoji:'🏙️',demand:[10,16],current:[3,7],priority:'standard',timer:null}],
+    reserve:null },// no shared pool — single district, reserve = exactly what's needed
+  { level:2,name:'Harbor Shift',sub:'Soft timer — 60 seconds',globalTimer:60,
+    districts:[{id:'harbor',name:'Harbor District',emoji:'⚓',demand:[12,18],current:[4,8],priority:'standard',timer:null}],
+    reserve:null },
+  { level:'3A',name:'Scarcity Tutorial',sub:'Two districts — not enough for both. No timer.',
+    districts:[
+      {id:'hospital',name:'Hospital',emoji:'🏥',demand:8,current:3,priority:'critical',timer:null},
+      {id:'homes',name:'Residential',emoji:'🏘️',demand:6,current:2,priority:'standard',timer:null},
+    ],reserve:7 },// needs 5+4=9, has 7
+  { level:'3B',name:'Triage Shift',sub:'Two districts, real pressure. Choose wisely.',
+    districts:[
+      {id:'hospital',name:'Hospital',emoji:'🏥',demand:10,current:4,priority:'critical',timer:20},
+      {id:'transit',name:'Transit Station',emoji:'🚉',demand:9,current:5,priority:'standard',timer:30},
+    ],reserve:8 },// needs 6+4=10, has 8
 ];
 
-// ─── Generate round ──────────────────────────────────────────────────────────
-
-function generateRound(cfg) {
-  if (cfg.scarcity) {
-    // Fixed scarcity levels — demands are preset
-    const districts = cfg.districts.map(d => ({
-      ...d,
-      known: d.knownPower,
-      needed: d.demand - d.knownPower,
-      solved: false, routed: false, blackout: false,
-      stability: d.stabilityTime || null,
-      maxStability: d.stabilityTime || null,
-    }));
-
-    // Split fixed sources: assign known power values
-    // For scarcity levels, known sources sum to district.knownPower
-    const fixedSources = cfg.sources.filter(s => s.fixed);
-    const srcValues = [];
-    let remaining = districts.reduce((s, d) => s + d.known, 0);
-    fixedSources.forEach((s, i) => {
-      if (i === fixedSources.length - 1) {
-        srcValues.push({ ...s, output: remaining });
-      } else {
-        const val = Math.floor(remaining / (fixedSources.length - i));
-        srcValues.push({ ...s, output: val });
-        remaining -= val;
-      }
-    });
-
-    return {
-      districts,
-      fixedSources: srcValues,
-      unknownSource: cfg.sources.find(s => !s.fixed),
-      totalExtra: cfg.totalExtra,
-      scarcity: true,
-    };
-  }
-
-  // L1/L2: single district, random demand
-  const d = cfg.districts[0];
-  const demand = 10 + Math.floor(Math.random() * 7); // 10-16
-  const knownVal = 3 + Math.floor(Math.random() * 5); // 3-7
-
-  return {
-    districts: [{
-      ...d, demand, known: knownVal, needed: demand - knownVal,
-      solved: false, routed: false, blackout: false,
-      stability: null, maxStability: null,
-    }],
-    fixedSources: [{ ...cfg.sources.find(s => s.fixed), output: knownVal }],
-    unknownSource: cfg.sources.find(s => !s.fixed),
-    totalExtra: null,
-    scarcity: false,
-  };
+function buildRound(cfg){
+  const ds=cfg.districts.map(d=>{
+    const demand=Array.isArray(d.demand)?d.demand[0]+Math.floor(Math.random()*(d.demand[1]-d.demand[0]+1)):d.demand;
+    const current=Array.isArray(d.current)?d.current[0]+Math.floor(Math.random()*(d.current[1]-d.current[0]+1)):d.current;
+    const missing=demand-current;
+    return{...d,demand,current,missing,solved:false,solvedVal:null,routed:false,blackout:false,stability:d.timer,maxStab:d.timer};
+  });
+  const totalMissing=ds.reduce((s,d)=>s+d.missing,0);
+  const reserve=cfg.reserve!==null?cfg.reserve:ds[0].missing;// single-district: reserve = exactly what's needed
+  return{districts:ds,reserve,reserveLeft:reserve,totalMissing,scarcity:cfg.reserve!==null&&cfg.reserve<totalMissing};
 }
 
-// ─── Main Component ──────────────────────────────────────────────────────────
+function PowerGrid(){
+  const[screen,setScreen]=useState('menu');
+  const[li,setLi]=useState(0);
+  const[round,setRound]=useState(null);
+  const[input,setInput]=useState('');
+  const[active,setActive]=useState(0);
+  const[fb,setFb]=useState(null);
+  const[score,setScore]=useState(0);
+  const[radio,setRadio]=useState({t:'',c:''});
+  const[showOv,setShowOv]=useState(false);
+  const[ovData,setOvData]=useState(null);
+  const[gTimer,setGTimer]=useState(null);
+  const resRef=useRef(0);
+  const orderRef=useRef([]);
 
-function PowerGridPrototype() {
-  const [screen, setScreen] = useState('menu');
-  const [levelIdx, setLevelIdx] = useState(0);
-  const [round, setRound] = useState(null);
-  const [inputVal, setInputVal] = useState('');
-  const [activeIdx, setActiveIdx] = useState(0);
-  const [feedback, setFeedback] = useState(null);
-  const [score, setScore] = useState(0);
-  const [radio, setRadio] = useState({ text: '', cls: '' });
-  const [showOverlay, setShowOverlay] = useState(false);
-  const [overlayData, setOverlayData] = useState(null);
-  const [globalTimer, setGlobalTimer] = useState(null);
-  const [powerUsed, setPowerUsed] = useState(0);
-  const routeOrder = useRef([]);
-
-  const cfg = LEVELS[levelIdx];
-
-  function startLevelByIdx(idx) {
-    const c = LEVELS[idx];
-    const r = generateRound(c);
-    setLevelIdx(idx);
-    setRound(r);
-    setInputVal('');
-    setActiveIdx(0);
-    setFeedback(null);
-    setScore(0);
-    setRadio({ text: '', cls: '' });
-    setShowOverlay(false);
-    setOverlayData(null);
-    setGlobalTimer(c.globalTimer || null);
-    setPowerUsed(0);
-    routeOrder.current = [];
+  function start(idx){
+    const c=LEVELS[idx];const r=buildRound(c);
+    setLi(idx);setRound(r);setInput('');setActive(0);setFb(null);setScore(0);
+    setRadio({t:'',c:''});setShowOv(false);setOvData(null);
+    setGTimer(c.globalTimer||null);resRef.current=r.reserve;orderRef.current=[];
     setScreen('playing');
   }
 
-  // Global timer countdown
-  useEffect(() => {
-    if (screen !== 'playing' || globalTimer === null || globalTimer <= 0) return;
-    const id = setTimeout(() => setGlobalTimer(t => t - 1), 1000);
-    return () => clearTimeout(id);
-  }, [screen, globalTimer]);
+  // Global timer
+  useEffect(()=>{
+    if(screen!=='playing'||gTimer===null||gTimer<=0)return;
+    const id=setTimeout(()=>setGTimer(t=>t-1),1000);
+    return()=>clearTimeout(id);
+  },[screen,gTimer]);
+  useEffect(()=>{if(gTimer===0&&screen==='playing')finish();},[gTimer,screen]);
 
-  // Global timer expiry
-  useEffect(() => {
-    if (globalTimer === 0 && screen === 'playing') finishShift();
-  }, [globalTimer, screen]);
-
-  // District stability timers (L3B)
-  useEffect(() => {
-    if (screen !== 'playing' || !round) return;
-    const hasTimers = round.districts.some(d => d.stability !== null && d.stability > 0 && !d.routed && !d.blackout);
-    if (!hasTimers) return;
-    const id = setInterval(() => {
-      setRound(prev => {
-        if (!prev) return prev;
-        let changed = false;
-        const updated = { ...prev, districts: prev.districts.map(d => {
-          if (d.stability !== null && d.stability > 0 && !d.routed && !d.blackout) {
-            changed = true;
-            const next = d.stability - 1;
-            if (next <= 0) {
-              setRadio({ text: `🚨 "${d.name} — BLACKOUT! Power failed!"`, cls: 'alert' });
-              return { ...d, stability: 0, blackout: true };
+  // District stability timers
+  useEffect(()=>{
+    if(screen!=='playing'||!round)return;
+    const live=round.districts.some(d=>d.stability!==null&&d.stability>0&&!d.routed&&!d.blackout);
+    if(!live)return;
+    const id=setInterval(()=>{
+      setRound(prev=>{
+        if(!prev)return prev;
+        const ds=prev.districts.map(d=>{
+          if(d.stability!==null&&d.stability>0&&!d.routed&&!d.blackout){
+            const next=d.stability-1;
+            if(next<=0){
+              setRadio({t:`🚨 ${d.name} — BLACKOUT! Stability reached zero.`,c:'r'});
+              return{...d,stability:0,blackout:true};
             }
-            return { ...d, stability: next };
+            if(next===5)setRadio({t:`⚠️ ${d.name} — critical! Only ${next}s left!`,c:'y'});
+            return{...d,stability:next};
           }
           return d;
-        })};
-        // Auto-finish if all districts are resolved
-        const allDone = updated.districts.every(d => d.routed || d.blackout);
-        if (allDone && changed) setTimeout(() => finishShift(), 1000);
-        return updated;
+        });
+        const allDone=ds.every(d=>d.routed||d.blackout);
+        if(allDone)setTimeout(()=>finish(),800);
+        return{...prev,districts:ds};
       });
-    }, 1000);
-    return () => clearInterval(id);
-  }, [screen, round?.districts.map(d => d.routed + '/' + d.blackout).join(',')]);
+    },1000);
+    return()=>clearInterval(id);
+  },[screen,round?.districts.map(d=>`${d.routed}${d.blackout}`).join('')]);
 
-  function finishShift() {
-    if (!round) return;
-    const saved = round.districts.filter(d => d.routed);
-    const lost = round.districts.filter(d => !d.routed);
-    setOverlayData({ saved, lost, score, routeOrder: [...routeOrder.current] });
-    setShowOverlay(true);
-    setScreen('complete');
+  function finish(){
+    if(!round)return;
+    const saved=round.districts.filter(d=>d.routed);
+    const lost=round.districts.filter(d=>!d.routed);
+    setOvData({saved,lost,score,order:[...orderRef.current]});
+    setShowOv(true);setScreen('complete');
   }
 
-  function handleSolve() {
-    if (!round || !inputVal) return;
-    const d = round.districts[activeIdx];
-    const answer = parseInt(inputVal, 10);
-
-    if (answer === d.needed) {
-      setScore(s => s + 100);
-      setRound(prev => {
-        const updated = { ...prev, districts: prev.districts.map((dd, i) =>
-          i === activeIdx ? { ...dd, solved: true, solvedVal: answer } : dd
-        )};
-        return updated;
-      });
-      setFeedback({ type: 'correct', msg: `✓ ${answer} MW — correct!`, districtId: d.id });
-      setRadio({ text: `📻 "${d.name} — solution confirmed. Route when ready."`, cls: 'success' });
-    } else {
-      setScore(s => s - 20);
-      setFeedback({ type: 'wrong', msg: `✗ Not ${answer}. Check: ${d.known} + ? = ${d.demand}`, districtId: d.id });
-      setRadio({ text: `📻 "${d.name} — that won't balance. Recalculate!"`, cls: 'alert' });
+  function solve(){
+    if(!round||!input)return;
+    const d=round.districts[active];
+    const ans=parseInt(input,10);
+    if(ans===d.missing){
+      setScore(s=>s+100);
+      setRound(prev=>({...prev,districts:prev.districts.map((dd,i)=>i===active?{...dd,solved:true,solvedVal:ans}:dd)}));
+      setFb({t:'ok',m:`✓ ${d.name} needs ${ans} MW from the grid.`,id:d.id});
+      setRadio({t:`📻 ${d.name} — shortfall confirmed: ${ans} MW needed.`,c:'g'});
+    }else{
+      setScore(s=>s-20);
+      setFb({t:'bad',m:`✗ Not ${ans}. ${d.name} has ${d.current} MW and needs ${d.demand} MW total.`,id:d.id});
+      setRadio({t:`📻 ${d.name} — recalculate! That doesn't balance.`,c:'r'});
     }
-    setInputVal('');
+    setInput('');
   }
 
-  function handleRoute(districtId) {
-    const d = round.districts.find(dd => dd.id === districtId);
-    const powerCost = d.solvedVal || d.needed;
-
-    if (round.scarcity && powerUsed + powerCost > round.totalExtra) {
-      setRadio({ text: `⚠️ Not enough reserve power! Only ${round.totalExtra - powerUsed} MW left.`, cls: 'warn' });
+  function route(id){
+    const d=round.districts.find(dd=>dd.id===id);
+    const cost=d.solvedVal;
+    if(resRef.current<cost){
+      setRadio({t:`⚠️ Only ${resRef.current} MW left — not enough for ${d.name}'s ${cost} MW!`,c:'y'});
+      // Partial power — send what's left
+      if(resRef.current>0){
+        const partial=resRef.current;
+        resRef.current=0;
+        orderRef.current.push(id);
+        setScore(s=>s+20);// partial credit
+        setRound(prev=>({...prev,reserveLeft:0,districts:prev.districts.map(dd=>
+          dd.id===id?{...dd,routed:true,partial:true}:dd
+        )}));
+        setRadio({t:`📻 ${d.name} — received ${partial} MW. Brownout, but holding.`,c:'y'});
+        setFb(null);
+        checkEnd();
+      }
       return;
     }
+    resRef.current-=cost;
+    orderRef.current.push(id);
+    setScore(s=>s+40);
+    setRound(prev=>({...prev,reserveLeft:resRef.current,districts:prev.districts.map(dd=>
+      dd.id===id?{...dd,routed:true}:dd
+    )}));
+    setRadio({t:`📻 ${d.name} — fully powered! Grid stable.`,c:'g'});
+    setFb(null);
 
-    setPowerUsed(prev => prev + powerCost);
-    routeOrder.current.push(districtId);
-    setScore(s => s + 40);
-
-    setRound(prev => {
-      const updated = { ...prev, districts: prev.districts.map(dd =>
-        dd.id === districtId ? { ...dd, routed: true } : dd
-      )};
-
-      // Check remaining districts
-      const unsaved = updated.districts.filter(dd => !dd.routed && !dd.blackout);
-      if (unsaved.length === 0) {
-        setTimeout(() => finishShift(), 800);
-      } else if (round.scarcity) {
-        const remainingPower = round.totalExtra - (powerUsed + powerCost);
-        const remainingNeed = unsaved.reduce((s, dd) => s + dd.needed, 0);
-        if (remainingPower < remainingNeed && unsaved.length > 0) {
-          const names = unsaved.map(dd => dd.name).join(', ');
-          setRadio({ text: `⚠️ Not enough power for ${names}. ${remainingPower} MW left, need ${remainingNeed}.`, cls: 'warn' });
-          // Mark remaining as blacked out after a delay
-          setTimeout(() => {
-            setRound(prev2 => {
-              if (!prev2) return prev2;
-              return { ...prev2, districts: prev2.districts.map(dd =>
-                !dd.routed && !dd.blackout ? { ...dd, blackout: true } : dd
-              )};
-            });
-            setTimeout(() => finishShift(), 1000);
-          }, 1500);
+    // If reserve is now insufficient for remaining districts, warn
+    setTimeout(()=>{
+      setRound(prev=>{
+        if(!prev)return prev;
+        const remaining=prev.districts.filter(dd=>!dd.routed&&!dd.blackout);
+        const remainingNeed=remaining.reduce((s,dd)=>s+(dd.solvedVal||dd.missing),0);
+        if(remaining.length>0&&resRef.current<remainingNeed){
+          const names=remaining.map(dd=>dd.name).join(', ');
+          setRadio({t:`⚠️ Reserve: ${resRef.current} MW. ${names} still needs ${remainingNeed} MW. Not enough.`,c:'y'});
         }
-      }
-      return updated;
-    });
+        const allDone=prev.districts.every(dd=>dd.routed||dd.blackout);
+        if(allDone)setTimeout(()=>finish(),600);
+        return prev;
+      });
+    },300);
 
-    setRadio({ text: `📻 "${d.name} — power restored! Grid holding."`, cls: 'success' });
-    setFeedback(null);
-
-    // Move to next unsolved district
-    const nextIdx = round.districts.findIndex((dd, i) => i !== activeIdx && !dd.routed && !dd.blackout && !dd.solved);
-    if (nextIdx >= 0) setActiveIdx(nextIdx);
+    // Move to next unsolved/unrouted
+    const next=round.districts.findIndex((dd,i)=>!dd.routed&&!dd.blackout&&i!==active);
+    if(next>=0)setActive(next);
   }
 
-  // ── Menu ──
-  if (screen === 'menu') {
-    return (
-      <div className="grid-game">
-        <div style={{ textAlign: 'center', marginTop: 40 }}>
-          <div style={{ fontSize: 48 }}>⚡</div>
-          <h1 style={{ color: '#22c55e', fontSize: 24, marginTop: 8, textShadow: '0 0 16px rgba(34,197,94,0.4)', letterSpacing: 3 }}>POWER GRID</h1>
-          <h2 style={{ color: '#94a3b8', fontSize: 14, letterSpacing: 2, fontWeight: 400 }}>OPERATOR</h2>
-          <p style={{ color: '#64748b', fontSize: 13, maxWidth: 340, margin: '16px auto', lineHeight: 1.7 }}>
-            Keep the city powered. Solve the missing value. Route electricity before the lights go out.
-          </p>
-        </div>
-        {LEVELS.map((lv, i) => (
-          <button key={i} onClick={() => startLevelByIdx(i)} style={{
-            width: '100%', padding: '14px 20px', background: 'rgba(15,25,45,0.95)',
-            border: '1px solid #1e3a5f', borderRadius: 10, cursor: 'pointer',
-            textAlign: 'left', color: '#e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          }}>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 700 }}>Level {lv.level} — {lv.name}</div>
-              <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{lv.subtitle}</div>
-            </div>
-            <div style={{ fontSize: 11, color: '#22c55e', fontWeight: 600 }}>▶ PLAY</div>
-          </button>
-        ))}
-        <div style={{ fontSize: 10, color: '#334155', textAlign: 'center', marginTop: 8 }}>Power Grid Operator — P1 Prototype</div>
+  function checkEnd(){
+    setTimeout(()=>{
+      setRound(prev=>{
+        if(!prev)return prev;
+        const allDone=prev.districts.every(dd=>dd.routed||dd.blackout);
+        if(allDone)setTimeout(()=>finish(),600);
+        return prev;
+      });
+    },500);
+  }
+
+  // ── MENU ──
+  if(screen==='menu')return(
+    <div className="g">
+      <div style={{textAlign:'center',marginTop:40}}>
+        <div style={{fontSize:48}}>⚡</div>
+        <h1 style={{color:'#22c55e',fontSize:24,marginTop:8,textShadow:'0 0 16px rgba(34,197,94,.4)',letterSpacing:3}}>POWER GRID</h1>
+        <h2 style={{color:'#94a3b8',fontSize:14,letterSpacing:2,fontWeight:400}}>OPERATOR</h2>
+        <p style={{color:'#64748b',fontSize:13,maxWidth:340,margin:'16px auto',lineHeight:1.7}}>
+          Districts need power. Solve for the shortfall. Distribute your reserve. Keep the lights on.
+        </p>
       </div>
-    );
-  }
+      {LEVELS.map((lv,i)=>(
+        <button key={i} onClick={()=>start(i)} style={{
+          width:'100%',padding:'14px 20px',background:'rgba(15,25,45,.95)',
+          border:'1px solid #1e3a5f',borderRadius:10,cursor:'pointer',
+          textAlign:'left',color:'#e2e8f0',display:'flex',justifyContent:'space-between',alignItems:'center',
+        }}>
+          <div>
+            <div style={{fontSize:14,fontWeight:700}}>Level {lv.level} — {lv.name}</div>
+            <div style={{fontSize:11,color:'#64748b',marginTop:2}}>{lv.sub}</div>
+          </div>
+          <div style={{fontSize:11,color:'#22c55e',fontWeight:600}}>▶ PLAY</div>
+        </button>
+      ))}
+      <div style={{fontSize:10,color:'#334155',textAlign:'center',marginTop:8}}>Power Grid Operator — P1 Prototype</div>
+    </div>
+  );
 
-  if (!round) return null;
+  if(!round)return null;
+  const cfg=LEVELS[li];
+  const tPct=gTimer!==null&&cfg.globalTimer?(gTimer/cfg.globalTimer)*100:100;
 
-  // ── Playing ──
-  const timerPct = globalTimer !== null && cfg.globalTimer ? (globalTimer / cfg.globalTimer) * 100 : 100;
-
-  return (
-    <div className="grid-game">
+  // ── PLAYING ──
+  return(
+    <div className="g">
       <div className="hud">
-        <div className="hud-title">⚡ Power Grid</div>
-        <div style={{ display: 'flex', gap: 16 }}>
-          <div className="hud-stat">LVL <span>{cfg.level}</span></div>
-          <div className="hud-stat">SCORE <span>{score}</span></div>
-          {globalTimer !== null && (
-            <div className="hud-stat" style={{ color: globalTimer <= 15 ? '#ef4444' : undefined }}>
-              ⏱️ <span style={{ color: globalTimer <= 15 ? '#ef4444' : '#fbbf24' }}>{globalTimer}s</span>
-            </div>
-          )}
-          {round.scarcity && (
-            <div className="hud-stat">RESERVE <span style={{ color: round.totalExtra - powerUsed <= 2 ? '#ef4444' : '#22c55e' }}>{round.totalExtra - powerUsed} MW</span></div>
-          )}
+        <div className="hud-t">⚡ Power Grid</div>
+        <div style={{display:'flex',gap:16}}>
+          <div className="hs">LVL <span>{cfg.level}</span></div>
+          <div className="hs">SCORE <span>{score}</span></div>
+          {gTimer!==null&&<div className="hs" style={{color:gTimer<=15?'#ef4444':undefined}}>⏱️ <span style={{color:gTimer<=15?'#ef4444':'#fbbf24'}}>{gTimer}s</span></div>}
         </div>
       </div>
 
-      {globalTimer !== null && (
-        <div style={{ width: '100%', height: 5, background: '#1e293b', borderRadius: 3, overflow: 'hidden' }}>
-          <div style={{ width: `${timerPct}%`, height: '100%', background: globalTimer <= 15 ? '#ef4444' : timerPct > 50 ? '#22c55e' : '#f59e0b', transition: 'width 1s linear', borderRadius: 3 }} />
+      {gTimer!==null&&(
+        <div style={{width:'100%',height:5,background:'#1e293b',borderRadius:3,overflow:'hidden'}}>
+          <div style={{width:`${tPct}%`,height:'100%',background:gTimer<=15?'#ef4444':tPct>50?'#22c55e':'#f59e0b',transition:'width 1s linear',borderRadius:3}}/>
         </div>
       )}
 
-      <div className="status-strip" style={{ color: round.scarcity ? '#f59e0b' : '#22c55e' }}>
-        {round.scarcity
-          ? `⚠️ Limited power — ${round.totalExtra} MW reserve for ${round.districts.length} districts`
-          : '🌙 Grid active. Solve and route.'
-        }
+      <div className="strip" style={{color:round.scarcity?'#f59e0b':'#22c55e'}}>
+        {round.scarcity?`⚠️ Reserve is limited — ${round.reserve} MW for ${round.totalMissing} MW total shortfall`:'⚡ Solve the shortfall. Route the power.'}
       </div>
 
-      <div className="radio" style={{ color: radio.cls === 'alert' ? '#ef4444' : radio.cls === 'success' ? '#22c55e' : radio.cls === 'warn' ? '#f59e0b' : '#64748b' }}>
-        {radio.text}
-      </div>
+      <div className="radio" style={{color:radio.c==='r'?'#ef4444':radio.c==='g'?'#22c55e':radio.c==='y'?'#f59e0b':'#64748b'}}>{radio.t}</div>
+
+      {/* Shared reserve pool — shown for scarcity levels */}
+      {round.scarcity&&(
+        <div className="pool">
+          <div className="pool-label">Grid Reserve</div>
+          <div className={`pool-val ${round.reserveLeft<=2?'empty':round.reserveLeft<=4?'low':''}`}>{round.reserveLeft} MW</div>
+          <div className="pool-sub">
+            {round.reserveLeft===round.reserve?`Distribute to districts (need ${round.totalMissing} MW total)`:
+             round.reserveLeft>0?`${round.reserve-round.reserveLeft} MW assigned · ${round.reserveLeft} MW remaining`:
+             'Reserve depleted'}
+          </div>
+        </div>
+      )}
 
       {/* District cards */}
-      {round.districts.map((d, i) => {
-        const isActive = i === activeIdx && !d.routed && !d.blackout;
-        const dClass = d.routed ? 'powered' : d.blackout ? 'blackout' : (d.stability !== null && d.stability < 8) ? 'degrading' : '';
+      {round.districts.map((d,i)=>{
+        const isAct=i===active&&!d.routed&&!d.blackout;
+        const cls=d.routed?(d.partial?'brownout':'powered'):d.blackout?'blackout':(d.stability!==null&&d.stability<8)?'brownout':'';
+        return(
+          <div key={d.id} className={`d ${cls}`}
+            onClick={()=>{if(!d.routed&&!d.blackout){setActive(i);setFb(null);setInput('');}}}
+            style={{cursor:!d.routed&&!d.blackout?'pointer':'default'}}>
 
-        return (
-          <div key={d.id} className={`district ${dClass}`}
-            onClick={() => { if (!d.routed && !d.blackout) { setActiveIdx(i); setFeedback(null); setInputVal(''); } }}
-            style={{ cursor: !d.routed && !d.blackout ? 'pointer' : 'default' }}
-          >
-            <div className="district-header">
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                <span className="district-name">{d.emoji} {d.name}</span>
-                <span className={`priority-badge ${d.priority}`}>{d.priority}</span>
+            <div className="d-head">
+              <div style={{display:'flex',alignItems:'center'}}>
+                <span className="d-name">{d.emoji} {d.name}</span>
+                <span className={`badge ${d.priority==='critical'?'crit':'std'}`}>{d.priority}</span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                <span className="district-demand">DEMAND: {d.demand} MW</span>
-                {d.routed && <span className="status-badge ok">⚡ POWERED</span>}
-                {d.blackout && <span className="status-badge dark">⛔ BLACKOUT</span>}
-                {!d.routed && !d.blackout && d.solved && <span className="status-badge warn">ROUTE NOW</span>}
-                {!d.routed && !d.blackout && !d.solved && isActive && <span className="status-badge warn">SOLVE</span>}
+              <div>
+                {d.routed&&!d.partial&&<span className="badge ok">⚡ POWERED</span>}
+                {d.routed&&d.partial&&<span className="badge std">⚡ PARTIAL</span>}
+                {d.blackout&&<span className="badge dark">⛔ BLACKOUT</span>}
+                {!d.routed&&!d.blackout&&d.solved&&<span className="badge std">ROUTE NOW</span>}
+                {!d.routed&&!d.blackout&&!d.solved&&isAct&&<span className="badge std">SOLVE</span>}
               </div>
             </div>
 
-            {/* Stability bar for timed districts */}
-            {d.maxStability && !d.routed && !d.blackout && (
-              <div className="stability-bar">
-                <div className="stability-fill" style={{
-                  width: `${(d.stability / d.maxStability) * 100}%`,
-                  background: d.stability > d.maxStability * 0.5 ? '#22c55e' : d.stability > d.maxStability * 0.25 ? '#f59e0b' : '#ef4444',
-                }} />
-              </div>
-            )}
-            {d.maxStability && !d.routed && !d.blackout && (
-              <div style={{ fontSize: 10, color: d.stability <= 5 ? '#ef4444' : '#64748b', textAlign: 'right' }}>
-                Stability: {d.stability}s
-              </div>
+            {/* Stability bar */}
+            {d.maxStab&&!d.routed&&!d.blackout&&(
+              <>
+                <div className="bar"><div className="bar-fill" style={{
+                  width:`${(d.stability/d.maxStab)*100}%`,
+                  background:d.stability>d.maxStab*.5?'#22c55e':d.stability>d.maxStab*.25?'#f59e0b':'#ef4444',
+                }}/></div>
+                <div style={{fontSize:10,color:d.stability<=5?'#ef4444':'#64748b',textAlign:'right'}}>Stability: {d.stability}s</div>
+              </>
             )}
 
-            {/* Sources */}
-            <div className="sources">
-              {round.fixedSources.map(s => (
-                <div key={s.id} className="source-chip">
-                  <span>{s.emoji}</span> <span>{s.name}</span> <span className="val">+{s.output} MW</span>
-                </div>
-              ))}
-              <div className="source-chip" style={{ borderColor: '#fbbf24' }}>
-                <span>{round.unknownSource.emoji}</span>
-                <span>{round.unknownSource.name}</span>
-                <span className="val" style={{ color: '#fbbf24' }}>{d.solved ? `+${d.solvedVal} MW` : '? MW'}</span>
-              </div>
+            {/* Power meter */}
+            <div className="meter">
+              <span className="lbl">Current</span>
+              <span className="val" style={{color:'#22c55e'}}>{d.current} MW</span>
+            </div>
+            <div className="meter">
+              <span className="lbl">Demand</span>
+              <span className="val" style={{color:'#fbbf24'}}>{d.demand} MW</span>
+            </div>
+            <div className="meter">
+              <span className="lbl">Shortfall</span>
+              <span className="val" style={{color:d.solved?'#22c55e':'#ef4444'}}>{d.solved?`${d.solvedVal} MW (solved)`:`? MW`}</span>
             </div>
 
-            {/* Equation — only for active unsolved district */}
-            {isActive && !d.solved && !d.blackout && (
-              <div className="equation-block">
-                <div className="equation-text">
-                  {d.known} + <span className="unknown">x</span> = {d.demand}
-                </div>
-                <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>
-                  How much from {round.unknownSource.name}?
-                </div>
+            {/* Equation */}
+            {isAct&&!d.solved&&!d.blackout&&(
+              <div className="eq">
+                <div className="eq-text">{d.current} + <span className="x">x</span> = {d.demand}</div>
+                <div className="eq-hint">How much more does {d.name} need?</div>
                 <div className="solve-row">
-                  <input className="solve-input" type="number" value={inputVal}
-                    onChange={e => setInputVal(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter') handleSolve(); }}
-                    placeholder="x" autoFocus
-                  />
-                  <button className="solve-btn" onClick={handleSolve} disabled={!inputVal}>SOLVE</button>
+                  <input className="si" type="number" value={input}
+                    onChange={e=>setInput(e.target.value)}
+                    onKeyDown={e=>{if(e.key==='Enter')solve();}}
+                    placeholder="x" autoFocus/>
+                  <button className="sb" onClick={solve} disabled={!input}>SOLVE</button>
                 </div>
               </div>
             )}
 
             {/* Route button */}
-            {d.solved && !d.routed && !d.blackout && isActive && (
-              <div style={{ textAlign: 'center', marginTop: 8 }}>
-                <button className="route-btn" onClick={() => handleRoute(d.id)}>
-                  ⚡ ROUTE {d.solvedVal} MW TO {d.name.toUpperCase()}
+            {d.solved&&!d.routed&&!d.blackout&&isAct&&(
+              <div style={{textAlign:'center',marginTop:8}}>
+                <button className="rb" onClick={()=>route(d.id)}
+                  disabled={round.reserveLeft!==undefined&&round.reserveLeft<d.solvedVal&&round.reserveLeft<=0}>
+                  ⚡ SEND {d.solvedVal} MW TO {d.name.toUpperCase()}
                 </button>
+                {round.scarcity&&round.reserveLeft<d.solvedVal&&round.reserveLeft>0&&(
+                  <div style={{fontSize:11,color:'#f59e0b',marginTop:4}}>
+                    Only {round.reserveLeft} MW left — {d.name} needs {d.solvedVal}. Will receive partial power.
+                  </div>
+                )}
               </div>
             )}
 
-            {/* Feedback */}
-            {feedback && feedback.districtId === d.id && (
-              <div className={`feedback ${feedback.type}`}>{feedback.msg}</div>
-            )}
+            {fb&&fb.id===d.id&&<div className={`fb ${fb.t}`}>{fb.m}</div>}
           </div>
         );
       })}
 
-      {/* Scarcity warning — shown when both equations are solved but deficit exists */}
-      {round.scarcity && round.districts.every(d => d.solved || d.routed || d.blackout) && round.districts.some(d => !d.routed && !d.blackout) && (
-        <div className="deficit-warning">
-          ⚠️ Both equations solved — but only {round.totalExtra - powerUsed} MW reserve left.
-          You cannot fully power everything. Choose which district gets power first.
-        </div>
-      )}
-
-      {/* Shift complete overlay */}
-      {showOverlay && overlayData && (
-        <div className="overlay">
-          <div className={`overlay-card ${overlayData.lost.length > 0 ? 'failed' : ''}`}>
-            <h2>{overlayData.lost.length === 0 ? '⚡ ALL DISTRICTS POWERED' : '⚡ SHIFT COMPLETE'}</h2>
-            <div className="stat-line">Score: <span>{overlayData.score}</span></div>
-
-            {overlayData.saved.map(d => (
-              <div key={d.id} className="triage-line saved">
-                ✅ {d.emoji} {d.name} — powered ({d.priority})
-              </div>
+      {/* Overlay */}
+      {showOv&&ovData&&(
+        <div className="ov">
+          <div className={`ov-c ${ovData.lost.length>0?'partial':''}`}>
+            <h2 style={{color:ovData.lost.length===0?'#22c55e':'#f59e0b'}}>
+              {ovData.lost.length===0?'⚡ ALL DISTRICTS POWERED':'⚡ SHIFT COMPLETE'}
+            </h2>
+            <div className="sl">Score: <span>{ovData.score}</span></div>
+            {ovData.saved.map(d=>(
+              <div key={d.id} className="tl saved">✅ {d.emoji} {d.name} — {d.partial?'partial power (brownout)':'fully powered'} ({d.priority})</div>
             ))}
-            {overlayData.lost.map(d => (
-              <div key={d.id} className="triage-line lost">
-                ⛔ {d.emoji} {d.name} — lost power ({d.priority})
-              </div>
+            {ovData.lost.map(d=>(
+              <div key={d.id} className="tl lost">⛔ {d.emoji} {d.name} — lost power ({d.priority})</div>
             ))}
-
-            {overlayData.routeOrder.length > 0 && round.scarcity && (
-              <div style={{ fontSize: 11, color: '#64748b', marginTop: 8 }}>
-                You chose: {overlayData.routeOrder.map(id => round.districts.find(d => d.id === id)?.name).join(' → ')}
+            {round.scarcity&&ovData.order.length>0&&(
+              <div style={{fontSize:11,color:'#64748b',marginTop:8}}>
+                Your call: {ovData.order.map(id=>round.districts.find(d=>d.id===id)?.name).join(' first, then ')}
               </div>
             )}
-
-            {round.scarcity && overlayData.lost.length > 0 && (
-              <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 8, fontStyle: 'italic' }}>
-                Not enough reserve power for all districts. You had to choose.
+            {round.scarcity&&ovData.lost.length>0&&(
+              <div style={{fontSize:12,color:'#94a3b8',marginTop:8,fontStyle:'italic'}}>
+                Not enough reserve for all districts. You had to choose.
               </div>
             )}
-
-            {levelIdx < LEVELS.length - 1 ? (
-              <button className="next-btn" onClick={() => startLevelByIdx(levelIdx + 1)}>NEXT SHIFT →</button>
-            ) : (
-              <button className="next-btn" onClick={() => { setScreen('menu'); setScore(0); }}>BACK TO MENU</button>
+            {li<LEVELS.length-1?(
+              <button className="nb" onClick={()=>start(li+1)}>NEXT SHIFT →</button>
+            ):(
+              <button className="nb" onClick={()=>{setScreen('menu');setScore(0);}}>BACK TO MENU</button>
             )}
           </div>
         </div>
@@ -571,7 +446,7 @@ function PowerGridPrototype() {
   );
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(<PowerGridPrototype />);
+ReactDOM.createRoot(document.getElementById('root')).render(<PowerGrid/>);
 </script>
 </body>
 </html>
