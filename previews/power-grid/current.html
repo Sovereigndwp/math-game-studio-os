@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Power Grid Operator — P1</title>
+<script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0a0f1a; color: #e2e8f0; font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; display: flex; justify-content: center; padding: 16px; }
+  #root { width: 100%; max-width: 580px; }
+
+  .grid-game { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+
+  /* HUD */
+  .hud { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 10px 16px; background: rgba(10,20,40,0.95); border: 1px solid #1e3a5f; border-radius: 10px; }
+  .hud-title { font-size: 14px; font-weight: 700; color: #22c55e; letter-spacing: 2px; text-transform: uppercase; text-shadow: 0 0 8px rgba(34,197,94,0.4); }
+  .hud-stat { font-size: 12px; color: #94a3b8; }
+  .hud-stat span { color: #fbbf24; font-weight: 700; font-size: 16px; }
+
+  /* Status strip */
+  .status-strip { text-align: center; font-size: 13px; padding: 6px 16px; border-radius: 999px; background: rgba(10,20,40,0.8); border: 1px solid #1e3a5f; font-weight: 600; min-height: 28px; }
+
+  /* District card */
+  .district { background: rgba(15,25,45,0.95); border: 2px solid #1e3a5f; border-radius: 14px; padding: 16px 20px; width: 100%; transition: border-color 0.3s, box-shadow 0.3s; }
+  .district.powered { border-color: #22c55e; box-shadow: 0 0 20px rgba(34,197,94,0.2); }
+  .district.brownout { border-color: #f59e0b; box-shadow: 0 0 20px rgba(245,158,11,0.15); animation: flicker 1.5s ease-in-out infinite; }
+  .district.blackout { border-color: #ef4444; box-shadow: 0 0 20px rgba(239,68,68,0.2); }
+  @keyframes flicker { 0%,100% { opacity: 1; } 50% { opacity: 0.7; } }
+
+  .district-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .district-name { font-size: 16px; font-weight: 700; }
+  .district-demand { font-size: 13px; color: #fbbf24; font-weight: 600; }
+  .district-status { font-size: 11px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; padding: 2px 8px; border-radius: 4px; }
+  .district-status.ok { background: rgba(34,197,94,0.15); color: #22c55e; }
+  .district-status.warn { background: rgba(245,158,11,0.15); color: #f59e0b; }
+  .district-status.dark { background: rgba(239,68,68,0.15); color: #ef4444; }
+
+  /* Equation display */
+  .equation-block { background: #0f1729; border: 1px solid #1e3a5f; border-radius: 10px; padding: 14px; margin: 8px 0; text-align: center; }
+  .equation-text { font-size: 22px; font-weight: 800; letter-spacing: 2px; color: #e2e8f0; }
+  .equation-text .unknown { color: #fbbf24; text-shadow: 0 0 8px rgba(251,191,36,0.4); }
+
+  /* Sources */
+  .sources { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0; }
+  .source-chip { background: #0f1729; border: 1px solid #334155; border-radius: 8px; padding: 6px 12px; font-size: 12px; display: flex; align-items: center; gap: 6px; }
+  .source-chip .emoji { font-size: 16px; }
+  .source-chip .val { color: #22c55e; font-weight: 700; }
+
+  /* Input */
+  .solve-row { display: flex; gap: 8px; align-items: center; justify-content: center; margin-top: 8px; }
+  .solve-input { width: 80px; padding: 8px 12px; font-size: 18px; font-weight: 700; text-align: center; background: #0a0f1a; border: 2px solid #334155; border-radius: 8px; color: #fbbf24; outline: none; }
+  .solve-input:focus { border-color: #fbbf24; box-shadow: 0 0 8px rgba(251,191,36,0.3); }
+  .solve-btn { padding: 8px 20px; font-size: 14px; font-weight: 700; background: #22c55e; color: #0a0f1a; border: none; border-radius: 8px; cursor: pointer; letter-spacing: 1px; }
+  .solve-btn:hover { background: #16a34a; }
+  .solve-btn:disabled { background: #334155; color: #64748b; cursor: not-allowed; }
+
+  /* Route button */
+  .route-btn { padding: 10px 24px; font-size: 14px; font-weight: 700; background: #3b82f6; color: #fff; border: none; border-radius: 8px; cursor: pointer; letter-spacing: 1px; margin-top: 4px; }
+  .route-btn:hover { background: #2563eb; }
+
+  /* Feedback */
+  .feedback { text-align: center; padding: 10px; border-radius: 8px; font-size: 13px; font-weight: 600; margin-top: 4px; }
+  .feedback.correct { background: rgba(34,197,94,0.1); color: #22c55e; border: 1px solid rgba(34,197,94,0.3); }
+  .feedback.wrong { background: rgba(239,68,68,0.1); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); }
+
+  /* Timer */
+  .timer-bar { width: 100%; height: 6px; background: #1e293b; border-radius: 3px; overflow: hidden; }
+  .timer-fill { height: 100%; transition: width 1s linear, background 0.3s; border-radius: 3px; }
+
+  /* Shift complete overlay */
+  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: flex; align-items: center; justify-content: center; z-index: 100; }
+  .overlay-card { background: #0f1729; border: 2px solid #22c55e; border-radius: 16px; padding: 32px; max-width: 420px; text-align: center; }
+  .overlay-card h2 { color: #22c55e; font-size: 20px; margin-bottom: 8px; text-shadow: 0 0 12px rgba(34,197,94,0.4); }
+  .overlay-card .stat-line { font-size: 13px; color: #94a3b8; margin: 4px 0; }
+  .overlay-card .stat-line span { color: #fbbf24; font-weight: 700; }
+  .next-btn { margin-top: 16px; padding: 10px 28px; font-size: 14px; font-weight: 700; background: #22c55e; color: #0a0f1a; border: none; border-radius: 8px; cursor: pointer; }
+  .next-btn:hover { background: #16a34a; }
+
+  /* Radio chatter */
+  .radio { font-size: 11px; color: #64748b; font-style: italic; text-align: center; min-height: 16px; transition: color 0.3s; }
+  .radio.alert { color: #ef4444; font-style: normal; font-weight: 600; }
+  .radio.success { color: #22c55e; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+// ─── Level Configs ───────────────────────────────────────────────────────────
+
+const LEVELS = [
+  {
+    level: 1, name: 'Training Shift', subtitle: 'One district, no timer',
+    timer: null, // no timer
+    districts: [
+      { id: 'downtown', name: 'Downtown', emoji: '🏙️', demandRange: [10, 16] },
+    ],
+    sources: [
+      { id: 'wind', name: 'Wind Farm', emoji: '🌬️', fixedOutput: true },
+      { id: 'battery', name: 'Battery', emoji: '🔋', fixedOutput: false }, // this is the unknown
+    ],
+  },
+  {
+    level: 2, name: 'Harbor Shift', subtitle: 'Soft timer — 60 seconds',
+    timer: 60,
+    districts: [
+      { id: 'harbor', name: 'Harbor District', emoji: '⚓', demandRange: [12, 20] },
+    ],
+    sources: [
+      { id: 'solar', name: 'Solar Array', emoji: '☀️', fixedOutput: true },
+      { id: 'battery', name: 'Battery', emoji: '🔋', fixedOutput: false },
+    ],
+  },
+  {
+    level: 3, name: 'Triage Shift', subtitle: 'Two districts — not enough for both',
+    timer: 75,
+    districts: [
+      { id: 'downtown', name: 'Downtown', emoji: '🏙️', demandRange: [10, 14] },
+      { id: 'hospital', name: 'Hospital', emoji: '🏥', demandRange: [8, 12] },
+    ],
+    sources: [
+      { id: 'wind', name: 'Wind Farm', emoji: '🌬️', fixedOutput: true },
+      { id: 'solar', name: 'Solar Array', emoji: '☀️', fixedOutput: true },
+      { id: 'battery', name: 'Battery', emoji: '🔋', fixedOutput: false },
+    ],
+  },
+];
+
+// ─── Generate a round ────────────────────────────────────────────────────────
+
+function generateRound(levelConfig) {
+  const districts = levelConfig.districts.map(d => {
+    const demand = d.demandRange[0] + Math.floor(Math.random() * (d.demandRange[1] - d.demandRange[0] + 1));
+    return { ...d, demand, powered: false, blackout: false };
+  });
+
+  // For L1-L2: one district, known source + unknown source = demand
+  // For L3: two districts, total available < total demand (force triage)
+  const totalDemand = districts.reduce((s, d) => s + d.demand, 0);
+
+  const sources = levelConfig.sources.map(src => {
+    if (src.fixedOutput) {
+      // Known source: random 3-7 for simple levels, 4-8 for harder
+      const min = levelConfig.level <= 2 ? 3 : 4;
+      const max = levelConfig.level <= 2 ? 7 : 8;
+      const output = min + Math.floor(Math.random() * (max - min + 1));
+      return { ...src, output, assigned: null };
+    }
+    return { ...src, output: null, assigned: null }; // unknown — player solves
+  });
+
+  // For L3: ensure total known sources < total demand (scarcity)
+  if (levelConfig.level === 3) {
+    const knownTotal = sources.filter(s => s.fixedOutput).reduce((s, src) => s + src.output, 0);
+    // Battery (unknown) should be solvable but not enough for both
+    // Set battery max = totalDemand - knownTotal - some deficit
+    const maxBattery = totalDemand - knownTotal - 2; // always 2 MW short
+    return { districts, sources, totalDemand, maxBattery, scarcity: true };
+  }
+
+  return { districts, sources, totalDemand, maxBattery: null, scarcity: false };
+}
+
+function getEquation(round, districtIdx) {
+  const d = round.districts[districtIdx];
+  const knownSources = round.sources.filter(s => s.fixedOutput);
+  const knownTotal = knownSources.reduce((s, src) => s + src.output, 0);
+  const unknownNeeded = d.demand - knownTotal;
+  return { knownTotal, unknownNeeded, demand: d.demand, knownSources };
+}
+
+// ─── Status messages ─────────────────────────────────────────────────────────
+
+function getGridStatus(level, solved, blackouts, powered) {
+  if (blackouts > 0) return { text: '⚠️ Blackout reported — restore power!', color: '#ef4444', cls: 'alert' };
+  if (powered > 0 && solved === 0) return { text: '⚡ Grid stabilizing...', color: '#22c55e', cls: 'success' };
+  if (level === 1) return { text: '🌙 Quiet grid. First demand incoming.', color: '#64748b', cls: '' };
+  if (level === 2) return { text: '⚡ Harbor pulling power. Clock is ticking.', color: '#f59e0b', cls: '' };
+  if (level === 3) return { text: '🚨 Two districts, not enough for both. Choose wisely.', color: '#ef4444', cls: 'alert' };
+  return { text: '⚡ Grid active.', color: '#94a3b8', cls: '' };
+}
+
+// ─── Main Component ──────────────────────────────────────────────────────────
+
+function PowerGridPrototype() {
+  const [screen, setScreen] = useState('menu'); // menu | playing | complete
+  const [levelIdx, setLevelIdx] = useState(0);
+  const [round, setRound] = useState(null);
+  const [inputVal, setInputVal] = useState('');
+  const [solvedDistricts, setSolvedDistricts] = useState({}); // districtId -> solvedValue
+  const [routedDistricts, setRoutedDistricts] = useState({}); // districtId -> true
+  const routedRef = useRef({});
+  const [feedback, setFeedback] = useState(null); // { type, msg, districtId }
+  const [activeDistrict, setActiveDistrict] = useState(0);
+  const [timer, setTimer] = useState(null);
+  const [score, setScore] = useState(0);
+  const [blackouts, setBlackouts] = useState(0);
+  const [radio, setRadio] = useState({ text: '', cls: '' });
+  const [showOverlay, setShowOverlay] = useState(false);
+  const inputRef = useRef(null);
+
+  const levelConfig = LEVELS[levelIdx];
+
+  // Start a level
+  const startLevel = useCallback(() => {
+    const r = generateRound(levelConfig);
+    setRound(r);
+    setInputVal('');
+    setSolvedDistricts({});
+    setRoutedDistricts({});
+    routedRef.current = {};
+    setFeedback(null);
+    setActiveDistrict(0);
+    setBlackouts(0);
+    setShowOverlay(false);
+    setTimer(levelConfig.timer);
+    setRadio({ text: '', cls: '' });
+    setScreen('playing');
+  }, [levelConfig]);
+
+  // Start a specific level by index
+  function startLevelByIdx(idx) {
+    const cfg = LEVELS[idx];
+    const r = generateRound(cfg);
+    setLevelIdx(idx);
+    setRound(r);
+    setInputVal('');
+    setSolvedDistricts({});
+    setRoutedDistricts({});
+    routedRef.current = {};
+    setFeedback(null);
+    setActiveDistrict(0);
+    setBlackouts(0);
+    setShowOverlay(false);
+    setTimer(cfg.timer);
+    setRadio({ text: '', cls: '' });
+    setScreen('playing');
+  }
+
+  // Timer
+  useEffect(() => {
+    if (screen !== 'playing' || timer === null || timer <= 0) return;
+    const id = setTimeout(() => setTimer(t => t - 1), 1000);
+    return () => clearTimeout(id);
+  }, [screen, timer]);
+
+  // Timer expiry
+  useEffect(() => {
+    if (timer === 0 && screen === 'playing') {
+      // Time's up — any unrouted districts black out
+      endShift();
+    }
+  }, [timer, screen]);
+
+  function endShift() {
+    if (!round) return;
+    let bo = 0;
+    round.districts.forEach(d => {
+      if (!routedRef.current[d.id]) bo++;
+    });
+    setBlackouts(bo);
+    setShowOverlay(true);
+    setScreen('complete');
+  }
+
+  // Submit answer for current district
+  function handleSolve() {
+    if (!round || !inputVal) return;
+    const d = round.districts[activeDistrict];
+    const eq = getEquation(round, activeDistrict);
+    const answer = parseInt(inputVal, 10);
+
+    if (answer === eq.unknownNeeded) {
+      // Correct
+      setScore(s => s + 100);
+      setSolvedDistricts(prev => ({ ...prev, [d.id]: answer }));
+      setFeedback({ type: 'correct', msg: `✓ ${answer} MW — correct! Route power to ${d.name}.`, districtId: d.id });
+      setRadio({ text: `📻 "${d.name} — power solution confirmed. Awaiting routing."`, cls: 'success' });
+    } else {
+      // Wrong
+      setScore(s => s - 20);
+      setFeedback({ type: 'wrong', msg: `✗ Not ${answer}. Check the equation again.`, districtId: d.id });
+      setRadio({ text: `📻 "${d.name} — that doesn't balance. Try again!"`, cls: 'alert' });
+    }
+    setInputVal('');
+  }
+
+  // Route power to a solved district
+  function handleRoute(districtId) {
+    routedRef.current = { ...routedRef.current, [districtId]: true };
+    setRoutedDistricts(prev => ({ ...prev, [districtId]: true }));
+    setScore(s => s + 40);
+    const d = round.districts.find(dd => dd.id === districtId);
+    setRadio({ text: `📻 "${d.name} — lights are back on! Grid stable."`, cls: 'success' });
+    setFeedback(null);
+
+    // Check if this was L3 and the other district is NOT routed
+    if (round.scarcity && round.districts.length === 2) {
+      const other = round.districts.find(dd => dd.id !== districtId);
+      if (!routedDistricts[other.id] && !solvedDistricts[other.id]) {
+        // The other district can't be fully powered — brownout/blackout
+        setTimeout(() => {
+          setRadio({ text: `📻 "🚨 ${other.name} — not enough power remaining. Brownout!"`, cls: 'alert' });
+          setTimeout(() => endShift(), 1500);
+        }, 1200);
+        return;
+      }
+    }
+
+    // Check if all districts are routed
+    const allRouted = round.districts.every(d2 => routedDistricts[d2.id] || d2.id === districtId);
+    if (allRouted) {
+      setTimeout(() => endShift(), 1000);
+    } else {
+      // Move to next unsolved district
+      const nextIdx = round.districts.findIndex((d2, i) => i > activeDistrict && !routedDistricts[d2.id] && !solvedDistricts[d2.id]);
+      if (nextIdx >= 0) setActiveDistrict(nextIdx);
+    }
+  }
+
+  // For L3: let player choose which district to solve/route first
+  function selectDistrict(idx) {
+    if (round && round.districts.length > 1 && !routedDistricts[round.districts[idx].id]) {
+      setActiveDistrict(idx);
+      setFeedback(null);
+      setInputVal('');
+    }
+  }
+
+  // ── Menu ──
+  if (screen === 'menu') {
+    return (
+      <div className="grid-game">
+        <div style={{ textAlign: 'center', marginTop: 40 }}>
+          <div style={{ fontSize: 48 }}>⚡</div>
+          <h1 style={{ color: '#22c55e', fontSize: 24, marginTop: 8, textShadow: '0 0 16px rgba(34,197,94,0.4)', letterSpacing: 3 }}>POWER GRID</h1>
+          <h2 style={{ color: '#94a3b8', fontSize: 14, letterSpacing: 2, fontWeight: 400 }}>OPERATOR</h2>
+          <p style={{ color: '#64748b', fontSize: 13, maxWidth: 340, margin: '16px auto', lineHeight: 1.7 }}>
+            Keep the city powered. Solve the missing value. Route electricity to each district before the lights go out.
+          </p>
+        </div>
+        {LEVELS.map((lv, i) => (
+          <button
+            key={lv.level}
+            onClick={() => startLevelByIdx(i)}
+            disabled={i > 0 && false} // all unlocked for P1 testing
+            style={{
+              width: '100%', padding: '14px 20px', background: 'rgba(15,25,45,0.95)',
+              border: '1px solid #1e3a5f', borderRadius: 10, cursor: 'pointer',
+              textAlign: 'left', color: '#e2e8f0', display: 'flex', justifyContent: 'space-between',
+              alignItems: 'center',
+            }}
+          >
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 700 }}>Level {lv.level} — {lv.name}</div>
+              <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{lv.subtitle}</div>
+            </div>
+            <div style={{ fontSize: 11, color: '#22c55e', fontWeight: 600 }}>▶ PLAY</div>
+          </button>
+        ))}
+        <div style={{ fontSize: 10, color: '#334155', textAlign: 'center', marginTop: 8 }}>
+          Power Grid Operator — P1 Prototype
+        </div>
+      </div>
+    );
+  }
+
+  // ── Playing ──
+  if (!round) return null;
+
+  const currentDistrict = round.districts[activeDistrict];
+  const eq = getEquation(round, activeDistrict);
+  const isSolved = !!solvedDistricts[currentDistrict.id];
+  const isRouted = !!routedDistricts[currentDistrict.id];
+  const timerPct = timer !== null ? (timer / levelConfig.timer) * 100 : 100;
+  const timerUrgent = timer !== null && timer <= 15;
+  const status = getGridStatus(levelConfig.level, Object.keys(solvedDistricts).length, blackouts, Object.keys(routedDistricts).length);
+
+  return (
+    <div className="grid-game">
+      {/* HUD */}
+      <div className="hud">
+        <div className="hud-title">⚡ Power Grid</div>
+        <div style={{ display: 'flex', gap: 16 }}>
+          <div className="hud-stat">LVL <span>{levelConfig.level}</span></div>
+          <div className="hud-stat">SCORE <span>{score}</span></div>
+          {timer !== null && (
+            <div className="hud-stat" style={{ color: timerUrgent ? '#ef4444' : undefined }}>
+              ⏱️ <span style={{ color: timerUrgent ? '#ef4444' : '#fbbf24' }}>{timer}s</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Timer bar */}
+      {timer !== null && (
+        <div className="timer-bar">
+          <div className="timer-fill" style={{
+            width: `${timerPct}%`,
+            background: timerUrgent ? '#ef4444' : timerPct > 50 ? '#22c55e' : '#f59e0b',
+          }} />
+        </div>
+      )}
+
+      {/* Status strip */}
+      <div className="status-strip" style={{ color: status.color }}>{status.text}</div>
+
+      {/* Radio chatter */}
+      <div className={`radio ${radio.cls}`}>{radio.text}</div>
+
+      {/* District cards */}
+      {round.districts.map((d, i) => {
+        const dSolved = !!solvedDistricts[d.id];
+        const dRouted = !!routedDistricts[d.id];
+        const isActive = i === activeDistrict && !dRouted;
+        const dEq = getEquation(round, i);
+        const dClass = dRouted ? 'powered' : (dSolved ? 'brownout' : '');
+
+        return (
+          <div
+            key={d.id}
+            className={`district ${dClass}`}
+            onClick={() => selectDistrict(i)}
+            style={{ cursor: round.districts.length > 1 && !dRouted ? 'pointer' : 'default', opacity: dRouted ? 0.6 : 1 }}
+          >
+            <div className="district-header">
+              <div className="district-name">{d.emoji} {d.name}</div>
+              <div>
+                <span className="district-demand">DEMAND: {d.demand} MW</span>
+                {dRouted && <span className="district-status ok" style={{ marginLeft: 8 }}>⚡ POWERED</span>}
+                {!dRouted && dSolved && <span className="district-status warn" style={{ marginLeft: 8 }}>AWAITING ROUTE</span>}
+                {!dRouted && !dSolved && isActive && <span className="district-status warn" style={{ marginLeft: 8 }}>SOLVE NOW</span>}
+              </div>
+            </div>
+
+            {/* Sources */}
+            <div className="sources">
+              {round.sources.filter(s => s.fixedOutput).map(s => (
+                <div key={s.id} className="source-chip">
+                  <span className="emoji">{s.emoji}</span>
+                  <span>{s.name}</span>
+                  <span className="val">+{s.output} MW</span>
+                </div>
+              ))}
+              {round.sources.filter(s => !s.fixedOutput).map(s => (
+                <div key={s.id} className="source-chip" style={{ borderColor: '#fbbf24' }}>
+                  <span className="emoji">{s.emoji}</span>
+                  <span>{s.name}</span>
+                  <span className="val" style={{ color: '#fbbf24' }}>{dSolved ? `+${solvedDistricts[d.id]} MW` : '? MW'}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Equation */}
+            {isActive && !dSolved && (
+              <div className="equation-block">
+                <div className="equation-text">
+                  {dEq.knownTotal} + <span className="unknown">x</span> = {d.demand}
+                </div>
+                <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>
+                  How much power from {round.sources.find(s => !s.fixedOutput)?.name || 'Battery'}?
+                </div>
+                <div className="solve-row">
+                  <input
+                    ref={inputRef}
+                    className="solve-input"
+                    type="number"
+                    value={inputVal}
+                    onChange={e => setInputVal(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') handleSolve(); }}
+                    placeholder="x"
+                    autoFocus
+                  />
+                  <button className="solve-btn" onClick={handleSolve} disabled={!inputVal}>SOLVE</button>
+                </div>
+              </div>
+            )}
+
+            {/* Route button */}
+            {dSolved && !dRouted && isActive && (
+              <div style={{ textAlign: 'center', marginTop: 8 }}>
+                <button className="route-btn" onClick={() => handleRoute(d.id)}>
+                  ⚡ ROUTE {solvedDistricts[d.id]} MW TO {d.name.toUpperCase()}
+                </button>
+              </div>
+            )}
+
+            {/* Feedback */}
+            {feedback && feedback.districtId === d.id && (
+              <div className={`feedback ${feedback.type}`}>{feedback.msg}</div>
+            )}
+          </div>
+        );
+      })}
+
+      {/* L3 scarcity warning */}
+      {round.scarcity && Object.keys(routedDistricts).length === 0 && Object.keys(solvedDistricts).length === 0 && (
+        <div style={{ fontSize: 12, color: '#f59e0b', textAlign: 'center', fontStyle: 'italic' }}>
+          ⚠️ Total supply is less than total demand. You must choose which district to power.
+        </div>
+      )}
+
+      {/* Shift complete overlay */}
+      {showOverlay && (
+        <div className="overlay">
+          <div className="overlay-card">
+            <h2>{blackouts === 0 ? '⚡ SHIFT COMPLETE' : '⚡ SHIFT OVER'}</h2>
+            <div style={{ fontSize: 14, color: blackouts === 0 ? '#22c55e' : '#f59e0b', marginBottom: 12 }}>
+              {blackouts === 0 ? 'All districts powered!' : `${round.districts.length - blackouts}/${round.districts.length} districts powered`}
+            </div>
+            <div className="stat-line">Score: <span>{score}</span></div>
+            <div className="stat-line">Districts powered: <span>{Object.keys(routedDistricts).length}</span></div>
+            <div className="stat-line">Blackouts: <span style={{ color: blackouts > 0 ? '#ef4444' : '#22c55e' }}>{blackouts}</span></div>
+            {round.scarcity && blackouts > 0 && (
+              <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 8, fontStyle: 'italic' }}>
+                Not enough power for both districts — you had to choose.
+              </div>
+            )}
+            {levelIdx < LEVELS.length - 1 ? (
+              <button className="next-btn" onClick={() => startLevelByIdx(levelIdx + 1)}>
+                NEXT SHIFT →
+              </button>
+            ) : (
+              <button className="next-btn" onClick={() => { setScreen('menu'); setScore(0); }}>
+                BACK TO MENU
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<PowerGridPrototype />);
+</script>
+</body>
+</html>
