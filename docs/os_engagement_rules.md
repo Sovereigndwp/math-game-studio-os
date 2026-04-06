@@ -96,6 +96,32 @@ or horizontal distance. If the prompt is at the top and the action button is at
 the bottom, the layout has failed. Compact the interaction zone so reading,
 acting, and confirming happen in one visual cluster.
 
+### Rule 13 — Math Should Be a Decision Chain, Not a Single Answer
+The player should make connected mathematical decisions where each step's output
+feeds the next. Read the problem → compute the scale → apply to quantities →
+choose the best option → validate. A game where the player solves one number and
+moves on is a quiz. A game where computations feed forward is genuine
+problem-solving.
+
+*Grocery Dash: read recipe → multiply by guest count → divide by pack size → choose between pack variants → validate at checkout. Five connected math steps.*
+
+### Rule 14 — Replay Randomization Must Change the Math, Not Just Cosmetics
+Variable inputs must change the actual mathematical problem on replay, not just
+visual flavor. Different names on the same target number is cosmetic variation.
+Different guest counts that change every multiplication is real variation. Fixed
+inputs should be used during the learning phase; randomized inputs belong in the
+mastery phase.
+
+*Grocery Dash L1-L8: fixed guest counts (learnable). L9-L12: random guest counts (genuine replay). Same level, fundamentally different math each play.*
+
+### Rule 15 — Introduce One New Complexity Layer Per Level, Never Two
+Each level transition should add exactly one new axis of challenge: scaling, then
+NPCs, then a second NPC, then more ingredients. Never introduce a new mechanic
+AND increase difficulty simultaneously. The player must master the new element
+at the current pressure level before the next element appears.
+
+*Grocery Dash: L1-L3 learn the loop (no NPCs). L4 adds NPCs + distractors. L5 increases scaling. L6 adds another NPC. One thing per step across 12 levels.*
+
 ---
 
 ## 3. Urgency and Pressure Patterns
