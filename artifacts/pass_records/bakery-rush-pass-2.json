@@ -39,5 +39,6 @@
     "flagged_parameters": [],
     "notes": "New beltDuration ramp [18, 13, 9, 6, 4] passes all auditor thresholds. Steps: 28%, 31%, 33%, 33% — all ≤ 35% max. targetPoolMax and patience sequences unchanged from pass-1; both previously audited as clean."
   },
-  "next_pass_first_obligation": "Observe at least one full session of pass-2 play and confirm whether Level 3 (9s belt, targets up to 12) produces choice errors (overshoots or partial timeouts) — if yes, arithmetic is the new wall and Pass 3 should address target composition; if no, patience values need reduction before target complexity increases."
+  "next_pass_first_obligation": "Observe at least one full session of pass-2 play and confirm whether Level 3 (9s belt, targets up to 12) produces choice errors (overshoots or partial timeouts) — if yes, arithmetic is the new wall and Pass 3 should address target composition; if no, patience values need reduction before target complexity increases.",
+  "_build_note": "This pass record describes tuning done on an earlier standalone HTML prototype. The current Vite/React source (preview/src/BakeryRushPrototype.jsx) was rebuilt fresh with conveyorDuration values [9, 8, 7, 6, 5]. These represent animation loop duration, not raw belt timers — with a 16s patience bar at L1, the player gets nearly two full belt rotations. The [18, 13, 9, 6, 4] ramp in this record was never applied to the current source file."
 }

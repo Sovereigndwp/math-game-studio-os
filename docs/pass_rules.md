@@ -414,7 +414,7 @@ Do not use vague labels like "next pass" unless the pass type is already obvious
 |---|---|---|---|---|---|---|---|
 | Bakery Rush | done | done | done | done | done | — | — |
 | Fire Dispatch | done | done | done | done | done | — | — |
-| Unit Circle | done | done | done | done | — | — | — |
+| Unit Circle | done | done | done | done | done | — | — |
 
 **ATC Math Tower** — gold-standard mature reference game. Strongest reference for urgency, loop purity, teacher fit, and mastery structure.
 
