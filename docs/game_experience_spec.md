@@ -107,6 +107,31 @@ Name the most likely cheap-feel risks before implementation.
 ### Why this could be sticky
 What is the strongest reason a player might want another run?
 
+### Depth potential
+How many layers of skill can the game reveal from the same core loop?
+
+- Layer 1 (correctness): getting the right answer
+- Layer 2 (efficiency): getting the right answer with less waste, fewer steps, or better strategy
+- Layer 3 (mastery): elegant solutions, optimization under constraints, strategic tradeoffs
+
+Name the specific depth layers this concept supports. If it only supports Layer 1, the game has a low ceiling.
+
+### Breadth potential
+How many meaningfully different problems can the game generate from its world model?
+
+- Can variable inputs change the math on replay? (e.g., different guest counts, different demands)
+- Can the scenario structure change? (e.g., different districts, different source configurations)
+- Can the difficulty deepen without just speeding up? (e.g., more districts, harder equations, new constraints)
+
+Name the specific variation sources. If replay produces the same problems with different numbers, breadth is thin.
+
+### Natural ceiling
+At what point does this concept stop generating new challenge?
+
+- After how many sessions does the player see everything the game can offer?
+- Is the ceiling set by content (fixed levels) or by skill (always room to improve)?
+- Can the game grow into optimization, or is correctness the permanent ceiling?
+
 ### Minimal proof of wonder
 What is one concrete sign that this game is not just functional, but memorable?
 
