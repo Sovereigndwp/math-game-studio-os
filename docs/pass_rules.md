@@ -322,7 +322,7 @@ Move out of P4 when:
 1. Replay must produce meaningful variation
 2. The second run should feel different for a reason
 3. Mastery must have visible goals
-4. Optimization above correctness should exist when appropriate
+4. Optimization above correctness should exist when the domain supports it — efficiency, precision, waste reduction, or strategic tradeoffs should reward mastery beyond "getting it right"
 
 ---
 

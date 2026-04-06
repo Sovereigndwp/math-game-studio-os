@@ -154,6 +154,14 @@ will produce a charming mediocre game, not a great one.
 
 *Portfolio reset lesson: three games reached P3 with clean personality passes, but none had standout potential because the core loops were designed before the stronger pre-build system existed. P3 polish on a thin loop produces "nice but not wonderful."*
 
+### Rule 20 — Correctness Should Not Always Be the Ceiling
+When the game's domain supports it, later play should reward a mastery layer
+beyond getting the right answer — efficiency, precision, prioritization, waste
+reduction, or strategic tradeoffs. A strong game should eventually let the
+player ask not only "Did I get it right?" but also "Did I do it well?"
+
+*Grocery Dash: two pack sizes for the same ingredient — both correct, but one wastes less. ATC: solving faster earns a time bonus above the base score. Power Grid (future): routing power with less waste scores higher than brute-force routing.*
+
 ---
 
 ## 3. Urgency and Pressure Patterns
