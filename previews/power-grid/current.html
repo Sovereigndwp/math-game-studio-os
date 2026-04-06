@@ -121,14 +121,19 @@ function PowerGrid(){
   const[showOv,setShowOv]=useState(false);
   const[gTimer,setGTimer]=useState(null);
   const resRef=useRef(0);
+  const solveRef=useRef(0);// correct solves
+  const wrongRef=useRef(0);// wrong attempts
+  const startTime=useRef(0);
   const[connState,setConnState]=useState({});
+  const[summary,setSummary]=useState(null);
 
   function start(idx){
     const c=LEVELS[idx];const r=buildRound(c);
     setLi(idx);setRound(r);setInput('');setActive(0);setFb(null);setScore(0);
-    setRadio({t:'',c:''});setShowOv(false);
-    setGTimer(c.globalTimer);resRef.current=r.reserve;setConnState({});
-    setScreen('playing');
+    setRadio({t:'',c:''});setShowOv(false);setSummary(null);
+    setGTimer(c.globalTimer);resRef.current=r.reserve;
+    solveRef.current=0;wrongRef.current=0;startTime.current=Date.now();
+    setConnState({});setScreen('playing');
   }
 
   // Timer
@@ -140,6 +145,32 @@ function PowerGrid(){
   useEffect(()=>{if(gTimer===0&&screen==='playing')finish();},[gTimer,screen]);
 
   function finish(){
+    if(!round)return;
+    const powered=round.districts.filter(d=>d.routed).length;
+    const total=round.districts.length;
+    const elapsed=Math.round((Date.now()-startTime.current)/1000);
+    const cfg=LEVELS[li];
+    const timerUsedPct=cfg.globalTimer?((cfg.globalTimer-Math.max(0,gTimer||0))/cfg.globalTimer)*100:null;
+
+    // Stars
+    let stars=1;
+    if(powered===total&&wrongRef.current===0) stars=3;
+    else if(powered===total&&wrongRef.current<=2) stars=2;
+
+    // Takeaway
+    let tip='';
+    if(powered<total) tip='Some districts lost power. Focus on solving each shortfall before time runs out.';
+    else if(wrongRef.current>2) tip=`You needed ${wrongRef.current} wrong attempts. Try checking: does current + answer = demand?`;
+    else if(wrongRef.current>0) tip='All powered, but with some wrong guesses. Fewer attempts next time for ★★★.';
+    else if(timerUsedPct!==null&&timerUsedPct>80) tip='Flawless math, but tight on time. Faster mental arithmetic would earn a bigger time cushion.';
+    else tip='Flawless shift. Every equation solved first try. ⚡';
+
+    const starText=['','★ Completed','★★ Good Shift','★★★ Perfect Shift'][stars];
+    const starColor=['','#94a3b8','#d1d5db','#fbbf24'][stars];
+
+    setSummary({powered,total,elapsed,stars,starText,starColor,tip,
+      solves:solveRef.current,wrongs:wrongRef.current,
+      mathPts:solveRef.current*100,routePts:powered*40,wrongPts:wrongRef.current*-20});
     setShowOv(true);setScreen('complete');
   }
 
@@ -147,11 +178,13 @@ function PowerGrid(){
     if(!round||!input)return;
     const d=round.districts[active];const ans=parseInt(input,10);
     if(ans===d.missing){
+      solveRef.current++;
       setScore(s=>s+100);
       setRound(prev=>({...prev,districts:prev.districts.map((dd,i)=>i===active?{...dd,solved:true,solvedVal:ans}:dd)}));
       setFb({t:'ok',m:`✓ ${d.name} needs ${ans} MW from the reserve.`,id:d.id});
       setRadio({t:`📻 ${d.name} — shortfall confirmed: ${ans} MW.`,c:'g'});
     }else{
+      wrongRef.current++;
       setScore(s=>s-20);
       setFb({t:'bad',m:`✗ Not ${ans}. ${d.name} has ${d.current} and needs ${d.demand}.`,id:d.id});
       setRadio({t:`📻 ${d.name} — recalculate!`,c:'r'});
@@ -315,18 +348,56 @@ function PowerGrid(){
         </div>
       )}
 
-      {/* Overlay */}
-      {showOv&&(
+      {/* Shift Summary Overlay */}
+      {showOv&&summary&&(
         <div className="ov">
           <div className="ov-c">
-            <h2>{allPowered?'⚡ ALL DISTRICTS POWERED':'⚡ SHIFT COMPLETE'}</h2>
-            <div className="sl">Score: <span>{score}</span></div>
+            <h2>{summary.powered===summary.total?'⚡ ALL DISTRICTS POWERED':'⚡ SHIFT COMPLETE'}</h2>
+
+            {/* Star rating */}
+            <div style={{fontSize:20,fontWeight:800,color:summary.starColor,marginBottom:4}}>{summary.starText}</div>
+
+            {/* District results */}
             {round.districts.map(d=>(
               <div key={d.id} className="tl">
-                {d.routed?'✅':'⏱️'} {d.emoji} {d.name} — {d.routed?'powered':'not powered'} ({d.solvedVal!==null?`needed ${d.solvedVal} MW`:'unsolved'})
+                {d.routed?'✅':'⏱️'} {d.emoji} {d.name} — {d.routed?'powered':'not powered'}
               </div>
             ))}
-            {allPowered&&<div style={{fontSize:12,color:'#22c55e',marginTop:8}}>Every district is lit. The city is alive because of you.</div>}
+
+            {/* Score breakdown */}
+            <div style={{marginTop:10,padding:'8px 12px',background:'rgba(15,25,45,.8)',borderRadius:8,border:'1px solid #1e3a5f',textAlign:'left'}}>
+              <div style={{fontSize:10,color:'#3b82f6',letterSpacing:2,textTransform:'uppercase',fontWeight:700,marginBottom:6}}>Score Breakdown</div>
+              <div style={{display:'flex',justifyContent:'space-between',fontSize:12,color:'#94a3b8',padding:'2px 0'}}>
+                <span>Math solved ({summary.solves}×)</span>
+                <span style={{color:'#22c55e',fontWeight:700}}>+{summary.mathPts}</span>
+              </div>
+              <div style={{display:'flex',justifyContent:'space-between',fontSize:12,color:'#94a3b8',padding:'2px 0'}}>
+                <span>Districts routed ({summary.powered}×)</span>
+                <span style={{color:'#3b82f6',fontWeight:700}}>+{summary.routePts}</span>
+              </div>
+              {summary.wrongs>0&&(
+                <div style={{display:'flex',justifyContent:'space-between',fontSize:12,color:'#94a3b8',padding:'2px 0'}}>
+                  <span>Wrong answers ({summary.wrongs}×)</span>
+                  <span style={{color:'#ef4444',fontWeight:700}}>{summary.wrongPts}</span>
+                </div>
+              )}
+              <div style={{display:'flex',justifyContent:'space-between',fontSize:13,color:'#e2e8f0',fontWeight:700,borderTop:'1px solid #1e3a5f',marginTop:4,paddingTop:4}}>
+                <span>Total</span>
+                <span style={{color:'#fbbf24'}}>{score}</span>
+              </div>
+            </div>
+
+            {/* Time */}
+            <div style={{fontSize:11,color:'#64748b',marginTop:6}}>
+              Time: {summary.elapsed}s
+              {gTimer!==null&&gTimer>0&&` · ${gTimer}s remaining`}
+            </div>
+
+            {/* Takeaway */}
+            <div style={{marginTop:8,padding:'8px 12px',background:'rgba(34,197,94,.06)',border:'1px solid rgba(34,197,94,.2)',borderRadius:8,fontSize:12,color:'#22c55e',lineHeight:1.5}}>
+              <strong>💡 </strong>{summary.tip}
+            </div>
+
             {li<LEVELS.length-1?(
               <button className="nb" onClick={()=>start(li+1)}>NEXT SHIFT →</button>
             ):(
