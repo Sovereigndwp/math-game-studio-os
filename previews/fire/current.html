@@ -879,7 +879,7 @@
     }
 
     /* ─────────────────── OutcomeOverlay ─────────────────── */
-    function OutcomeOverlay({ feedbackMode, summaryStats, incidentLog, onPlayAgain }) {
+    function OutcomeOverlay({ feedbackMode, summaryStats, incidentLog, onPlayAgain, careerSnapshot }) {
       if (!feedbackMode) return null;
 
       const config = {
@@ -939,6 +939,14 @@
                   </div>
                 </div>
                 {incidentLog && React.createElement(MissionDebrief, { incidentLog: incidentLog })}
+                {careerSnapshot && (
+                  <div style={{
+                    fontSize: 11, color: '#94a3b8', textAlign: 'center',
+                    margin: '8px 0 4px', lineHeight: 1.6,
+                  }}>
+                    Career: <span style={{ color: '#f59e0b', fontWeight: 700 }}>{careerSnapshot.bestScore}</span> best score · <span style={{ color: '#f59e0b', fontWeight: 700 }}>{careerSnapshot.bestStreak}x</span> best streak · <span style={{ color: '#f59e0b', fontWeight: 700 }}>{careerSnapshot.totalIncidents}</span> total incidents
+                  </div>
+                )}
                 <button className="play-again-btn" onClick={onPlayAgain}>
                   🔄 Play Again
                 </button>
@@ -947,6 +955,33 @@
           </div>
         </div>
       );
+    }
+
+    /* ─────────────────── P4: Career Persistence ──────────────────── */
+
+    const CAREER_KEY = 'fire-dispatch-career-v1';
+
+    function loadCareer() {
+      try {
+        const raw = localStorage.getItem(CAREER_KEY);
+        if (raw) return JSON.parse(raw);
+      } catch (e) { /* ignore parse errors */ }
+      return { sessions: 0, bestScore: 0, bestStreak: 0, bestLevel: 0, totalIncidents: 0 };
+    }
+
+    function saveCareer(career) {
+      try { localStorage.setItem(CAREER_KEY, JSON.stringify(career)); } catch (e) { /* quota */ }
+    }
+
+    function updateCareer(score, streak, levelIndex, incidentCount) {
+      const career = loadCareer();
+      career.sessions += 1;
+      career.bestScore = Math.max(career.bestScore, score);
+      career.bestStreak = Math.max(career.bestStreak, streak);
+      career.bestLevel = Math.max(career.bestLevel, levelIndex + 1);
+      career.totalIncidents += incidentCount;
+      saveCareer(career);
+      return career;
     }
 
     /* ─────────────────── TUTORIAL CONFIG ─────────────────── */
@@ -1002,6 +1037,10 @@
       const [tutorialStep,    setTutorialStep]     = useState(-1); // -1=not in tutorial, 0-2=steps
       const [tutorialDone,    setTutorialDone]     = useState(false);
       const [tutorialSuccess, setTutorialSuccess]  = useState(false); // show success text between steps
+
+      // P4: career persistence
+      const [careerSnapshot, setCareerSnapshot] = useState(null); // set when session ends
+      const peakStreak = useRef(0);
 
       // Mission debrief — incident log
       const [incidentLog,     setIncidentLog]      = useState([]); // [{demand, outcome, responseTime, overshootAttempts, trucksUsed}]
@@ -1097,6 +1136,8 @@
         setSessionComplete(false);
         setFeedbackMode(null);
         setIncidentLog([]);
+        setCareerSnapshot(null);
+        peakStreak.current = 0;
         spawnIncident(0);
         setStarted(true);
       };
@@ -1154,6 +1195,13 @@
         return () => clearTimeout(id);
       }, [feedbackMode]);
 
+      /* P4: save career when session ends */
+      useEffect(() => {
+        if (!sessionComplete) return;
+        const updated = updateCareer(score, peakStreak.current, levelIndex, incidentCount);
+        setCareerSnapshot(updated);
+      }, [sessionComplete]);
+
       /* truck toggle */
       const handleTruckToggle = useCallback((truckId) => {
         if (feedbackRef.current !== null) return;
@@ -1208,6 +1256,7 @@
           });
           const newStreak = streak + 1;
           setStreak(newStreak);
+          if (newStreak > peakStreak.current) peakStreak.current = newStreak;
           const newCount = incidentCount + 1;
           setIncidentCount(newCount);
           setFeedbackMode('success');
@@ -1257,6 +1306,8 @@
 
       /* ── start screen ── */
       if (!started) {
+        const career = loadCareer();
+        const hasCareer = career.sessions > 0;
         return (
           <div className="fire-dispatch">
             <div className="start-screen">
@@ -1266,6 +1317,26 @@
                 Match truck capacity to fire demand.
                 <br/>Combine trucks until the total hits the target exactly.
               </p>
+              {hasCareer && (
+                <div style={{
+                  background: '#0f172a', border: '1px solid #1e293b', borderRadius: 12,
+                  padding: '12px 16px', margin: '12px 0', maxWidth: 300, width: '100%',
+                }}>
+                  <div style={{ fontSize: 10, color: '#f59e0b', fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 8 }}>Career Record</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 12px', fontSize: 12 }}>
+                    <div style={{ color: '#94a3b8' }}>Best Score</div>
+                    <div style={{ color: '#e2e8f0', fontWeight: 700, textAlign: 'right' }}>{career.bestScore}</div>
+                    <div style={{ color: '#94a3b8' }}>Best Streak</div>
+                    <div style={{ color: '#e2e8f0', fontWeight: 700, textAlign: 'right' }}>{career.bestStreak}x</div>
+                    <div style={{ color: '#94a3b8' }}>Best Level</div>
+                    <div style={{ color: '#e2e8f0', fontWeight: 700, textAlign: 'right' }}>L{career.bestLevel}</div>
+                    <div style={{ color: '#94a3b8' }}>Incidents</div>
+                    <div style={{ color: '#e2e8f0', fontWeight: 700, textAlign: 'right' }}>{career.totalIncidents}</div>
+                    <div style={{ color: '#94a3b8' }}>Shifts</div>
+                    <div style={{ color: '#e2e8f0', fontWeight: 700, textAlign: 'right' }}>{career.sessions}</div>
+                  </div>
+                </div>
+              )}
               <button className="start-btn" onClick={startGame}>Learn the Basics →</button>
               {tutorialDone && (
                 <button
@@ -1442,6 +1513,7 @@
             }}
             incidentLog={incidentLog}
             onPlayAgain={startGame}
+            careerSnapshot={careerSnapshot}
           />
         </div>
       );
