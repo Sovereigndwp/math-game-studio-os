@@ -1,0 +1,1198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Unit Circle Pizza Lab — Pass 3</title>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #fdf6ec; }
+
+    .pizza-lab {
+      background: #fdf6ec;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 16px 12px 24px;
+      gap: 12px;
+    }
+
+    .lab-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #92400e;
+      letter-spacing: 0.02em;
+    }
+
+    /* HUD */
+    .session-hud {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      background: #fff7ed;
+      border: 1.5px solid #fed7aa;
+      border-radius: 999px;
+      padding: 6px 20px;
+      font-size: 0.85rem;
+      color: #7c3aed;
+    }
+    .round-counter { color: #92400e; font-weight: 600; }
+    .session-score { color: #16a34a; font-weight: 700; }
+    .streak-badge {
+      color: #d97706;
+      font-weight: 700;
+    }
+
+    /* Order Panel */
+    .order-panel {
+      background: #fff;
+      border: 2px solid #fbbf24;
+      border-radius: 16px;
+      padding: 14px 28px;
+      text-align: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+      min-width: 220px;
+    }
+    .order-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #b45309;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 4px;
+    }
+    .order-spec {
+      font-size: 2rem;
+      font-weight: 800;
+      color: #1e1b4b;
+      line-height: 1.1;
+    }
+
+    /* Wheel Container */
+    .pizza-wheel-container {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .unit-circle-svg {
+      cursor: crosshair;
+      filter: drop-shadow(0 4px 16px rgba(0,0,0,0.12));
+      border-radius: 50%;
+    }
+
+    /* Angle Readout */
+    .angle-readout {
+      display: flex;
+      gap: 16px;
+      background: #fff;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 8px 20px;
+      font-size: 0.9rem;
+    }
+    .angle-deg {
+      font-weight: 700;
+      color: #374151;
+    }
+    .angle-rad {
+      font-weight: 600;
+      color: #6b7280;
+    }
+    .angle-label {
+      color: #9ca3af;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+
+    /* Coordinate Display */
+    .coord-display {
+      display: flex;
+      gap: 16px;
+      background: #f0fdf4;
+      border: 1.5px solid #86efac;
+      border-radius: 12px;
+      padding: 8px 20px;
+      font-size: 0.88rem;
+    }
+    .coord-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1px;
+    }
+    .coord-label {
+      font-size: 0.7rem;
+      color: #6b7280;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .coord-value {
+      font-weight: 700;
+      color: #166534;
+      font-variant-numeric: tabular-nums;
+    }
+    .coord-exact {
+      font-size: 0.75rem;
+      color: #15803d;
+      font-weight: 600;
+      min-height: 1em;
+    }
+
+    /* Feedback Panel */
+    .feedback-panel {
+      border-radius: 14px;
+      padding: 12px 24px;
+      text-align: center;
+      min-width: 260px;
+      border: 2px solid transparent;
+      transition: all 0.2s;
+    }
+    .feedback-correct {
+      background: #f0fdf4;
+      border-color: #4ade80;
+    }
+    .feedback-close {
+      background: #fffbeb;
+      border-color: #fbbf24;
+    }
+    .feedback-miss {
+      background: #fef2f2;
+      border-color: #fca5a5;
+    }
+    .feedback-verdict {
+      font-size: 1.3rem;
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+    .feedback-correct .feedback-verdict { color: #16a34a; }
+    .feedback-close   .feedback-verdict { color: #d97706; }
+    .feedback-miss    .feedback-verdict { color: #dc2626; }
+    .feedback-delta {
+      font-size: 0.85rem;
+      color: #374151;
+      margin-bottom: 4px;
+    }
+    .feedback-answer {
+      font-size: 0.82rem;
+      color: #374151;
+      font-weight: 600;
+      background: #fff;
+      border-radius: 8px;
+      padding: 4px 10px;
+      margin-top: 4px;
+      display: inline-block;
+    }
+
+    /* Submit Button */
+    .submit-btn {
+      background: #6366f1;
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 700;
+      border: none;
+      border-radius: 999px;
+      padding: 12px 40px;
+      cursor: pointer;
+      letter-spacing: 0.04em;
+      box-shadow: 0 2px 10px rgba(99,102,241,0.35);
+      transition: background 0.15s, opacity 0.15s, transform 0.1s;
+    }
+    .submit-btn:hover:not(:disabled) {
+      background: #4f46e5;
+      transform: translateY(-1px);
+    }
+    .submit-btn:active:not(:disabled) {
+      transform: translateY(0);
+    }
+    .submit-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    /* Session Complete */
+    .session-complete {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      background: #fff;
+      border-radius: 24px;
+      padding: 40px 48px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.1);
+      text-align: center;
+      max-width: 360px;
+    }
+    .session-complete h2 {
+      font-size: 2rem;
+      font-weight: 800;
+      color: #1e1b4b;
+    }
+    .session-complete p {
+      color: #6b7280;
+      font-size: 1rem;
+    }
+    .session-complete .final-score {
+      font-size: 3rem;
+      font-weight: 900;
+      color: #6366f1;
+    }
+    .restart-btn {
+      background: #6366f1;
+      color: #fff;
+      border: none;
+      border-radius: 999px;
+      padding: 12px 36px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+    .restart-btn:hover { background: #4f46e5; }
+
+    .hint-text {
+      font-size: 0.78rem;
+      color: #9ca3af;
+      margin-top: -4px;
+    }
+
+    /* P3: Chef feedback line */
+    .feedback-chef-line {
+      font-size: 0.8rem;
+      color: #6b7280;
+      font-style: italic;
+      margin-top: 3px;
+    }
+
+    /* P3: Lab status strip */
+    .lab-status-strip {
+      text-align: center;
+      font-size: 0.78rem;
+      padding: 5px 16px;
+      border-radius: 999px;
+      background: #fff7ed;
+      border: 1px solid #fed7aa;
+      font-weight: 600;
+      min-height: 26px;
+      margin: 4px 0;
+    }
+
+    /* P3: Flawless verdict */
+    .verdict-flawless {
+      background: linear-gradient(135deg, #7c3aed, #f59e0b);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      font-size: 1.4rem;
+      font-weight: 900;
+    }
+
+    /* P3: Star pop animation */
+    @keyframes starPop {
+      0% { transform: scale(0.5); opacity: 0; }
+      60% { transform: scale(1.15); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .star-pop { animation: starPop 0.5s ease-out; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useCallback } = React;
+
+    // ─── Data ────────────────────────────────────────────────────────────────
+
+    // Round pools per tier — shuffled at session start
+    const TIER_1_POOL = [
+      // Quadrant angles, degrees only, 12° tolerance
+      { targetAngleDeg: 0,   toleranceDeg: 12, specType: 'angle',   displaySpec: '0°' },
+      { targetAngleDeg: 90,  toleranceDeg: 12, specType: 'angle',   displaySpec: '90°' },
+      { targetAngleDeg: 180, toleranceDeg: 12, specType: 'angle',   displaySpec: '180°' },
+      { targetAngleDeg: 270, toleranceDeg: 12, specType: 'angle',   displaySpec: '270°' },
+    ];
+    const TIER_2_POOL = [
+      // Common angles, degrees + radians (no coords yet), 9° tolerance
+      { targetAngleDeg: 45,  toleranceDeg: 9,  specType: 'angle',   displaySpec: '45°' },
+      { targetAngleDeg: 30,  toleranceDeg: 9,  specType: 'radians', displaySpec: 'π/6' },
+      { targetAngleDeg: 60,  toleranceDeg: 9,  specType: 'radians', displaySpec: 'π/3' },
+      { targetAngleDeg: 135, toleranceDeg: 9,  specType: 'angle',   displaySpec: '135°' },
+      { targetAngleDeg: 150, toleranceDeg: 9,  specType: 'radians', displaySpec: '5π/6' },
+      { targetAngleDeg: 120, toleranceDeg: 9,  specType: 'radians', displaySpec: '2π/3' },
+    ];
+    const TIER_3_POOL = [
+      // All standard angles, all three representations, progressive tightening
+      { targetAngleDeg: 225, toleranceDeg: 8,  specType: 'angle',   displaySpec: '225°' },
+      { targetAngleDeg: 240, toleranceDeg: 7,  specType: 'radians', displaySpec: '4π/3' },
+      { targetAngleDeg: 300, toleranceDeg: 7,  specType: 'coords',  displaySpec: '(½, −√3/2)' },
+      { targetAngleDeg: 315, toleranceDeg: 6,  specType: 'radians', displaySpec: '7π/4' },
+      { targetAngleDeg: 330, toleranceDeg: 6,  specType: 'coords',  displaySpec: '(√3/2, −½)' },
+    ];
+
+    function shuffleArray(arr) {
+      const a = [...arr];
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    }
+
+    function buildRoundConfigs() {
+      return [
+        ...shuffleArray(TIER_1_POOL),
+        ...shuffleArray(TIER_2_POOL),
+        ...shuffleArray(TIER_3_POOL),
+      ];
+    }
+
+    // Initial build — will be rebuilt on restart
+    let ROUND_CONFIGS = buildRoundConfigs();
+
+    const COMMON_ANGLES = {
+      0:   { cos: '1',      sin: '0',      rad: '0' },
+      30:  { cos: '√3/2',   sin: '½',      rad: 'π/6' },
+      45:  { cos: '√2/2',   sin: '√2/2',   rad: 'π/4' },
+      60:  { cos: '½',      sin: '√3/2',   rad: 'π/3' },
+      90:  { cos: '0',      sin: '1',       rad: 'π/2' },
+      120: { cos: '−½',     sin: '√3/2',   rad: '2π/3' },
+      135: { cos: '−√2/2',  sin: '√2/2',   rad: '3π/4' },
+      150: { cos: '−√3/2',  sin: '½',      rad: '5π/6' },
+      180: { cos: '−1',     sin: '0',       rad: 'π' },
+      210: { cos: '−√3/2',  sin: '−½',     rad: '7π/6' },
+      225: { cos: '−√2/2',  sin: '−√2/2',  rad: '5π/4' },
+      240: { cos: '−½',     sin: '−√3/2',  rad: '4π/3' },
+      270: { cos: '0',      sin: '−1',      rad: '3π/2' },
+      300: { cos: '½',      sin: '−√3/2',  rad: '5π/3' },
+      315: { cos: '√2/2',   sin: '−√2/2',  rad: '7π/4' },
+      330: { cos: '√3/2',   sin: '−½',     rad: '11π/6' },
+      360: { cos: '1',      sin: '0',       rad: '2π' },
+    };
+
+    const ADVANCE_MS = 1800;
+    const ROUNDS_PER_SESSION = ROUND_CONFIGS.length;
+    const MAX_LIVES = 3;
+
+    // Per-tier time limits (seconds)
+    const TIER_TIME = { 1: 18, 2: 14, 3: 10 };
+    const TIER_BOUNDARIES = [0, 4, 10]; // round indices where each tier starts
+    function getTier(roundIndex) {
+      if (roundIndex < 4) return 1;
+      if (roundIndex < 10) return 2;
+      return 3;
+    }
+    function isFirstOfTier(roundIndex) {
+      return TIER_BOUNDARIES.includes(roundIndex);
+    }
+    function getTimeLimit(roundIndex) {
+      const base = TIER_TIME[getTier(roundIndex)];
+      return isFirstOfTier(roundIndex) ? base + 3 : base; // +3s warm-up on first round of each tier
+    }
+
+    // ─── P3: Chef Cosina ─────────────────────────────────────────────────────
+
+    const CHEF = {
+      name: 'Chef Cosina',
+      emoji: '👩‍🍳',
+      perfect: [
+        'Perfetto! Right on the mark.',
+        "That's a chef's placement.",
+        'Exactly where it belongs.',
+        'Textbook. You feel it now.',
+        'Clean as a fresh pie.',
+        'Nailed it. No hesitation.',
+      ],
+      close: [
+        'Almost — feel the angle, don\'t guess.',
+        'Close! You\'re in the neighborhood.',
+        'Not bad, but not sharp enough yet.',
+        'You see it — now trust your hand.',
+      ],
+      miss: [
+        'Way off. Eyes on the tick marks.',
+        'That topping\'s lost. Regroup.',
+        'Missed it. Focus on the landmarks.',
+        'Not even close. Slow down, look first.',
+      ],
+      timeout: [
+        'The oven waits for no one!',
+        'Too slow — pizza\'s burning!',
+        'Time\'s up! Commit faster.',
+      ],
+      streak: [
+        'Three in a row — that\'s a chef\'s hand!',
+        'You\'re in the zone! Keep that rhythm.',
+        'Streak! The kitchen is humming.',
+      ],
+    };
+
+    function getChefLine(outcome, currentStreak) {
+      const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+      if (outcome === 'correct' && currentStreak >= 3 && Math.random() < 0.5) return pick(CHEF.streak);
+      if (outcome === 'correct') return pick(CHEF.perfect);
+      if (outcome === 'close')   return pick(CHEF.close);
+      if (outcome === 'timeout') return pick(CHEF.timeout);
+      return pick(CHEF.miss);
+    }
+
+    // ─── P3: Lab status strip ────────────────────────────────────────────────
+
+    function getLabStatus(roundIndex, streak, lives, tier) {
+      if (lives === 1)   return { text: '🚨 Last life — measure twice, place once!', color: '#dc2626' };
+      if (streak >= 4)   return { text: '🔥 Kitchen is ON FIRE! Flawless precision!', color: '#16a34a' };
+      if (streak >= 2)   return { text: '👩‍🍳 Chef Cosina nods — nice rhythm.', color: '#d97706' };
+      if (tier === 3)    return { text: '🧪 Advanced lab — coordinates in play.', color: '#7c3aed' };
+      if (tier === 2)    return { text: '📐 Radians unlocked. Think in π.', color: '#2563eb' };
+      if (roundIndex >= 1) return { text: '🍕 Pizza Lab is open. Place with confidence.', color: '#92400e' };
+      return { text: '🍕 First order up! Show what you know.', color: '#78716c' };
+    }
+
+    // ─── P3: Tiered celebration ──────────────────────────────────────────────
+
+    function getCelebration(outcome, tier, currentStreak) {
+      if (outcome !== 'correct') return null;
+      if (tier === 3) return { verdict: '💎 FLAWLESS', className: 'verdict-flawless' };
+      if (currentStreak >= 3) return { verdict: '🎉 On a Roll!', className: '' };
+      return null; // use default "🎯 Perfect!"
+    }
+
+    // ─── P3: End screen chef reaction ────────────────────────────────────────
+
+    function getEndScreenChef(stars, isComplete) {
+      if (!isComplete) return { emoji: '👩‍🍳', line: "We lost some pies, but you'll be back stronger." };
+      if (stars === 3)  return { emoji: '👩‍🍳🏆', line: "Perfection! You've earned your chef's hat." };
+      if (stars === 2)  return { emoji: '👩‍🍳👍', line: "Solid work. A few more reps and you'll master it." };
+      return { emoji: '👩‍🍳', line: "You finished! Room to sharpen up." };
+    }
+
+    // Tutorial steps
+    const TUTORIAL_STEPS = [
+      { title: 'THE UNIT CIRCLE', body: 'This is a circle where every point represents an angle.\nThe labels show 0°, 90°, 180°, 270° — the four main directions.', icon: '🔵' },
+      { title: 'PLACE YOUR TOPPING', body: 'Click anywhere on the circle to place your topping.\nTry to match the angle shown in the prompt.\nThe closer you are, the better your score.', icon: '🍕' },
+      { title: 'TIMER & LIVES', body: 'Each round has a timer. If you run out of time, you lose a life.\nMissing badly also costs a life. You have 3 lives total.\nClose placements get a free retry!', icon: '⏱️' },
+    ];
+
+    // ─── Helpers ─────────────────────────────────────────────────────────────
+
+    function svgClickToAngle(e, svgElement) {
+      const rect = svgElement.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      const dx = e.clientX - cx;
+      const dy = e.clientY - cy;
+      const radians = Math.atan2(-dy, dx);
+      let degrees = radians * 180 / Math.PI;
+      if (degrees < 0) degrees += 360;
+      return degrees;
+    }
+
+    function deltaAngle(a, b) {
+      const diff = Math.abs(a - b) % 360;
+      return Math.min(diff, 360 - diff);
+    }
+
+    function toRad(deg) {
+      return deg * Math.PI / 180;
+    }
+
+    function fmt2(n) {
+      return n.toFixed(2);
+    }
+
+    function closestCommonAngle(deg) {
+      const keys = Object.keys(COMMON_ANGLES).map(Number);
+      let best = keys[0];
+      let bestDist = deltaAngle(deg, keys[0]);
+      for (const k of keys) {
+        const d = deltaAngle(deg, k);
+        if (d < bestDist) { bestDist = d; best = k; }
+      }
+      return bestDist <= 2 ? best : null;
+    }
+
+    // ─── OrderPanel ──────────────────────────────────────────────────────────
+
+    function OrderPanel({ targetSpec, specType, roundIndex }) {
+      const typeLabel = {
+        angle: 'Place the topping at angle',
+        radians: 'Place the topping at',
+        coords: 'Place the topping at coordinates',
+      }[specType] || 'Place the topping at';
+
+      return (
+        <div className="order-panel">
+          <div className="order-label">{typeLabel}</div>
+          <div className="order-spec">{targetSpec}</div>
+        </div>
+      );
+    }
+
+    // ─── AngleReadout ─────────────────────────────────────────────────────────
+
+    function AngleReadout({ angleDeg }) {
+      const radVal = (angleDeg * Math.PI / 180).toFixed(3);
+      return (
+        <div className="angle-readout">
+          <div>
+            <span className="angle-label">Angle: </span>
+            <span className="angle-deg">{angleDeg.toFixed(1)}°</span>
+          </div>
+          <div>
+            <span className="angle-label">Rad: </span>
+            <span className="angle-rad">{radVal}</span>
+          </div>
+        </div>
+      );
+    }
+
+    // ─── CoordinateDisplay ───────────────────────────────────────────────────
+
+    function CoordinateDisplay({ angleDeg }) {
+      const cosVal = Math.cos(toRad(angleDeg));
+      const sinVal = Math.sin(toRad(angleDeg));
+      const nearest = closestCommonAngle(angleDeg);
+      const exact = nearest !== null ? COMMON_ANGLES[nearest] : null;
+
+      return (
+        <div className="coord-display">
+          <div className="coord-item">
+            <span className="coord-label">cos θ</span>
+            <span className="coord-value">{fmt2(cosVal)}</span>
+            <span className="coord-exact">{exact ? exact.cos : ''}</span>
+          </div>
+          <div style={{ color: '#d1fae5', alignSelf: 'center', fontSize: '1.2rem' }}>,</div>
+          <div className="coord-item">
+            <span className="coord-label">sin θ</span>
+            <span className="coord-value">{fmt2(sinVal)}</span>
+            <span className="coord-exact">{exact ? exact.sin : ''}</span>
+          </div>
+        </div>
+      );
+    }
+
+    // ─── FeedbackPanel ───────────────────────────────────────────────────────
+
+    function FeedbackPanel({ feedbackMode, deltaAngleDeg, correctAngleDeg, onRetry, retryAvailable, chefLine, celebration }) {
+      if (!feedbackMode) return null;
+
+      const exact = COMMON_ANGLES[correctAngleDeg];
+      const rad = exact ? exact.rad : null;
+
+      let panelClass = 'feedback-panel ';
+      let verdict = '';
+      if (feedbackMode === 'correct') {
+        panelClass += 'feedback-correct';
+        verdict = celebration ? celebration.verdict : '🎯 Perfect!';
+      }
+      else if (feedbackMode === 'close')  { panelClass += 'feedback-close';   verdict = '🟡 Close — adjust your aim'; }
+      else                                { panelClass += 'feedback-miss';    verdict = '❌ Not quite.'; }
+
+      const verdictClass = celebration && celebration.className
+        ? `feedback-verdict ${celebration.className}`
+        : 'feedback-verdict';
+
+      return (
+        <div className={panelClass}>
+          <div className={verdictClass}>{verdict}</div>
+          {chefLine && <div className="feedback-chef-line">"{chefLine}" — Chef Cosina</div>}
+          {feedbackMode !== 'correct' && (
+            <>
+              <div className="feedback-delta">
+                You were <strong>{deltaAngleDeg.toFixed(1)}°</strong> off.
+              </div>
+              {exact && (
+                <span className="feedback-answer">
+                  {correctAngleDeg}° = {rad} rad → ({exact.cos}, {exact.sin})
+                </span>
+              )}
+              {feedbackMode === 'close' && retryAvailable && (
+                <button
+                  onClick={onRetry}
+                  style={{
+                    marginTop: 10, padding: '6px 20px',
+                    background: '#d97706', color: '#fff',
+                    border: 'none', borderRadius: 20,
+                    fontWeight: 700, fontSize: '0.85rem',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Try Again ↺
+                </button>
+              )}
+            </>
+          )}
+        </div>
+      );
+    }
+
+    // ─── PizzaWheel ──────────────────────────────────────────────────────────
+
+    function PizzaWheel({ currentAngleDeg, toppingPlaced, correctAngleDeg, showCorrectPosition, onAngleChange }) {
+      const svgRef = useRef(null);
+
+      // Slice reference lines (every 30°)
+      const sliceLines = [];
+      for (let a = 0; a < 360; a += 30) {
+        const rad = toRad(a);
+        sliceLines.push(
+          <line
+            key={a}
+            x1={0} y1={0}
+            x2={Math.cos(rad)} y2={-Math.sin(rad)}
+            stroke="#f59e0b"
+            strokeWidth={0.008}
+            strokeDasharray="0.03 0.04"
+            opacity={0.5}
+          />
+        );
+      }
+
+      // Angle labels at quadrant positions
+      const quadLabels = [
+        { deg: 0,   x: 1.15,  y: 0.05,  text: '0°' },
+        { deg: 90,  x: 0.02,  y: -1.18, text: '90°' },
+        { deg: 180, x: -1.22, y: 0.05,  text: '180°' },
+        { deg: 270, x: 0.02,  y: 1.25,  text: '270°' },
+      ];
+
+      // Common angle tick marks
+      const tickAngles = [30, 45, 60, 120, 135, 150, 210, 225, 240, 300, 315, 330];
+      const ticks = tickAngles.map(a => {
+        const r = toRad(a);
+        const x1 = 0.88 * Math.cos(r);
+        const y1 = -0.88 * Math.sin(r);
+        const x2 = Math.cos(r);
+        const y2 = -Math.sin(r);
+        return <line key={a} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#d97706" strokeWidth={0.018} opacity={0.45} />;
+      });
+
+      // Topping position
+      const toppingX = Math.cos(toRad(currentAngleDeg));
+      const toppingY = -Math.sin(toRad(currentAngleDeg));
+
+      // Correct position
+      const correctX = Math.cos(toRad(correctAngleDeg));
+      const correctY = -Math.sin(toRad(correctAngleDeg));
+
+      function handleClick(e) {
+        if (!svgRef.current) return;
+        const deg = svgClickToAngle(e, svgRef.current);
+        onAngleChange(deg);
+      }
+
+      function handleMove(e) {
+        // No-op for now, just click-to-place
+      }
+
+      return (
+        <div className="pizza-wheel-container">
+          <svg
+            ref={svgRef}
+            className="unit-circle-svg"
+            viewBox="-1.3 -1.3 2.6 2.6"
+            width="320"
+            height="320"
+            onClick={handleClick}
+          >
+            {/* Pizza background */}
+            <circle r={1} fill="#fff8e7" stroke="#d97706" strokeWidth={0.04} />
+
+            {/* Slice reference lines */}
+            {sliceLines}
+
+            {/* Tick marks at standard angles */}
+            {ticks}
+
+            {/* Axis lines */}
+            <line x1={-1} y1={0} x2={1} y2={0} stroke="#78716c" strokeWidth={0.018} />
+            <line x1={0} y1={-1} x2={0} y2={1} stroke="#78716c" strokeWidth={0.018} />
+
+            {/* Angle labels */}
+            {quadLabels.map(q => (
+              <text
+                key={q.deg}
+                x={q.x} y={q.y}
+                fontSize={0.1}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                fill="#92400e"
+                fontWeight="600"
+              >{q.text}</text>
+            ))}
+
+            {/* Unit circle circumference dot at 0 */}
+            <circle cx={1} cy={0} r={0.025} fill="#d97706" opacity={0.7} />
+
+            {/* Correct ghost (when showCorrectPosition) */}
+            {showCorrectPosition && (
+              <>
+                <line
+                  x1={0} y1={0}
+                  x2={correctX} y2={correctY}
+                  stroke="#16a34a"
+                  strokeWidth={0.022}
+                  strokeDasharray="0.06 0.04"
+                  opacity={0.7}
+                />
+                <circle
+                  cx={correctX} cy={correctY}
+                  r={0.11}
+                  fill="none"
+                  stroke="#16a34a"
+                  strokeWidth={0.03}
+                  strokeDasharray="0.07 0.05"
+                  opacity={0.9}
+                />
+                <circle
+                  cx={correctX} cy={correctY}
+                  r={0.035}
+                  fill="#16a34a"
+                  opacity={0.5}
+                />
+              </>
+            )}
+
+            {/* Player topping */}
+            {toppingPlaced && (
+              <>
+                <line
+                  x1={0} y1={0}
+                  x2={toppingX} y2={toppingY}
+                  stroke="#f97316"
+                  strokeWidth={0.018}
+                  opacity={0.55}
+                />
+                <circle
+                  cx={toppingX} cy={toppingY}
+                  r={0.09}
+                  fill="#f97316"
+                  stroke="#ea580c"
+                  strokeWidth={0.02}
+                />
+              </>
+            )}
+
+            {/* Center dot */}
+            <circle cx={0} cy={0} r={0.04} fill="#78716c" />
+          </svg>
+        </div>
+      );
+    }
+
+    // ─── UnitCirclePrototype (root) ──────────────────────────────────────────
+
+    function UnitCirclePrototype() {
+      const [screen,          setScreen]          = useState('tutorial'); // 'tutorial' | 'playing' | 'gameover' | 'complete'
+      const [tutorialStep,    setTutorialStep]    = useState(0);
+      const [roundIndex,      setRoundIndex]      = useState(0);
+      const [currentAngleDeg, setCurrentAngleDeg] = useState(0);
+      const [toppingPlaced,   setToppingPlaced]   = useState(false);
+      const [submitted,       setSubmitted]        = useState(false);
+      const [feedbackMode,    setFeedbackMode]     = useState(null);
+      const [score,           setScore]            = useState(0);
+      const [streak,          setStreak]           = useState(0);
+      const [sessionComplete, setSessionComplete]  = useState(false);
+      const [lives,           setLives]           = useState(MAX_LIVES);
+      const [timeLeft,        setTimeLeft]        = useState(getTimeLimit(0));
+      const [retryState,      setRetryState]      = useState(null);
+      const submittedRef = useRef(false);
+
+      // P3: chef feedback line
+      const [chefLine, setChefLine] = useState('');
+
+      // P2A: round log for debrief
+      const [roundLog, setRoundLog] = useState([]); // [{specType, targetAngle, outcome, delta, timeUsed}]
+      const roundStartTime = useRef(Date.now());
+
+      const currentRound   = ROUND_CONFIGS[roundIndex];
+      const targetAngleDeg = currentRound.targetAngleDeg;
+      const toleranceDeg   = currentRound.toleranceDeg;
+
+      const delta = deltaAngle(currentAngleDeg, targetAngleDeg);
+      // Ghost is visible after a close/miss, while retry is offered, and while placing
+      // the second topping — so the player can use it as a placement guide
+      const showCorrectPosition = (submitted && feedbackMode !== 'correct')
+                                || retryState === 'offered'
+                                || retryState === 'active';
+
+      // Keep ref in sync for timer callback
+      submittedRef.current = submitted;
+
+      // Timer
+      useEffect(() => {
+        if (screen !== 'playing' || submitted || retryState === 'offered') return;
+        if (timeLeft <= 0) {
+          // Timeout = miss — log it
+          setRoundLog(prev => [...prev, {
+            specType: currentRound.specType,
+            targetAngle: targetAngleDeg,
+            displaySpec: currentRound.displaySpec,
+            outcome: 'timeout',
+            delta: null,
+            timeUsed: getTimeLimit(roundIndex),
+          }]);
+          setLives(prev => {
+            const next = prev - 1;
+            if (next <= 0) {
+              setScreen('gameover');
+            }
+            return next;
+          });
+          setStreak(0);
+          setSubmitted(true);
+          setFeedbackMode('miss');
+          setChefLine(getChefLine('timeout', 0));
+          setRetryState(null);
+          setTimeout(advanceRound, ADVANCE_MS);
+          return;
+        }
+        const id = setTimeout(() => {
+          if (!submittedRef.current) setTimeLeft(t => t - 1);
+        }, 1000);
+        return () => clearTimeout(id);
+      }, [screen, timeLeft, submitted, retryState]);
+
+      const handleAngleChange = useCallback((deg) => {
+        if (submitted) return;
+        setCurrentAngleDeg(deg);
+        setToppingPlaced(true);
+        // ghost stays on during active retry; no state change needed here
+      }, [submitted]);
+
+      const advanceRound = useCallback(() => {
+        if (lives <= 0) { setScreen('gameover'); return; }
+        if (roundIndex < ROUNDS_PER_SESSION - 1) {
+          const nextIdx = roundIndex + 1;
+          setRoundIndex(nextIdx);
+          setCurrentAngleDeg(0);
+          setToppingPlaced(false);
+          setSubmitted(false);
+          setFeedbackMode(null);
+          setRetryState(null);
+          setTimeLeft(getTimeLimit(nextIdx));
+          roundStartTime.current = Date.now();
+        } else {
+          setSessionComplete(true);
+          setScreen('complete');
+        }
+      }, [roundIndex, lives]);
+
+      const handleSubmit = useCallback(() => {
+        if (!toppingPlaced || submitted) return;
+
+        const d = deltaAngle(currentAngleDeg, targetAngleDeg);
+        let mode;
+        if (d <= toleranceDeg) {
+          mode = 'correct';
+          setScore(s => s + 1);
+          setStreak(s => s + 1);
+        } else if (d <= toleranceDeg * 2) {
+          mode = 'close';
+          setStreak(0);
+        } else {
+          mode = 'miss';
+          setStreak(0);
+          setLives(prev => {
+            const next = prev - 1;
+            if (next <= 0) setTimeout(() => setScreen('gameover'), ADVANCE_MS);
+            return next;
+          });
+        }
+        setSubmitted(true);
+        setFeedbackMode(mode);
+        setChefLine(getChefLine(mode, mode === 'correct' ? streak + 1 : 0));
+
+        // Log for debrief
+        setRoundLog(prev => [...prev, {
+          specType: currentRound.specType,
+          targetAngle: targetAngleDeg,
+          displaySpec: currentRound.displaySpec,
+          outcome: mode,
+          delta: d,
+          timeUsed: Math.round((Date.now() - roundStartTime.current) / 1000),
+        }]);
+
+        if (mode === 'close' && retryState === null) {
+          // first close: pause here and offer one retry; ghost appears as guide
+          setRetryState('offered');
+        } else {
+          // correct, miss, or second attempt: auto-advance
+          setRetryState(null);
+          setTimeout(advanceRound, ADVANCE_MS);
+        }
+      }, [toppingPlaced, submitted, currentAngleDeg, targetAngleDeg, toleranceDeg, retryState, advanceRound]);
+
+      const handleRetry = useCallback(() => {
+        // Player clicked "Try Again" — reset placement but keep ghost visible via retryState='active'
+        setSubmitted(false);
+        setToppingPlaced(false);
+        setFeedbackMode(null);
+        setRetryState('active');
+      }, []);
+
+      const handleRestart = () => {
+        setRoundIndex(0);
+        setCurrentAngleDeg(0);
+        setToppingPlaced(false);
+        setSubmitted(false);
+        setFeedbackMode(null);
+        setScore(0);
+        setStreak(0);
+        setSessionComplete(false);
+        setRetryState(null);
+        setLives(MAX_LIVES);
+        setTimeLeft(getTimeLimit(0));
+        setRoundLog([]);
+        roundStartTime.current = Date.now();
+        ROUND_CONFIGS = buildRoundConfigs(); // re-shuffle for new session
+        setScreen('playing');
+      };
+
+      // ── Tutorial ──
+      if (screen === 'tutorial') {
+        const step = TUTORIAL_STEPS[tutorialStep];
+        return (
+          <div className="pizza-lab" style={{ justifyContent: 'center' }}>
+            <div className="session-complete" style={{ maxWidth: 380 }}>
+              <div style={{ fontSize: '2.5rem' }}>{step.icon}</div>
+              <h2 style={{ fontSize: '1.3rem' }}>{step.title}</h2>
+              <p style={{ whiteSpace: 'pre-line', lineHeight: 1.7 }}>{step.body}</p>
+              <div style={{ fontSize: 11, color: '#9ca3af' }}>Step {tutorialStep + 1} / {TUTORIAL_STEPS.length}</div>
+              <button className="restart-btn" onClick={() => {
+                if (tutorialStep < TUTORIAL_STEPS.length - 1) {
+                  setTutorialStep(tutorialStep + 1);
+                } else {
+                  setScreen('playing');
+                  setTimeLeft(getTimeLimit(0));
+                }
+              }}>
+                {tutorialStep < TUTORIAL_STEPS.length - 1 ? 'Next →' : 'Start Placing! 🍕'}
+              </button>
+            </div>
+          </div>
+        );
+      }
+
+      // ── Debrief builder ──
+      function buildDebrief() {
+        if (roundLog.length === 0) return null;
+        const correct = roundLog.filter(r => r.outcome === 'correct').length;
+        const close = roundLog.filter(r => r.outcome === 'close').length;
+        const misses = roundLog.filter(r => r.outcome === 'miss' || r.outcome === 'timeout').length;
+        const timeouts = roundLog.filter(r => r.outcome === 'timeout').length;
+
+        // Stars
+        let stars = 1;
+        if (misses === 0) stars = 3;
+        else if (misses <= 2 && correct >= roundLog.length * 0.5) stars = 2;
+        const starText = stars === 3 ? '★★★ Perfect!' : stars === 2 ? '★★ Good Run' : '★ Completed';
+        const starColor = stars === 3 ? '#fbbf24' : stars === 2 ? '#d1d5db' : '#9ca3af';
+
+        // By spec type
+        const byType = {};
+        roundLog.forEach(r => {
+          if (!byType[r.specType]) byType[r.specType] = { total: 0, correct: 0, missed: 0 };
+          byType[r.specType].total++;
+          if (r.outcome === 'correct') byType[r.specType].correct++;
+          else byType[r.specType].missed++;
+        });
+
+        // Hardest angles
+        const hardest = roundLog
+          .filter(r => r.outcome !== 'correct')
+          .map(r => r.displaySpec)
+          .slice(0, 4);
+
+        // Avg delta on correct
+        const correctDeltas = roundLog.filter(r => r.outcome === 'correct' && r.delta != null);
+        const avgDelta = correctDeltas.length > 0
+          ? (correctDeltas.reduce((s, r) => s + r.delta, 0) / correctDeltas.length).toFixed(1)
+          : null;
+
+        // Takeaway
+        let tip;
+        const typeNames = { angle: 'degree angles', radians: 'radian prompts', coords: 'coordinate prompts' };
+        const worstType = Object.entries(byType).sort((a, b) => (b[1].missed / b[1].total) - (a[1].missed / a[1].total))[0];
+        if (timeouts > 2) {
+          tip = 'You ran out of time often. Try placing quickly near the right area first, then refine before confirming.';
+        } else if (worstType && worstType[1].missed > worstType[1].correct) {
+          tip = `${typeNames[worstType[0]] || worstType[0]} were your hardest. Practice converting between representations before placing.`;
+        } else if (avgDelta && parseFloat(avgDelta) > 8) {
+          tip = 'Your placements were in the right area but not precise. Use the tick marks at 30° intervals as guides.';
+        } else {
+          tip = 'Strong placing! Aim for ★★★ — zero misses, tight precision on every angle.';
+        }
+
+        return { correct, close, misses, timeouts, stars, starText, starColor, byType, hardest, avgDelta, tip };
+      }
+
+      // ── End screen (shared by gameover + complete) ──
+      if (screen === 'gameover' || screen === 'complete' || sessionComplete) {
+        const isComplete = screen === 'complete' || sessionComplete;
+        const db = buildDebrief();
+        const chefEnd = db ? getEndScreenChef(db.stars, isComplete) : getEndScreenChef(0, isComplete);
+        return (
+          <div className="pizza-lab" style={{ justifyContent: 'center' }}>
+            <div className="session-complete" style={{ maxWidth: 400 }}>
+              <div style={{ fontSize: '2.5rem' }}>{chefEnd.emoji}</div>
+              <h2>{isComplete ? 'Pizza Lab Complete!' : 'Out of Lives!'}</h2>
+              <div style={{ fontSize: '0.9rem', color: '#92400e', fontStyle: 'italic', margin: '4px 0 8px' }}>"{chefEnd.line}"</div>
+              <div className="final-score">{score}/{isComplete ? ROUNDS_PER_SESSION : roundIndex + 1}</div>
+
+              {/* Star rating */}
+              {db && <div className="star-pop" style={{ fontSize: '1.5rem', fontWeight: 800, color: db.starColor }}>{db.starText}</div>}
+
+              {/* Debrief */}
+              {db && (
+                <div style={{ width: '100%', textAlign: 'left', background: '#f8fafc', borderRadius: 12, padding: '12px 16px', border: '1px solid #e5e7eb', marginTop: 8 }}>
+                  <div style={{ fontSize: 11, color: '#6366f1', fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 }}>📋 Session Debrief</div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '3px 0', borderBottom: '1px solid #f1f5f9' }}>
+                    <span style={{ color: '#6b7280' }}>Correct</span>
+                    <span style={{ fontWeight: 700, color: '#16a34a' }}>{db.correct}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '3px 0', borderBottom: '1px solid #f1f5f9' }}>
+                    <span style={{ color: '#6b7280' }}>Close (retry given)</span>
+                    <span style={{ fontWeight: 700, color: '#d97706' }}>{db.close}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '3px 0', borderBottom: '1px solid #f1f5f9' }}>
+                    <span style={{ color: '#6b7280' }}>Missed / timed out</span>
+                    <span style={{ fontWeight: 700, color: db.misses > 0 ? '#dc2626' : '#16a34a' }}>{db.misses}{db.timeouts > 0 ? ` (${db.timeouts} timeout)` : ''}</span>
+                  </div>
+                  {db.avgDelta && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '3px 0', borderBottom: '1px solid #f1f5f9' }}>
+                      <span style={{ color: '#6b7280' }}>Avg precision</span>
+                      <span style={{ fontWeight: 700, color: parseFloat(db.avgDelta) <= 5 ? '#16a34a' : '#d97706' }}>{db.avgDelta}° off</span>
+                    </div>
+                  )}
+
+                  {/* By type */}
+                  <div style={{ marginTop: 8, fontSize: 12, color: '#374151' }}>
+                    <div style={{ fontWeight: 600, marginBottom: 4 }}>By prompt type:</div>
+                    {Object.entries(db.byType).map(([type, data]) => (
+                      <div key={type} style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}>
+                        <span style={{ color: '#6b7280' }}>{type === 'angle' ? '📐 Degrees' : type === 'radians' ? '📏 Radians' : '📍 Coordinates'}</span>
+                        <span><span style={{ color: '#16a34a' }}>{data.correct}✓</span> / <span style={{ color: data.missed > 0 ? '#dc2626' : '#16a34a' }}>{data.missed}✗</span></span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {db.hardest.length > 0 && (
+                    <div style={{ marginTop: 8, fontSize: 12 }}>
+                      <span style={{ color: '#6b7280' }}>Hardest: </span>
+                      <span style={{ fontWeight: 700, color: '#dc2626' }}>{db.hardest.join(', ')}</span>
+                    </div>
+                  )}
+
+                  <div style={{ marginTop: 10, padding: '8px 12px', background: '#eef2ff', borderRadius: 8, border: '1px solid #c7d2fe', fontSize: 12, color: '#4338ca', lineHeight: 1.6 }}>
+                    <strong>💡 Next time: </strong>{db.tip}
+                  </div>
+                </div>
+              )}
+
+              <p style={{ fontSize: '0.85rem', color: '#6b7280', marginTop: 8 }}>Lives: {'❤️'.repeat(Math.max(0, lives)) + '🖤'.repeat(MAX_LIVES - Math.max(0, lives))}</p>
+              <button className="restart-btn" onClick={handleRestart}>Play Again</button>
+            </div>
+          </div>
+        );
+      }
+
+      // ── Playing ──
+      const livesDisplay = '❤️'.repeat(lives) + '🖤'.repeat(MAX_LIVES - lives);
+      const timerPct = (timeLeft / getTimeLimit(roundIndex)) * 100;
+      const timerUrgent = timeLeft <= 5;
+
+      return (
+        <div className="pizza-lab">
+          <div className="lab-title">🍕 Unit Circle Pizza Lab</div>
+
+          {/* HUD */}
+          <div className="session-hud">
+            <span className="round-counter">Round {roundIndex + 1} / {ROUNDS_PER_SESSION}</span>
+            <span style={{ fontSize: '1rem' }}>{livesDisplay}</span>
+            <span className="session-score">Score: {score}</span>
+            {streak >= 2 && <span className="streak-badge">🔥 {streak} streak</span>}
+          </div>
+
+          {/* Timer bar */}
+          <div style={{ width: '100%', maxWidth: 320, height: 6, background: '#e5e7eb', borderRadius: 3, overflow: 'hidden' }}>
+            <div style={{
+              width: `${timerPct}%`,
+              height: '100%',
+              background: timerUrgent ? '#ef4444' : timerPct > 50 ? '#22c55e' : '#f59e0b',
+              transition: 'width 1s linear, background 0.3s',
+              borderRadius: 3,
+            }} />
+          </div>
+          {timerUrgent && <div style={{ fontSize: 11, color: '#ef4444', fontWeight: 700 }}>⏱️ {timeLeft}s remaining!</div>}
+
+          {/* P3: Lab status strip */}
+          {(() => {
+            const status = getLabStatus(roundIndex, streak, lives, getTier(roundIndex));
+            return <div className="lab-status-strip" style={{ color: status.color }}>{status.text}</div>;
+          })()}
+
+          {/* Order */}
+          <OrderPanel
+            targetSpec={currentRound.displaySpec}
+            specType={currentRound.specType}
+            roundIndex={roundIndex}
+          />
+
+          {/* Pizza Wheel */}
+          <PizzaWheel
+            currentAngleDeg={currentAngleDeg}
+            toppingPlaced={toppingPlaced}
+            correctAngleDeg={targetAngleDeg}
+            showCorrectPosition={showCorrectPosition}
+            onAngleChange={handleAngleChange}
+          />
+
+          {!toppingPlaced && !submitted && retryState !== 'active' && (
+            <p className="hint-text">Click on the circle to place your topping</p>
+          )}
+          {retryState === 'active' && !toppingPlaced && (
+            <p className="hint-text" style={{ color: '#d97706' }}>Aim at the green ghost — click to place</p>
+          )}
+
+          {/* Live readouts */}
+          <AngleReadout angleDeg={currentAngleDeg} />
+          <CoordinateDisplay angleDeg={currentAngleDeg} />
+
+          {/* Feedback — shown after submit, or while retry is offered */}
+          {(submitted || retryState === 'offered') && (
+            <FeedbackPanel
+              feedbackMode={feedbackMode}
+              deltaAngleDeg={delta}
+              correctAngleDeg={targetAngleDeg}
+              onRetry={handleRetry}
+              retryAvailable={retryState === 'offered'}
+              chefLine={chefLine}
+              celebration={feedbackMode === 'correct' ? getCelebration('correct', getTier(roundIndex), streak) : null}
+            />
+          )}
+
+          {/* Submit — hidden while retry button is showing */}
+          {!submitted && retryState !== 'offered' && (
+            <button
+              className="submit-btn"
+              disabled={!toppingPlaced}
+              onClick={handleSubmit}
+            >
+              Confirm Topping ✓
+            </button>
+          )}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<UnitCirclePrototype />);
+  </script>
+</body>
+</html>
