@@ -1,0 +1,82 @@
+# Learning Captures
+
+Raw lessons captured after meaningful fixes, audits, passes, and playtests. Each capture is a single file describing what the OS should learn from one specific event.
+
+## Purpose
+Store lessons as individual findable artifacts instead of appending them to a single large doc. Lessons start here. If they prove general enough, they get promoted.
+
+## When to capture a lesson
+Immediately after:
+- A fix that corrected a real usability, fairness, or design problem
+- An audit that found a gap the OS should not repeat
+- A pass closure that revealed something reusable
+- A playtest that changed understanding of what works
+- A strong example from a reference game
+
+Do not capture routine commits, typo fixes, or doc formatting changes.
+
+## File naming
+
+`YYYY-MM-DD-<short-description>.md`
+
+Examples:
+- `2026-04-06-interaction-proximity.md`
+- `2026-04-06-subtraction-shortcut.md`
+- `2026-04-05-near-miss-feedback.md`
+
+## Classification categories
+
+| Classification | What it means | Promotion destination |
+|---|---|---|
+| **General rule** | Applies to every game | `docs/os_engagement_rules.md` or `docs/pass_rules.md` |
+| **Pass-specific rule** | Applies to one pass type across all games | `docs/pass_rules.md` under the relevant pass |
+| **Game-family rule** | Applies to a type of game (e.g., subset-sum games) | `docs/game_families/` (when created) |
+| **Reusable pattern** | A proven solution portable to future games | `docs/reusable_patterns_library.md` |
+| **Design check** | Should be evaluated before build | `docs/design_checks/` |
+| **Agent/check candidate** | Worth formalizing if it keeps repeating | Lightweight candidates list (when needed) |
+| **Local fix only** | One game, one time, no generalization | Stays in pass record or playtest note |
+
+## Promotion path
+
+```
+Local fix (pass record / playtest note)
+  ↓ worth remembering beyond this game
+Captured lesson (this folder)
+  ↓ appears in 2+ games or 2+ passes
+Reusable pattern or game-family rule
+  ↓ should be checked before every build
+Design check or general rule
+```
+
+Promotion criteria:
+- 1 occurrence → captured lesson
+- 2+ occurrences across games/passes → pattern or game-family rule
+- Would have prevented a known failure → design check
+- Keeps being missed → general rule
+
+## Template
+
+```markdown
+# Lesson: [Short title]
+
+| Field | Value |
+|---|---|
+| **Date** | |
+| **Source** | [fix / audit / playtest / pass / strong example] |
+| **Game(s)** | |
+| **Pass** | |
+| **Classification** | [general rule / pass rule / game-family rule / reusable pattern / design check / agent candidate / local fix] |
+
+## What happened
+[1-2 sentences]
+
+## What the OS should learn
+[1 sentence rule or principle]
+
+## Promotion target
+[Where this should live if promoted, or "none — local fix only"]
+
+## Status
+- [ ] Captured
+- [ ] Promoted to: [target]
+```

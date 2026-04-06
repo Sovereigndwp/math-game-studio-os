@@ -5,6 +5,8 @@ Use this at the start of every serious build session.
 The goal is not just to solve one game problem.
 The goal is to make the OS better at producing strong games, strong prototypes, and strong implementation paths over time.
 
+> **New learning captures go in `artifacts/learning_captures/`** — one file per lesson, classified and promotable. The inline living records below are historical and remain for reference.
+
 ---
 
 ## Core Principle
