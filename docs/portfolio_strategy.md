@@ -49,9 +49,18 @@ Before any new game moves to implementation, it must:
 8. Have at least one physical or world-grounded consequence for errors
 9. Reference-extract from at least one strong exemplar before build
 
+## New flagship candidates (approved pre-build packages)
+
+| Concept | Grade band | Status | Pre-build |
+|---|---|---|---|
+| **Firefly Ranger** | Elementary (K-3) | Pre-build approved | Delight Gate pass, FI 0.82, SL 0.79 |
+| **School Trip Fleet** | Middle School (4-7) | Pre-build approved | Delight Gate strong pass, FI 0.84, SL 0.81 |
+| **Power Grid Operator** | High School (8-12) | P1+P2A prototype done | Delight Gate strong pass, FI 0.87, SL 0.83 |
+
 ## Immediate next steps
 
-1. Commit this strategy doc
-2. Scope Fire Dispatch P4B (incident pool expansion)
-3. Begin new flagship concept search using the full pre-build pipeline
-4. Do not start P4/P5 on Bakery Rush or Unit Circle
+1. Playtest Power Grid L1-L3 with P2A — validate algebra-first loop
+2. Build Firefly Ranger P1 prototype (L1-L3)
+3. Build School Trip Fleet P1 prototype (L1-L3)
+4. Fire Dispatch P4B done — maintain as secondary
+5. Do not start P4/P5 on Bakery Rush or Unit Circle
