@@ -1190,8 +1190,15 @@
                 const lvl = LEVEL_CONFIGS[prevLevel];
                 let nextLevel = prevLevel;
                 // prevScore is already post-pts (first setScore applied before setTimeout fired)
-                if (prevScore >= lvl.scoreThreshold && prevLevel < 4) {
-                  nextLevel = prevLevel + 1;
+                if (prevScore >= lvl.scoreThreshold) {
+                  if (prevLevel < 4) {
+                    nextLevel = prevLevel + 1;
+                  } else {
+                    // L5 cleared — session victory
+                    setSessionComplete(true);
+                    setFeedbackMode('shift_end');
+                    return prevLevel;
+                  }
                 }
                 spawnIncident(nextLevel);
                 return nextLevel;
