@@ -184,6 +184,8 @@ Move out of P1 when:
 3. The game must test the intended skill, not the wrong skill
 4. Level 1 must teach, not perform
 5. New demands must be introduced one at a time
+6. The world model must be legible before pressure begins
+7. Every game must have a reachable win condition at every level
 
 ---
 
@@ -216,6 +218,7 @@ Move out of P2A when:
 2. Every run must answer "What should I improve?"
 3. The player must have a reason to replay immediately
 4. Success quality must be differentiated
+5. End-of-run feedback must name the type of mistake, not just right or wrong
 
 ---
 
@@ -251,6 +254,7 @@ Move out of P2B when:
 4. Every level must have one job
 5. Tuning must target behavior, not vague aesthetics
 6. New cognitive demand means lower speed or clutter
+7. The game must test the intended skill, not a shortcut skill
 
 ---
 
@@ -286,6 +290,7 @@ Move out of P3 when:
 3. The game should be memorable in moments, not just mechanics
 4. Theme must carry the math, not sit on top of it
 5. Personality must not create clutter
+6. Personality cannot rescue a weak core loop
 
 ---
 

@@ -138,6 +138,22 @@ while making total inaction unacceptable.
 
 *ATC: wrong answer = -20 (recoverable, 1/5 of a correct). Plane aborted from neglect = -200 (catastrophic, 10x a wrong answer). The penalty structure teaches: try and fail is fine, ignore and lose is not.*
 
+### Rule 18 — P3 Requires World Reaction, Not Text Alone
+Text-based reactions (status strip messages, chef lines) can support minimum
+viable personality, but a strong P3 pass requires the world itself to respond
+through visible state change — lights dimming, bars draining, borders glowing,
+characters reacting visually. If only text changes, the world feels static.
+
+*Bakery Rush and Unit Circle both reached P3 with text-only world reaction. The audit flagged this as the weakest P3 criterion in both games. Fire Dispatch's incident personality was stronger because the dispatch lines attached to named locations with visual urgency badges.*
+
+### Rule 19 — P3 Cannot Rescue a Weak Core Loop
+Personality, celebration, status strips, and character voice can enrich a
+strong loop, but they cannot turn a fundamentally thin loop into a standout
+game. If the core action is not satisfying to repeat before P3, adding charm
+will produce a charming mediocre game, not a great one.
+
+*Portfolio reset lesson: three games reached P3 with clean personality passes, but none had standout potential because the core loops were designed before the stronger pre-build system existed. P3 polish on a thin loop produces "nice but not wonderful."*
+
 ---
 
 ## 3. Urgency and Pressure Patterns
