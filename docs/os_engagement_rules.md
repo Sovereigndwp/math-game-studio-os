@@ -89,6 +89,13 @@ cross-reference and reason, not just pattern-match from memory.
 
 *Grocery Dash: distractor items on shelves look identical to real ingredients — player must check the recipe card. ATC: color-coded runways require remembering which direction matches which color.*
 
+### Rule 12 — Prompt, Action, and Confirm Must Be Within One Eye-Scan
+The player should be able to read the prompt, take the action, and confirm the
+result without moving their eyes across more than two element-heights of vertical
+or horizontal distance. If the prompt is at the top and the action button is at
+the bottom, the layout has failed. Compact the interaction zone so reading,
+acting, and confirming happen in one visual cluster.
+
 ---
 
 ## 3. Urgency and Pressure Patterns
