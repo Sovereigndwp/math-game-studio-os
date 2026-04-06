@@ -606,12 +606,25 @@
     ];
 
     const INCIDENTS = [
-      { name: 'Factory Fire',   emoji: '🏭', location: 'Industrial District', dispatchLine: 'Workers are evacuating!',       resolvedLine: 'Factory secured. Workers safe.' },
-      { name: 'House Fire',     emoji: '🏠', location: 'Oak Street',          dispatchLine: 'Family trapped on second floor!', resolvedLine: 'Family rescued. House saved.' },
+      // Structural fires
+      { name: 'Factory Fire',   emoji: '🏭', location: 'Industrial District', dispatchLine: 'Workers are evacuating!',          resolvedLine: 'Factory secured. Workers safe.' },
+      { name: 'House Fire',     emoji: '🏠', location: 'Oak Street',          dispatchLine: 'Family trapped on second floor!',  resolvedLine: 'Family rescued. House saved.' },
+      { name: 'Building Fire',  emoji: '🏢', location: 'Downtown',            dispatchLine: 'Smoke visible for blocks!',        resolvedLine: 'Fire out. Building stable.' },
+      { name: 'School Fire',    emoji: '🏫', location: 'Elm Avenue',          dispatchLine: 'After-hours alarm triggered!',     resolvedLine: 'School cleared. No injuries.' },
+      // Vehicle / road
       { name: 'Car Accident',   emoji: '🚗', location: 'Highway 7',           dispatchLine: 'Multi-car pileup, traffic stopped.', resolvedLine: 'Road cleared. Everyone okay.' },
-      { name: 'Chemical Spill', emoji: '⚗️', location: 'North Warehouse',    dispatchLine: 'Hazmat situation developing!',    resolvedLine: 'Spill contained. Area safe.' },
-      { name: 'Building Fire',  emoji: '🏢', location: 'Downtown',            dispatchLine: 'Smoke visible for blocks!',       resolvedLine: 'Fire out. Building stable.' },
-      { name: 'Brush Fire',     emoji: '🌿', location: 'City Park',           dispatchLine: 'Wind is spreading it fast!',      resolvedLine: 'Fire line held. Park saved.' },
+      { name: 'Bus Breakdown',  emoji: '🚌', location: 'Main Street',         dispatchLine: 'Passengers stranded, engine smoking!', resolvedLine: 'Passengers evacuated. Bus towed.' },
+      { name: 'Train Derailment', emoji: '🚂', location: 'Rail Yard',         dispatchLine: 'Cargo cars off the tracks!',       resolvedLine: 'Track cleared. Cargo secured.' },
+      // Hazmat / environmental
+      { name: 'Chemical Spill', emoji: '⚗️', location: 'North Warehouse',    dispatchLine: 'Hazmat situation developing!',     resolvedLine: 'Spill contained. Area safe.' },
+      { name: 'Brush Fire',     emoji: '🌿', location: 'City Park',           dispatchLine: 'Wind is spreading it fast!',       resolvedLine: 'Fire line held. Park saved.' },
+      { name: 'Gas Leak',       emoji: '⛽', location: 'Pine Road',           dispatchLine: 'Residents evacuating the block!',  resolvedLine: 'Leak sealed. All clear.' },
+      // Rescue
+      { name: 'Cliff Rescue',   emoji: '🏔️', location: 'Ridge Trail',        dispatchLine: 'Hiker stranded on the ledge!',    resolvedLine: 'Hiker airlifted. Safe on ground.' },
+      { name: 'Flood Rescue',   emoji: '🌊', location: 'River Bridge',        dispatchLine: 'Water rising fast!',              resolvedLine: 'Bridge cleared. Everyone accounted for.' },
+      // High-stakes
+      { name: 'Airport Emergency', emoji: '✈️', location: 'Regional Airport', dispatchLine: 'Plane reporting engine trouble!',  resolvedLine: 'Emergency landing successful.' },
+      { name: 'Fairground Incident', emoji: '🎪', location: 'County Fair',    dispatchLine: 'Ride malfunction, crowd panicking!', resolvedLine: 'Ride stopped. Crowd safe.' },
     ];
 
     function calcStars(incidentLog) {
