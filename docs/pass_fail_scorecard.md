@@ -17,10 +17,12 @@ After every pass — before starting the next one.
 - Diagnosing what is wrong (use `engagement_failure_modes.md`)
 - Implementation guidance
 
-## Relationship to pass records
-- **Scorecard** = decision tool. Used after a pass to judge pass / fail / hold / split.
-- **Pass record** (`artifacts/pass_records/*.json`) = permanent artifact. Written after a pass closes, capturing what was proved, open questions, known limits, and next-pass obligation.
-- Both should exist for every completed pass. The scorecard drives the decision; the pass record preserves the history.
+## Three-layer pass system
+1. **Scorecard** (this file) = decision tool. Did the pass work? Pass / fail / hold / split.
+2. **Pass record** (`artifacts/pass_records/*.json`) = permanent artifact. What changed, what was proved, what's next.
+3. **Playtest evidence** (`artifacts/playtests/<game>/`) = field notes. What happened in real testing.
+
+All three should exist for every completed pass. The scorecard drives the decision, the pass record preserves the history, the playtest evidence preserves what players actually felt.
 
 ---
 
