@@ -76,7 +76,7 @@ Promotion criteria:
 | **Date** | |
 | **Source** | [fix / audit / playtest / pass / strong example] |
 | **Game(s)** | |
-| **Pass** | [P1 / P2A / P2B / P3 / P4 / pre-build / cross-pass] |
+| **Pass** | [P1 / P2A / P2B / P3 / P4 / P5 / pre-build / cross-pass] |
 | **Classification** | [general rule / pass rule / game-family rule / reusable pattern / design check / agent candidate / local fix] |
 | **Game family** | [combination-allocation / tap-accumulation / precision-placement / recipe-scaling / spatial-navigation / none] |
 | **Failure mode** | [what went wrong or what gap this addresses] |
