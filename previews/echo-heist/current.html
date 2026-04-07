@@ -155,11 +155,181 @@ function getDistrict(missionIdx) {
 
 function getDConfig() { return DISTRICT_CONFIG[getDistrict(currentMission)]; }
 
+// ── DISTRICT 3 CURATED MISSIONS (21–30) ──────────────────────
+// Room prompts authored from GDD content sheet.
+// Vault + escape prompts are complementary (harder variants).
+const D3_MISSION_DATA = [
+  { id:21, name:'Platform Timing', district:'Escape Lines',
+    objective:'Catch the extraction train.', objType:'stealth', objTarget:35,
+    prompts:[
+      {id:'d3m21p1',template:'T3',text:'District 3 quota: reduce drone scan noise by 25% from 64 dB.\nNew noise = ?',answer:'48',hint1:'Percent decrease',hint2:'64 × 0.75'},
+      {id:'d3m21p2',template:'T3',text:'District 3 quota: increase circuit yield by 12.5% from 80 units.\nNew yield = ?',answer:'90',hint1:'Percent increase',hint2:'80 × 1.125'},
+      {id:'d3m21p3',template:'T4',text:'District 3 quota: convert 0.045 to a percent.',answer:'4.5%',hint1:'Decimal → percent: multiply by 100',hint2:'0.045 × 100'},
+      {id:'d3m21p4',template:'T10',text:'District 3 quota: round 17.86 to the nearest 0.1.',answer:'17.9',hint1:'Look at the hundredths digit',hint2:'17.86 → tenths = 8'},
+      {id:'d3m21p5',template:'T9',text:'District 3 quota: energy is 6. Overclock adds +5.\nNew energy = ?',answer:'11',hint1:'Integer addition',hint2:'6 + 5'}
+    ],
+    vaultPrompts:[
+      {id:'d3m21v1',text:'VAULT LOCK 1\n40% of 75 credits = ?',answer:'30',hint1:'Percent of quantity',hint2:'0.40 × 75'},
+      {id:'d3m21v2',text:'VAULT LOCK 2\nSolve: 2x + 6 = 22.',answer:'8',hint1:'Two-step equation',hint2:'Subtract 6, divide by 2'},
+      {id:'d3m21v3',text:'VAULT LOCK 3\nRound 9.45 to nearest 0.1.',answer:'9.5',hint1:'Look at hundredths digit',hint2:'9.45 → hundredths = 5, round up'}
+    ],
+    escapePrompts:[{id:'d3m21e1',text:'EXTRACTION GATE\nIncrease exit speed by 10% from 70.\nNew speed = ?',answer:'77',hint1:'Percent increase',hint2:'70 × 1.10'}]
+  },
+  { id:22, name:'Rooftop Angles', district:'Escape Lines',
+    objective:'Cross rooftops via camera blind spots.',
+    prompts:[
+      {id:'d3m22p1',template:'T2',text:'District 3 quota: solve 3x + 8 = 35.',answer:'9',hint1:'Two-step equation',hint2:'Subtract 8, divide by 3'},
+      {id:'d3m22p2',template:'T2',text:'District 3 quota: solve 4x - 12 = 28.',answer:'10',hint1:'Two-step equation',hint2:'Add 12, divide by 4'},
+      {id:'d3m22p3',template:'T3',text:'District 3 quota: reduce scrap waste by 30% from 90 kg.\nNew waste = ?',answer:'63',hint1:'Percent decrease',hint2:'90 × 0.70'},
+      {id:'d3m22p4',template:'T4',text:'District 3 quota: convert 18% to decimal.',answer:'0.18',hint1:'Percent → decimal: divide by 100',hint2:'18 ÷ 100'},
+      {id:'d3m22p5',template:'T11',text:'District 3 quota: complementary angle to 28° (adds to 90°).\nMissing angle = ?',answer:'62',hint1:'Complementary angles add to 90°',hint2:'90 − 28'},
+      {id:'d3m22p6',template:'T9',text:'District 3 quota: heat is 9. Coolant reduces by -4.\nNew heat = ?',answer:'5',hint1:'Integer subtraction',hint2:'9 + (−4)'}
+    ],
+    vaultPrompts:[
+      {id:'d3m22v1',text:'VAULT LOCK 1\n25% of 60 = ?',answer:'15',hint1:'Percent of quantity',hint2:'0.25 × 60'},
+      {id:'d3m22v2',text:'VAULT LOCK 2\n2/3 of 45 = ?',answer:'30',hint1:'Fraction of quantity',hint2:'45 × 2 ÷ 3'},
+      {id:'d3m22v3',text:'VAULT LOCK 3\nSolve: 5x - 3 = 22.',answer:'5',hint1:'Two-step equation',hint2:'Add 3, divide by 5'}
+    ],
+    escapePrompts:[{id:'d3m22e1',text:'ROOF EXIT\nSolve: 2x + 14 = 36.',answer:'11',hint1:'Two-step equation',hint2:'Subtract 14, divide by 2'}]
+  },
+  { id:23, name:'Cargo Weight', district:'Escape Lines',
+    objective:'Carry loot without stamina crash.',
+    prompts:[
+      {id:'d3m23p1',template:'T7',text:'District 3 quota: conveyor moves at 1.8 m/s for 25 s.\nDistance = ?',answer:'45',hint1:'d = r × t',hint2:'1.8 × 25'},
+      {id:'d3m23p2',template:'T7',text:'District 3 quota: cable length is 72 m. Pull speed is 3 m/s.\nTime = ?',answer:'24',hint1:'t = d ÷ r',hint2:'72 ÷ 3'},
+      {id:'d3m23p3',template:'T10',text:'District 3 quota: round 246 to the nearest 10.',answer:'250',hint1:'Look at the ones digit',hint2:'246 → ones = 6, round up'},
+      {id:'d3m23p4',template:'T11',text:'District 3 quota: a right angle turn in a pipe is how many degrees?',answer:'90',hint1:'Right angle = 90°',hint2:'Quarter turn of 360°'},
+      {id:'d3m23p5',template:'T9',text:'District 3 quota: stamina is 3. Tool upgrade gives +7.\nNew stamina = ?',answer:'10',hint1:'Integer addition',hint2:'3 + 7'}
+    ],
+    vaultPrompts:[
+      {id:'d3m23v1',text:'VAULT LOCK 1\nDistance 180 m at 4 m/s. Time = ?',answer:'45',hint1:'t = d ÷ r',hint2:'180 ÷ 4'},
+      {id:'d3m23v2',text:'VAULT LOCK 2\n3/4 + 1/8 = ?',answer:'7/8',hint1:'Common denominator is 8',hint2:'6/8 + 1/8'},
+      {id:'d3m23v3',text:'VAULT LOCK 3\nRound 3.845 to nearest 0.01.',answer:'3.85',hint1:'Look at the thousandths digit',hint2:'3.845 → thousandths = 5, round up'}
+    ],
+    escapePrompts:[{id:'d3m23e1',text:'CARGO LIFT\nCrane moves 2.4 m/s for 30 s.\nDistance = ?',answer:'72',hint1:'d = r × t',hint2:'2.4 × 30'}]
+  },
+  { id:24, name:'Two-Step Sprint', district:'Escape Lines',
+    objective:'Open 3 gates during patrol cycles.', objType:'doors', objTarget:3,
+    prompts:[
+      {id:'d3m24p1',template:'T5',text:'District 3 quota: use 3/8 of 96 units of solder.\nAmount used = ?',answer:'36',hint1:'Fraction of quantity',hint2:'96 × 3 ÷ 8'},
+      {id:'d3m24p2',template:'T6',text:'District 3 quota: 5/6 - 1/3 = ?',answer:'1/2',hint1:'Common denominator is 6',hint2:'5/6 − 2/6'},
+      {id:'d3m24p3',template:'T6',text:'District 3 quota: 2/5 + 3/10 = ?',answer:'7/10',hint1:'Common denominator is 10',hint2:'4/10 + 3/10'},
+      {id:'d3m24p4',template:'T3',text:'District 3 quota: increase insulation rating by 20% from 55.\nNew rating = ?',answer:'66',hint1:'Percent increase',hint2:'55 × 1.20'},
+      {id:'d3m24p5',template:'T9',text:'District 3 quota: energy is 12. A surge costs -9.\nNew energy = ?',answer:'3',hint1:'Integer subtraction',hint2:'12 + (−9)'}
+    ],
+    vaultPrompts:[
+      {id:'d3m24v1',text:'VAULT LOCK 1\n7/8 of 64 = ?',answer:'56',hint1:'Fraction of quantity',hint2:'64 × 7 ÷ 8'},
+      {id:'d3m24v2',text:'VAULT LOCK 2\nReduce 80 by 35%. New value = ?',answer:'52',hint1:'Percent decrease',hint2:'80 × 0.65'},
+      {id:'d3m24v3',text:'VAULT LOCK 3\n1/4 + 3/8 = ?',answer:'5/8',hint1:'Common denominator is 8',hint2:'2/8 + 3/8'}
+    ],
+    escapePrompts:[{id:'d3m24e1',text:'MAINTENANCE HATCH\n7/8 - 3/8 = ?',answer:'1/2',hint1:'Same denominator — just subtract',hint2:'7/8 − 3/8 = 4/8'}]
+  },
+  { id:25, name:'Fraction + Rate', district:'Escape Lines',
+    objective:'Balance noise budget while racing the clock.',
+    prompts:[
+      {id:'d3m25p1',template:'T8',text:'District 3 quota: better output/hr?\nA: 84 boards in 6 h; B: 90 boards in 8 h.\nType A or B.',answer:'A',hint1:'Divide to find rate per hour',hint2:'A=14/h, B=11.25/h'},
+      {id:'d3m25p2',template:'T8',text:'District 3 quota: better value/credit?\nA: 56 parts for 7 credits; B: 72 parts for 10.\nType A or B.',answer:'A',hint1:'Divide parts by credits',hint2:'A=8/credit, B=7.2/credit'},
+      {id:'d3m25p3',template:'T8',text:'District 3 quota: better m/s?\nA: 150 m in 30 s; B: 180 m in 45 s.\nType A or B.',answer:'A',hint1:'Divide distance by time',hint2:'A=5 m/s, B=4 m/s'},
+      {id:'d3m25p4',template:'T3',text:'District 3 quota: apply a 15% discount to 120 credits.\nNew cost = ?',answer:'102',hint1:'Percent decrease',hint2:'120 × 0.85'},
+      {id:'d3m25p5',template:'T10',text:'District 3 quota: round 6.66 to the nearest 0.1.',answer:'6.7',hint1:'Look at the hundredths digit',hint2:'6.66 → hundredths = 6, round up'}
+    ],
+    vaultPrompts:[
+      {id:'d3m25v1',text:'VAULT LOCK 1\nBetter rate?\nA: 63 items in 7 min; B: 50 in 5 min.\nType A or B.',answer:'B',hint1:'Divide to find rate per minute',hint2:'A=9/min, B=10/min'},
+      {id:'d3m25v2',text:'VAULT LOCK 2\nIncrease 200 by 15%. New value = ?',answer:'230',hint1:'Percent increase',hint2:'200 × 1.15'},
+      {id:'d3m25v3',text:'VAULT LOCK 3\n3/5 of 75 = ?',answer:'45',hint1:'Fraction of quantity',hint2:'75 × 3 ÷ 5'}
+    ],
+    escapePrompts:[{id:'d3m25e1',text:'SPRINT GATE\n3/5 of 85 = ?',answer:'51',hint1:'Fraction of quantity',hint2:'85 × 3 ÷ 5'}]
+  },
+  { id:26, name:'Market Choices', district:'Escape Lines',
+    objective:'Choose best 2 upgrades for final heist.',
+    prompts:[
+      {id:'d3m26p1',template:'T12',text:'District 3 quota: 30% chance of 50 credits, otherwise 5.\nEV = ?',answer:'18.5',hint1:'EV = (p × V₁) + ((1−p) × V₂)',hint2:'0.3×50 + 0.7×5'},
+      {id:'d3m26p2',template:'T12',text:'District 3 quota: 60% chance of 20 credits, otherwise 0.\nEV = ?',answer:'12',hint1:'EV = (p × V₁) + ((1−p) × V₂)',hint2:'0.6×20 + 0.4×0'},
+      {id:'d3m26p3',template:'T12',text:'District 3 quota: 10% chance of 200 credits, otherwise 15.\nEV = ?',answer:'33.5',hint1:'EV = (p × V₁) + ((1−p) × V₂)',hint2:'0.1×200 + 0.9×15'},
+      {id:'d3m26p4',template:'T3',text:'District 3 quota: reduce defect rate by 40% from 12%.\nNew rate = ?',answer:'7.2%',hint1:'Percent decrease',hint2:'12% × 0.60'},
+      {id:'d3m26p5',template:'T9',text:'District 3 quota: heat is 2. Short circuit adds +9.\nNew heat = ?',answer:'11',hint1:'Integer addition',hint2:'2 + 9'}
+    ],
+    vaultPrompts:[
+      {id:'d3m26v1',text:'VAULT LOCK 1\n40% chance of 100 credits, else 0.\nEV = ?',answer:'40',hint1:'EV = p × value (else 0)',hint2:'0.40 × 100'},
+      {id:'d3m26v2',text:'VAULT LOCK 2\n25% chance of 80, else 20.\nEV = ?',answer:'35',hint1:'EV formula',hint2:'0.25×80 + 0.75×20'},
+      {id:'d3m26v3',text:'VAULT LOCK 3\nSolve: 7x + 4 = 53.',answer:'7',hint1:'Two-step equation',hint2:'Subtract 4, divide by 7'}
+    ],
+    escapePrompts:[{id:'d3m26e1',text:'LOOT DROP\n70% chance of 50, else 10.\nEV = ?',answer:'38',hint1:'EV formula',hint2:'0.7×50 + 0.3×10'}]
+  },
+  { id:27, name:'Probability Payoff', district:'Escape Lines',
+    objective:'Risk/reward crates in an optional side room.',
+    prompts:[
+      {id:'d3m27p1',template:'T1',text:'District 3 quota: solve x/8 = 6.',answer:'48',hint1:'One-step equation',hint2:'Multiply both sides by 8'},
+      {id:'d3m27p2',template:'T1',text:'District 3 quota: solve x - 27 = 14.',answer:'41',hint1:'One-step equation',hint2:'Add 27 to both sides'},
+      {id:'d3m27p3',template:'T3',text:'District 3 quota: increase throughput by 30% from 140 units/hr.\nNew throughput = ?',answer:'182',hint1:'Percent increase',hint2:'140 × 1.30'},
+      {id:'d3m27p4',template:'T4',text:'District 3 quota: convert 0.72 to percent.',answer:'72%',hint1:'Decimal → percent: multiply by 100',hint2:'0.72 × 100'},
+      {id:'d3m27p5',template:'T11',text:'District 3 quota: supplementary angle to 135° (adds to 180°).\nMissing angle = ?',answer:'45',hint1:'Supplementary angles add to 180°',hint2:'180 − 135'},
+      {id:'d3m27p6',template:'T10',text:'District 3 quota: round 0.994 to the nearest 0.01.',answer:'0.99',hint1:'Look at the thousandths digit',hint2:'0.994 → thousandths = 4, round down'}
+    ],
+    vaultPrompts:[
+      {id:'d3m27v1',text:'VAULT LOCK 1\nSolve: x/6 = 8.',answer:'48',hint1:'One-step equation',hint2:'Multiply both sides by 6'},
+      {id:'d3m27v2',text:'VAULT LOCK 2\nIncrease 140 by 25%. New value = ?',answer:'175',hint1:'Percent increase',hint2:'140 × 1.25'},
+      {id:'d3m27v3',text:'VAULT LOCK 3\nSupplementary angle to 112°.',answer:'68',hint1:'Supplementary angles add to 180°',hint2:'180 − 112'}
+    ],
+    escapePrompts:[{id:'d3m27e1',text:'ACCESS PANEL\nSolve: x + 39 = 88.',answer:'49',hint1:'One-step equation',hint2:'Subtract 39 from both sides'}]
+  },
+  { id:28, name:'Alarm Cascade', district:'Escape Lines',
+    objective:'Stop escalating alarms by solving quickly.',
+    prompts:[
+      {id:'d3m28p1',template:'T2',text:'District 3 quota: solve 6x + 11 = 53.',answer:'7',hint1:'Two-step equation',hint2:'Subtract 11, divide by 6'},
+      {id:'d3m28p2',template:'T2',text:'District 3 quota: solve 5x - 20 = 55.',answer:'15',hint1:'Two-step equation',hint2:'Add 20, divide by 5'},
+      {id:'d3m28p3',template:'T3',text:'District 3 quota: reduce power draw by 12.5% from 96 W.\nNew draw = ?',answer:'84',hint1:'Percent decrease',hint2:'96 × 0.875'},
+      {id:'d3m28p4',template:'T4',text:'District 3 quota: convert 37.5% to decimal.',answer:'0.375',hint1:'Percent → decimal: divide by 100',hint2:'37.5 ÷ 100'},
+      {id:'d3m28p5',template:'T9',text:'District 3 quota: energy is 5. Maintenance restores +4.\nNew energy = ?',answer:'9',hint1:'Integer addition',hint2:'5 + 4'}
+    ],
+    vaultPrompts:[
+      {id:'d3m28v1',text:'VAULT LOCK 1\nSolve: 4x - 9 = 31.',answer:'10',hint1:'Two-step equation',hint2:'Add 9, divide by 4'},
+      {id:'d3m28v2',text:'VAULT LOCK 2\n5/6 of 48 = ?',answer:'40',hint1:'Fraction of quantity',hint2:'48 × 5 ÷ 6'},
+      {id:'d3m28v3',text:'VAULT LOCK 3\nConvert 0.125 to percent.',answer:'12.5%',hint1:'Decimal → percent: multiply by 100',hint2:'0.125 × 100'}
+    ],
+    escapePrompts:[{id:'d3m28e1',text:'RELAY BYPASS\nReduce 120 by 30%. New value = ?',answer:'84',hint1:'Percent decrease',hint2:'120 × 0.70'}]
+  },
+  { id:29, name:'The Long Run', district:'Escape Lines',
+    objective:'Extended 4-room run under 10 minutes.',
+    prompts:[
+      {id:'d3m29p1',template:'T7',text:'District 3 quota: robot arm cycles at 0.75 m/s for 80 s.\nDistance = ?',answer:'60',hint1:'d = r × t',hint2:'0.75 × 80'},
+      {id:'d3m29p2',template:'T7',text:'District 3 quota: shift time is 2.5 h at 18 units/h.\nTotal units = ?',answer:'45',hint1:'d = r × t',hint2:'2.5 × 18'},
+      {id:'d3m29p3',template:'T10',text:'District 3 quota: round 1449 to the nearest 100.',answer:'1400',hint1:'Look at the tens digit',hint2:'1449 → tens = 4, round down'},
+      {id:'d3m29p4',template:'T11',text:'District 3 quota: full rotation of a dial is how many degrees?',answer:'360',hint1:'Full rotation = 360°',hint2:'One complete turn'},
+      {id:'d3m29p5',template:'T9',text:'District 3 quota: stamina is 10. Heavy crate costs -6.\nNew stamina = ?',answer:'4',hint1:'Integer subtraction',hint2:'10 + (−6)'}
+    ],
+    vaultPrompts:[
+      {id:'d3m29v1',text:'VAULT LOCK 1\nRobot moves 3.6 m/s for 50 s. Distance = ?',answer:'180',hint1:'d = r × t',hint2:'3.6 × 50'},
+      {id:'d3m29v2',text:'VAULT LOCK 2\nRound 7.445 to nearest 0.01.',answer:'7.45',hint1:'Look at the thousandths digit',hint2:'7.445 → thousandths = 5, round up'},
+      {id:'d3m29v3',text:'VAULT LOCK 3\nSolve: 3x + 15 = 60.',answer:'15',hint1:'Two-step equation',hint2:'Subtract 15, divide by 3'}
+    ],
+    escapePrompts:[{id:'d3m29e1',text:'FINAL SPRINT\nSpeed 5 m/s for 36 s. Distance = ?',answer:'180',hint1:'d = r × t',hint2:'5 × 36'}]
+  },
+  { id:30, name:'Grand Terminal', district:'Escape Lines',
+    objective:'Crack the vault, pick best loot, escape chase.',
+    prompts:[
+      {id:'d3m30p1',template:'T5',text:'District 3 quota: use 7/10 of 120 microchips.\nAmount used = ?',answer:'84',hint1:'Fraction of quantity',hint2:'120 × 7 ÷ 10'},
+      {id:'d3m30p2',template:'T6',text:'District 3 quota: 3/8 + 5/16 = ?',answer:'11/16',hint1:'Common denominator is 16',hint2:'6/16 + 5/16'},
+      {id:'d3m30p3',template:'T3',text:'District 3 quota: increase battery capacity by 22% from 50 Ah.\nNew capacity = ?',answer:'61',hint1:'Percent increase',hint2:'50 × 1.22'},
+      {id:'d3m30p4',template:'T3',text:'District 3 quota: reduce calibration time by 45% from 40 min.\nNew time = ?',answer:'22',hint1:'Percent decrease',hint2:'40 × 0.55'},
+      {id:'d3m30p5',template:'T12',text:'District 3 quota: 50% chance of 30 credits, otherwise 10.\nEV = ?',answer:'20',hint1:'EV = (p × V₁) + ((1−p) × V₂)',hint2:'0.5×30 + 0.5×10'},
+      {id:'d3m30p6',template:'T9',text:'District 3 quota: heat is 7. Venting reduces by -5.\nNew heat = ?',answer:'2',hint1:'Integer subtraction',hint2:'7 + (−5)'}
+    ],
+    vaultPrompts:[
+      {id:'d3m30v1',text:'VAULT LOCK 1\n9/10 of 200 = ?',answer:'180',hint1:'Fraction of quantity',hint2:'200 × 9 ÷ 10'},
+      {id:'d3m30v2',text:'VAULT LOCK 2\n7/12 + 1/4 = ?',answer:'5/6',hint1:'Common denominator is 12',hint2:'7/12 + 3/12'},
+      {id:'d3m30v3',text:'VAULT LOCK 3\n80% chance of 25, else 5. EV = ?',answer:'21',hint1:'EV formula',hint2:'0.8×25 + 0.2×5'}
+    ],
+    escapePrompts:[{id:'d3m30e1',text:'GRAND ESCAPE\n60% chance of 50, else 20. EV = ?',answer:'38',hint1:'EV formula',hint2:'0.6×50 + 0.4×20'}]
+  }
+];
+
 // ── MISSION DATA (District 1, Missions 1–3) ───────────────────
 const MISSIONS = [
   {
     id: 1, name: 'Orientation Hall', district: 'Training Gallery',
     objective: 'Steal the "Practice Gem" and exit unseen.',
+    objType: 'stealth', objTarget: 30,
     prompts: [
       { id:'m1p1', template:'T9', text:'Heat is 7. You reduce heat by -3.\nNew heat = ?', answer:'4', notes:'Integer modifier' },
       { id:'m1p2', template:'T9', text:'Stamina is 5. A trap applies -6 stamina.\nNew stamina = ?', answer:'-1', notes:'Integer modifier, negative result' },
@@ -179,6 +349,7 @@ const MISSIONS = [
   {
     id: 2, name: 'Camera Basics', district: 'Training Gallery',
     objective: 'Disable 2 cameras.',
+    objType: 'cameras', objTarget: 2,
     prompts: [
       { id:'m2p1', template:'T11', text:'Camera cone is set to a right angle.\nType the angle in degrees.', answer:'90', notes:'Angles' },
       { id:'m2p2', template:'T11', text:'Blind-spot wedge must be 60°.\nType the angle.', answer:'60', notes:'Angles' },
@@ -199,6 +370,7 @@ const MISSIONS = [
   {
     id: 3, name: 'Quiet Floors', district: 'Training Gallery',
     objective: 'Cross a noisy corridor without triggering alarm.',
+    objType: 'doors', objTarget: 3,
     prompts: [
       { id:'m3p1', template:'T5', text:'Noise budget is 16. Spend 1/4 of 16.', answer:'4', notes:'Fraction of quantity' },
       { id:'m3p2', template:'T5', text:'Use 2/3 of 21 to tune the dampener.', answer:'14', notes:'Fraction of quantity' },
@@ -239,19 +411,8 @@ const MISSIONS = [
     {name:'EV Heist',obj:'Pick 2 of 3 loot options for max expected value.'},
     {name:'Admin Vault',obj:'Crack vault and survive a camera lockdown.'}
   ]),
-  // Missions 21–30 (District 3: Escape Lines)
-  ...generateDistrictMissions(21, 30, 'Escape Lines', [
-    {name:'Platform Timing',obj:'Catch the extraction train.'},
-    {name:'Rooftop Angles',obj:'Cross rooftops via camera blind spots.'},
-    {name:'Cargo Weight',obj:'Carry loot without stamina crash.'},
-    {name:'Two-Step Sprint',obj:'Open 3 gates during patrol cycles.'},
-    {name:'Fraction + Rate',obj:'Balance noise budget while racing the clock.'},
-    {name:'Market Choices',obj:'Choose best 2 upgrades for final heist.'},
-    {name:'Probability Payoff',obj:'Risk/reward crates in an optional side room.'},
-    {name:'Alarm Cascade',obj:'Stop escalating alarms by solving quickly.'},
-    {name:'The Long Run',obj:'Extended 4-room run under 10 minutes.'},
-    {name:'Grand Terminal',obj:'Crack the vault, pick best loot, escape chase.'}
-  ])
+  // Missions 21–30 (District 3: Escape Lines) — curated content
+  ...D3_MISSION_DATA
 ];
 
 // ── MISSION GENERATOR (procedural prompts per district) ────────
@@ -549,7 +710,8 @@ for (let i = 3; i < MISSIONS.length; i++) LEVELS.push(generateLevel(i));
 // ── GAME STATE ─────────────────────────────────────────────────
 const STATE = {
   MENU: 'menu', BRIEFING: 'briefing', PLAYING: 'playing',
-  MATH: 'math', VAULT: 'vault', PAUSED: 'paused', RESULTS: 'results', CAUGHT: 'caught'
+  MATH: 'math', VAULT: 'vault', PAUSED: 'paused', RESULTS: 'results',
+  CAUGHT: 'caught', MISSION_SELECT: 'mission_select'
 };
 
 let gameState = STATE.MENU;
@@ -582,13 +744,13 @@ let currentPromptIdx = 0;
 let missionTimer = 0;
 let missionTimeLimit = 480; // 8 min in seconds
 
-// Echo system
+// Echo system (Pass 4: 2 charges, multiple ghosts)
 let echoRecording = false;
-let echoBuffer = []; // [{x,y,facing,crouching,t}]
-let echoGhost = null; // {frames:[], playIdx:0, active:false}
+let echoBuffer = [];
+let echoGhosts = []; // array of {frames, playIdx, active, startTime}
 let echoStartTime = 0;
-const ECHO_DURATION = 15; // seconds
-let echoAvailable = true;
+const ECHO_DURATION = 15;
+let echoCharges = 2;
 
 // Math popup state
 let mathActive = false;
@@ -629,6 +791,25 @@ const GADGET_DURATION = 4; // seconds of noise emission
 // Hint state
 let currentHintsUsed = 0;
 let totalHintsUsed = 0;
+
+// Pass 4 — scaffold, objectives, auto-hint, persistence
+let scaffoldVisible = false;
+let wrongCount = 0;
+let objCount = 0;
+let maxHeat = 0;
+let objCompleted = false;
+let objBonusEarned = 0;
+let missionSelectIdx = 0;
+let isDailyContract = false;
+let softstepFlashTimer = 0;
+let stealthDroneNode = null;
+let stealthDroneGain = null;
+
+// localStorage persistence
+let highScores = {};
+let completedMissions = new Set();
+try { highScores = JSON.parse(localStorage.getItem('echoHeistHS') || '{}'); } catch(e) {}
+try { completedMissions = new Set(JSON.parse(localStorage.getItem('echoHeistCM') || '[]')); } catch(e) {}
 
 // Pass 3 — streaks, mastery, skill tracking, juice
 let streaks = {};          // template → consecutive correct count
@@ -732,6 +913,7 @@ document.addEventListener('keydown', e => {
   else if (gameState === STATE.BRIEFING) handleBriefingKey(e);
   else if (gameState === STATE.RESULTS || gameState === STATE.CAUGHT) handleResultsKey(e);
   else if (gameState === STATE.PLAYING) handlePlayingKey(e);
+  else if (gameState === STATE.MISSION_SELECT) handleMissionSelectKey(e);
 });
 document.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
 
@@ -1015,7 +1197,7 @@ function loadLevel(missionIdx) {
   heat = 0; noise = 0; score = 0;
   mathCorrect = 0; mathTotal = 0; mathTimes = [];
   missionTimer = 0;
-  echoRecording = false; echoBuffer = []; echoGhost = null; echoAvailable = true;
+  echoRecording = false; echoBuffer = []; // (echoes fully reset in Pass 4 block below)
   promptQueue = [...mission.prompts];
   currentPromptIdx = 0;
 
@@ -1029,11 +1211,16 @@ function loadLevel(missionIdx) {
   abilityCooldown = 0; abilityBuffType = null; abilityBuffTimer = 0; abilityBuffData = 0; abilityActive = false;
   gadgetAvailable = true; gadgetPos = null; gadgetTimer = 0; gadgetEmitting = false;
   currentHintsUsed = 0; totalHintsUsed = 0;
-  // Reset Pass 3 state
+  // Reset Pass 3
   streaks = {}; masteryTemplates = {}; skillResults = {}; lastStreakTemplate = null;
   focusModeActive = false; focusDrainAccum = 0; particles = [];
   shakeX = 0; shakeY = 0; shakeDur = 0; shakeAmp = 0;
   stopEscapeAlarm();
+  // Reset Pass 4
+  scaffoldVisible = false; wrongCount = 0;
+  objCount = 0; maxHeat = 0; objCompleted = false; objBonusEarned = 0;
+  echoRecording = false; echoBuffer = []; echoGhosts = []; echoCharges = 2;
+  softstepFlashTimer = 0;
 
   document.getElementById('math-popup').style.display = 'none';
   document.getElementById('vault-progress').style.display = 'none';
@@ -1119,6 +1306,15 @@ function updatePlayer(dt) {
   // Crouching
   player.crouching = keys['shift'];
 
+  // Track max heat for stealth objectives
+  if (heat > maxHeat) maxHeat = heat;
+
+  // Burst trail particles (Pass 5)
+  if (burstActive) spawnParticles(player.x, player.y, '#f97316', 2);
+
+  // Soft Step flash decay (Pass 5)
+  if (softstepFlashTimer > 0) softstepFlashTimer -= dt;
+
   // Loot pickup → triggers vault sequence instead of instant pickup
   if (lootPos && !player.hasLoot && !vaultActive && !escapeActive) {
     const dx = player.x - lootPos.x;
@@ -1148,7 +1344,7 @@ function updatePlayer(dt) {
 
 // ── ECHO SYSTEM ────────────────────────────────────────────────
 function startEchoRecording() {
-  if (!echoAvailable || echoRecording) return;
+  if (echoCharges <= 0 || echoRecording) return;
   echoRecording = true;
   echoBuffer = [];
   echoStartTime = Date.now();
@@ -1156,20 +1352,20 @@ function startEchoRecording() {
 
 function stopEchoRecording() {
   echoRecording = false;
-  echoAvailable = false;
-  echoGhost = { frames: [...echoBuffer], playIdx: 0, active: true, startTime: Date.now() };
+  echoCharges = Math.max(0, echoCharges - 1);
+  echoGhosts.push({ frames: [...echoBuffer], playIdx: 0, active: true, startTime: Date.now() });
+  if (echoGhosts.length > 2) echoGhosts.shift(); // keep at most 2
 }
 
 function updateEcho(dt) {
-  if (!echoGhost || !echoGhost.active) return;
-  const elapsed = (Date.now() - echoGhost.startTime) / 1000;
-  // Find frame closest to elapsed time
-  while (echoGhost.playIdx < echoGhost.frames.length - 1 &&
-         echoGhost.frames[echoGhost.playIdx + 1].t <= elapsed) {
-    echoGhost.playIdx++;
-  }
-  if (echoGhost.playIdx >= echoGhost.frames.length - 1) {
-    echoGhost.active = false;
+  for (const ghost of echoGhosts) {
+    if (!ghost.active) continue;
+    const elapsed = (Date.now() - ghost.startTime) / 1000;
+    while (ghost.playIdx < ghost.frames.length - 1 &&
+           ghost.frames[ghost.playIdx + 1].t <= elapsed) {
+      ghost.playIdx++;
+    }
+    if (ghost.playIdx >= ghost.frames.length - 1) ghost.active = false;
   }
 }
 
@@ -1190,6 +1386,8 @@ function showVaultPrompt() {
   mathActive = true;
   mathPrompt = p;
   mathStartTime = Date.now();
+  wrongCount = 0;
+  scaffoldVisible = false;
 
   const popup = document.getElementById('math-popup');
   const title = document.getElementById('popup-title');
@@ -1226,6 +1424,7 @@ function finishVault() {
   vaultActive = false;
   mathActive = false;
   focusModeActive = false;
+  scaffoldVisible = false;
   const popup = document.getElementById('math-popup');
   popup.style.display = 'none';
   popup.className = '';
@@ -1254,6 +1453,8 @@ function handleVaultKey(e) {
     return;
   }
 
+  if (e.key === 'f' || e.key === 'F') { scaffoldVisible = !scaffoldVisible; return; }
+
   if (e.key === 'h' || e.key === 'H') {
     if (e.target !== input || !input.value) { showHint(); return; }
   }
@@ -1269,6 +1470,7 @@ function handleVaultKey(e) {
     skillResults[tpl].total++;
 
     if (checkAnswer(userAnswer, mathPrompt.answer)) {
+      wrongCount = 0;
       mathCorrect++;
       mathTimes.push(solveTime);
       feedback.textContent = '✓ LOCK CRACKED!';
@@ -1281,6 +1483,7 @@ function handleVaultKey(e) {
       spawnParticles(lootPos ? lootPos.x : W/2, lootPos ? lootPos.y : H/2, '#ffd700', 22);
       setTimeout(() => advanceVault(), 800);
     } else {
+      wrongCount++;
       streaks[tpl] = 0;
       feedback.textContent = '✗ Wrong code — try again';
       feedback.className = 'feedback fb-wrong';
@@ -1290,6 +1493,7 @@ function handleVaultKey(e) {
       heat = Math.min(100, heat + 8);
       input.value = '';
       input.focus();
+      if (wrongCount >= 2 && currentHintsUsed < 2) showHint(true);
     }
   }
 }
@@ -1330,6 +1534,7 @@ function startEscape() {
     });
   }
   startEscapeAlarm();
+  stopStealthDrone();
 }
 
 function updateEscape(dt) {
@@ -1363,6 +1568,8 @@ function openMathPopup(ia) {
   mathStartTime = Date.now();
   mathInputValue = '';
   currentHintsUsed = 0;
+  wrongCount = 0;
+  scaffoldVisible = false;
   gameState = STATE.MATH;
 
   const popup = document.getElementById('math-popup');
@@ -1394,6 +1601,7 @@ function closeMathPopup(solved) {
 
   mathActive = false;
   focusModeActive = false;
+  scaffoldVisible = false;
   const popup = document.getElementById('math-popup');
   popup.style.display = 'none';
   popup.className = '';
@@ -1404,6 +1612,7 @@ function closeMathPopup(solved) {
     // Open door / escape gate
     if (mathInteractable.type === 'door' || mathInteractable.type === 'escape_gate') {
       level.map[mathInteractable.gy][mathInteractable.gx] = T.DOOR_OPEN;
+      objCount++; // track for door-type objectives
     }
     // Disable nearby camera if terminal
     if (mathInteractable.type === 'terminal') {
@@ -1418,6 +1627,7 @@ function closeMathPopup(solved) {
       }
       if (closest && closestDist < 8 * TILE) {
         closest.disabled = true;
+        objCount++; // track for camera-type objectives
       }
     }
     score += mathInteractable.type === 'escape_gate' ? 100 : 50;
@@ -1427,21 +1637,22 @@ function closeMathPopup(solved) {
   mathInteractable = null;
 }
 
-function showHint() {
+function showHint(free = false) {
   if (!mathPrompt) return;
   const dc = getDConfig();
   const hintArea = document.getElementById('popup-hint-area');
   if (currentHintsUsed >= 2) { hintArea.textContent = 'No more hints available'; return; }
   currentHintsUsed++;
   totalHintsUsed++;
-  const tplH = mathPrompt.template || 'vault';
-  const masteryMult = masteryTemplates[tplH] ? 0.75 : 1.0;
-  const actualHintCost = Math.floor(dc.hintCost * masteryMult);
-  score = Math.max(0, score - actualHintCost);
-  // Try to get hint from prompt data
+  if (!free) {
+    const tplH = mathPrompt.template || 'vault';
+    const masteryMult = masteryTemplates[tplH] ? 0.75 : 1.0;
+    score = Math.max(0, score - Math.floor(dc.hintCost * masteryMult));
+  }
   const h1 = mathPrompt.hint1 || mathPrompt.notes || 'Think carefully';
   const h2 = mathPrompt.hint2 || 'Try a different approach';
-  hintArea.textContent = currentHintsUsed === 1 ? `💡 ${h1}` : `💡 ${h2}`;
+  const prefix = free ? '🔔 Auto-hint: ' : '💡 ';
+  hintArea.textContent = currentHintsUsed === 1 ? `${prefix}${h1}` : `${prefix}${h2}`;
 }
 
 function handleMathKey(e) {
@@ -1454,6 +1665,8 @@ function handleMathKey(e) {
     focusModeActive ? popup.classList.add('focus-mode') : popup.classList.remove('focus-mode');
     return;
   }
+
+  if (e.key === 'f' || e.key === 'F') { scaffoldVisible = !scaffoldVisible; return; }
 
   if (e.key === 'h' || e.key === 'H') {
     if (e.target !== input || !input.value) { showHint(); return; }
@@ -1476,20 +1689,19 @@ function handleMathKey(e) {
     skillResults[tpl].total++;
 
     if (checkAnswer(userAnswer, mathPrompt.answer)) {
+      wrongCount = 0;
       mathCorrect++;
       mathTimes.push(solveTime);
       feedback.textContent = '✓ Correct!';
       feedback.className = 'feedback fb-correct';
       sfxCorrect();
-      // Track skill + streak
       skillResults[tpl].correct++;
       streaks[tpl] = (streaks[tpl] || 0) + 1;
       lastStreakTemplate = tpl;
       if (streaks[tpl] >= 3 && !masteryTemplates[tpl]) {
         masteryTemplates[tpl] = true;
-        spawnParticles(W/2, H/2 - 60, '#ffd700', 25); // mastery burst
+        spawnParticles(W/2, H/2 - 60, '#ffd700', 25);
       }
-      // Scoring with mastery and overclock buff
       const masteryMult = masteryTemplates[tpl] ? 1.1 : 1.0;
       const baseBonus = abilityBuffType === 'overclock' && abilityBuffData > 0
         ? Math.max(20, Math.floor(130 - solveTime * 5))
@@ -1499,6 +1711,7 @@ function handleMathKey(e) {
       spawnParticles(W/2, H/2, '#22c55e', 18);
       setTimeout(() => closeMathPopup(true), 600);
     } else {
+      wrongCount++;
       streaks[tpl] = 0;
       feedback.textContent = '✗ Try again';
       feedback.className = 'feedback fb-wrong';
@@ -1508,6 +1721,7 @@ function handleMathKey(e) {
       heat = Math.min(100, heat + 5);
       input.value = '';
       input.focus();
+      if (wrongCount >= 2 && currentHintsUsed < 2) showHint(true);
     }
   }
 }
@@ -1520,22 +1734,28 @@ function handleMenuKey(e) {
   if (e.key === 'ArrowLeft' || e.key === 'a') menuSelection = (menuSelection + 2) % 3;
   if (e.key === 'ArrowRight' || e.key === 'd') menuSelection = (menuSelection + 1) % 3;
   if (e.key === 'Enter' || e.key === ' ') {
-    selectedClass = classKeys[menuSelection];
+    const clsKey = classKeys[menuSelection];
+    if (!isClassUnlocked(clsKey)) return; // blocked
+    selectedClass = clsKey;
+    isDailyContract = false;
     gameState = STATE.BRIEFING;
   }
+  if (e.key === 's' || e.key === 'S') { gameState = STATE.MISSION_SELECT; }
+  if (e.key === 'd' || e.key === 'D') { startDailyContract(); }
 }
 
 function handleBriefingKey(e) {
   if (e.key === 'Enter' || e.key === ' ') {
     loadLevel(currentMission);
     gameState = STATE.PLAYING;
+    startStealthDrone();
   }
 }
 
 function handlePlayingKey(e) {
   if (e.key === 'e') tryInteract();
   if (e.key === 'r') {
-    if (!echoRecording && echoAvailable) startEchoRecording();
+    if (!echoRecording && echoCharges > 0) startEchoRecording();
     else if (echoRecording) stopEchoRecording();
   }
   if (e.key === ' ') { e.preventDefault(); activateAbility(); }
@@ -1572,6 +1792,7 @@ function resolveAbility(correct) {
   abilityActive = false;
   mathActive = false;
   focusModeActive = false;
+  scaffoldVisible = false;
   document.getElementById('math-popup').style.display = 'none';
   document.getElementById('math-popup').className = '';
   gameState = STATE.PLAYING;
@@ -1627,6 +1848,7 @@ function handleResultsKey(e) {
 
 function finishMission() {
   stopEscapeAlarm();
+  stopStealthDrone();
   particles = [];
   // Calculate final score
   const timeBonus = Math.max(0, Math.floor((missionTimeLimit - missionTimer) / 10));
@@ -1634,8 +1856,25 @@ function finishMission() {
   const accuracyBonus = mathTotal > 0 ? Math.floor((mathCorrect / mathTotal) * 200) : 0;
   const escapeBonus = escapeActive ? Math.floor(escapeCountdown * 5) : 0;
   score += timeBonus + stealthBonus + accuracyBonus + escapeBonus;
+  // Objective bonus
+  const curMission = MISSIONS[currentMission];
+  if (curMission.objType) {
+    let met = false;
+    if (curMission.objType === 'cameras') met = objCount >= curMission.objTarget;
+    else if (curMission.objType === 'doors') met = objCount >= curMission.objTarget;
+    else if (curMission.objType === 'stealth') met = maxHeat <= curMission.objTarget;
+    if (met) { objCompleted = true; objBonusEarned = 200; score += 200; }
+  }
   escapeActive = false;
   sfxExit();
+  // Save high score + completions
+  const mId = curMission.id;
+  if (!highScores[mId] || score > highScores[mId]) {
+    highScores[mId] = score;
+    try { localStorage.setItem('echoHeistHS', JSON.stringify(highScores)); } catch(e) {}
+  }
+  completedMissions.add(mId);
+  try { localStorage.setItem('echoHeistCM', JSON.stringify([...completedMissions])); } catch(e) {}
   gameState = STATE.RESULTS;
 }
 
@@ -1920,27 +2159,26 @@ function drawGadget() {
 }
 
 function drawEchoGhost() {
-  if (!echoGhost || !echoGhost.active) return;
-  const frame = echoGhost.frames[echoGhost.playIdx];
-  if (!frame) return;
-
-  ctx.save();
-  ctx.globalAlpha = 0.4;
-  ctx.fillStyle = COLORS.ghost;
-  ctx.beginPath();
-  ctx.arc(frame.x, frame.y, TILE * 0.28, 0, PI2);
-  ctx.fill();
-
-  // Ghost trail
-  const trailStart = Math.max(0, echoGhost.playIdx - 10);
-  ctx.globalAlpha = 0.1;
-  for (let i = trailStart; i < echoGhost.playIdx; i++) {
-    const f = echoGhost.frames[i];
+  for (const ghost of echoGhosts) {
+    if (!ghost.active) continue;
+    const frame = ghost.frames[ghost.playIdx];
+    if (!frame) continue;
+    ctx.save();
+    ctx.globalAlpha = 0.4;
+    ctx.fillStyle = COLORS.ghost;
     ctx.beginPath();
-    ctx.arc(f.x, f.y, 3, 0, PI2);
+    ctx.arc(frame.x, frame.y, TILE * 0.28, 0, PI2);
     ctx.fill();
+    const trailStart = Math.max(0, ghost.playIdx - 10);
+    ctx.globalAlpha = 0.1;
+    for (let i = trailStart; i < ghost.playIdx; i++) {
+      const f = ghost.frames[i];
+      ctx.beginPath();
+      ctx.arc(f.x, f.y, 3, 0, PI2);
+      ctx.fill();
+    }
+    ctx.restore();
   }
-  ctx.restore();
 }
 
 function drawEchoRecordingIndicator() {
@@ -2061,7 +2299,8 @@ function drawHUD() {
   ctx.fillText(gadgetAvailable ? '[Q] Gadget' : gadgetEmitting ? 'GADGET ●' : 'Gadget used', 680, barY + 12);
 
   // Echo + Loot / escape status
-  const echoText = echoRecording ? '● REC' : echoAvailable ? 'ECHO [R]' : echoGhost?.active ? '▶ REPLAY' : 'ECHO USED';
+  const echoHasActive = echoGhosts.some(g => g.active);
+  const echoText = echoRecording ? '● REC' : echoCharges > 0 ? `ECHO ×${echoCharges}` : echoHasActive ? '▶ REPLAY' : 'ECHO DONE';
   if (escapeActive) {
     const escSecs = Math.ceil(escapeCountdown);
     const escColor = escSecs <= 15 ? '#ff0000' : '#ef4444';
@@ -2071,17 +2310,33 @@ function drawHUD() {
     ctx.fillStyle = '#ffd700';
     ctx.fillText('💎 → EXIT NOW', 720, barY + 12);
   } else {
-    ctx.fillStyle = echoRecording ? '#ff4444' : echoAvailable ? COLORS.hudAccent : '#64748b';
+    ctx.fillStyle = echoRecording ? '#ff4444' : echoCharges > 0 ? COLORS.hudAccent : '#64748b';
     ctx.fillText(echoText, 600, barY + 12);
     ctx.fillStyle = player.hasLoot ? '#ffd700' : '#64748b';
     ctx.fillText(player.hasLoot ? '💎 GOT LOOT → EXIT' : '💎 Find loot', 720, barY + 12);
+  }
+
+  // Objective indicator (top bar, left of streak area)
+  const curMissionHUD = MISSIONS[currentMission];
+  if (curMissionHUD.objType) {
+    const isDoneHUD = curMissionHUD.objType === 'stealth' ? maxHeat <= curMissionHUD.objTarget : objCount >= curMissionHUD.objTarget;
+    const objLabelHUD = curMissionHUD.objType === 'stealth' ? `STEALTH ${isDoneHUD?'✓':'!'}`
+      : curMissionHUD.objType === 'cameras' ? `📷 ${objCount}/${curMissionHUD.objTarget}` : `🔑 ${objCount}/${curMissionHUD.objTarget}`;
+    ctx.fillStyle = isDoneHUD ? '#22c55e' : '#f59e0b';
+    ctx.font = 'bold 11px monospace'; ctx.textAlign = 'left';
+    ctx.fillText(objLabelHUD, 308, 24);
+  }
+  // Daily badge
+  if (isDailyContract) {
+    ctx.fillStyle = '#f59e0b'; ctx.font = 'bold 10px monospace'; ctx.textAlign = 'right';
+    ctx.fillText('📅 DAILY', W - 155, 24);
   }
 
   // Controls hint
   ctx.fillStyle = 'rgba(100,116,139,0.5)';
   ctx.font = '10px monospace';
   ctx.textAlign = 'center';
-  ctx.fillText('WASD move · Shift crouch · E interact · R echo · Space ability · Q gadget · Tab focus · M mute', W/2, barY + 26);
+  ctx.fillText('WASD move · Shift crouch · E interact · F scaffold · Tab focus · R echo · Space ability · M mute', W/2, barY + 26);
 }
 
 // ── MENU SCREEN ────────────────────────────────────────────────
@@ -2147,10 +2402,16 @@ function drawMenu() {
       ctx.fillText(line, x + cardW/2, y + 92 + li * 16);
     });
 
-    // Selection indicator
-    if (selected) {
+  // Lock overlay
+    if (!isClassUnlocked(key)) {
+      ctx.fillStyle = 'rgba(0,0,0,0.72)';
+      ctx.beginPath(); ctx.roundRect(x,y,cardW,cardH,12); ctx.fill();
+      ctx.fillStyle = '#475569'; ctx.font = '10px monospace'; ctx.textAlign = 'center';
+      const req = key === 'ghost' ? '5' : '10';
+      ctx.fillText(`🔒 Complete ${req} missions`, x+cardW/2, y+cardH/2+6);
+    } else if (selected) {
       ctx.fillStyle = cls.color;
-      ctx.font = 'bold 13px monospace';
+      ctx.font = 'bold 13px monospace'; ctx.textAlign = 'center';
       ctx.fillText('▸ SELECTED ◂', x + cardW/2, y + cardH - 10);
     }
   });
@@ -2159,8 +2420,8 @@ function drawMenu() {
   ctx.fillStyle = '#64748b';
   ctx.font = '13px monospace';
   ctx.textAlign = 'center';
-  ctx.fillText('← → to select · Enter to confirm', W/2, H - 60);
-  ctx.fillText('Ages 11–13 · Typed Math Answers · 8–10 min runs', W/2, H - 38);
+  ctx.fillText(`← → to select · Enter to play · S: mission list · D: daily`, W/2, H - 60);
+  ctx.fillText(`${completedMissions.size}/30 missions completed`, W/2, H - 38);
 }
 
 // ── BRIEFING SCREEN ────────────────────────────────────────────
@@ -2317,13 +2578,28 @@ function drawResults() {
     });
   }
 
+  // Best score + objective result
+  const mIdR = MISSIONS[currentMission].id;
+  const prevBestR = highScores[mIdR];
+  const isNewBestR = !prevBestR || score >= prevBestR;
+  if (MISSIONS[currentMission].objType && objCompleted) {
+    ctx.fillStyle = '#22c55e'; ctx.font = 'bold 12px monospace'; ctx.textAlign = 'center';
+    ctx.fillText(`✔ Objective bonus +$${objBonusEarned}`, W/2, 574);
+  }
+  if (prevBestR) {
+    ctx.fillStyle = isNewBestR ? '#ffd700' : '#64748b';
+    ctx.font = isNewBestR ? 'bold 13px monospace' : '12px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(isNewBestR ? '★ NEW BEST!' : `Best: $${prevBestR}`, W/2, 594);
+  }
+
   ctx.fillStyle = '#64748b';
   ctx.font = '13px monospace';
   ctx.textAlign = 'center';
-  ctx.fillText(currentMission < MISSIONS.length - 1 ? 'Press ENTER for next mission' : 'Press ENTER to return to menu', W/2, 608);
+  ctx.fillText(currentMission < MISSIONS.length - 1 ? 'Press ENTER for next mission' : 'Press ENTER to return to menu', W/2, 622);
 }
 
-// ── CAUGHT SCREEN ──────────────────────────────────────────────
+// ── CAUGHT SCREEN
 function drawCaught() {
   ctx.fillStyle = 'rgba(10,10,15,0.85)';
   ctx.fillRect(0, 0, W, H);
@@ -2378,6 +2654,162 @@ function drawVaultOverlay() {
     mathActive = false;
     document.getElementById('math-popup').style.display = 'none';
     gameState = STATE.CAUGHT;
+  }
+}
+
+// ── STEALTH DRONE + DAILY + CLASS UNLOCK (Pass 5 helpers) ──────────
+function startStealthDrone() {
+  if (stealthDroneNode || !audioCtx || audioMuted) return;
+  try {
+    stealthDroneNode = audioCtx.createOscillator();
+    stealthDroneGain = audioCtx.createGain();
+    stealthDroneNode.type = 'triangle';
+    stealthDroneNode.frequency.value = 55;
+    stealthDroneGain.gain.setValueAtTime(0, audioCtx.currentTime);
+    stealthDroneGain.gain.linearRampToValueAtTime(0.018, audioCtx.currentTime + 1.2);
+    stealthDroneNode.connect(stealthDroneGain);
+    stealthDroneGain.connect(audioCtx.destination);
+    stealthDroneNode.start();
+  } catch(e) { stealthDroneNode = null; }
+}
+function stopStealthDrone() {
+  if (!stealthDroneNode) return;
+  try {
+    const n = stealthDroneNode, g = stealthDroneGain;
+    stealthDroneNode = null; stealthDroneGain = null;
+    g.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.4);
+    setTimeout(() => { try { n.stop(); } catch(e) {} }, 500);
+  } catch(e) { stealthDroneNode = null; }
+}
+// Daily contract
+function getDailySeed() {
+  const d = new Date();
+  return d.getFullYear()*10000 + (d.getMonth()+1)*100 + d.getDate();
+}
+function startDailyContract() {
+  const seed = getDailySeed();
+  currentMission = seed % 30;
+  const unlocked = ['hacker','ghost','runner'].filter(c => isClassUnlocked(c));
+  selectedClass = unlocked[seed % unlocked.length];
+  isDailyContract = true;
+  gameState = STATE.BRIEFING;
+}
+// Class unlock check
+function isClassUnlocked(cls) {
+  if (cls === 'hacker') return true;
+  if (cls === 'ghost') return completedMissions.size >= 5;
+  if (cls === 'runner') return completedMissions.size >= 10;
+  return false;
+}
+
+// ── SCAFFOLD PANEL (Pass 4) ───────────────────────────────────
+function drawScaffold() {
+  if (!scaffoldVisible || !mathActive || !mathPrompt) return;
+  const px = 12, py = H/2 - 135, pw = 194, ph = 270;
+  ctx.fillStyle = 'rgba(8,12,24,0.93)'; ctx.strokeStyle = '#334155'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.roundRect(px,py,pw,ph,8); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#64748b'; ctx.font = 'bold 10px monospace'; ctx.textAlign = 'center';
+  ctx.fillText('📐 SCAFFOLD [F]', px+pw/2, py+16);
+  ctx.fillStyle = '#1e293b'; ctx.fillRect(px+8, py+22, pw-16, 1);
+  const tpl = mathPrompt.template || 'general';
+  const cx = px+pw/2, cy = py+150;
+  if (tpl==='T5'||tpl==='T6') {
+    ctx.fillStyle='#94a3b8';ctx.font='10px monospace';ctx.fillText('Common fractions',cx,py+38);
+    [{n:1,d:2},{n:1,d:3},{n:2,d:3},{n:1,d:4},{n:3,d:4},{n:1,d:8}].forEach(({n,d},i)=>{
+      const fy=py+50+i*32,bw=140,hsl=`hsl(${170+i*25},60%,55%)`;
+      ctx.fillStyle='rgba(255,255,255,0.06)';ctx.fillRect(px+26,fy,bw,12);
+      ctx.fillStyle=hsl;ctx.fillRect(px+26,fy,bw*(n/d),12);
+      ctx.fillStyle='#e0e6ed';ctx.font='11px monospace';ctx.textAlign='left';
+      ctx.fillText(`${n}/${d}`,px+26+bw+5,fy+9);
+    });
+  } else if (tpl==='T7'||tpl==='T8') {
+    ctx.fillStyle='#e0e6ed';ctx.font='bold 14px monospace';ctx.textAlign='center';
+    ctx.fillText('d = r × t',cx,py+50);
+    [{l:'d',c:'#22d3ee'},{l:'r',c:'#a855f7'},{l:'t',c:'#f97316'}].forEach((b,i)=>{
+      const bx=px+18+i*59,by=cy-24,bw=48,bh=48;
+      ctx.fillStyle=b.c+'33';ctx.strokeStyle=b.c;ctx.lineWidth=1;
+      ctx.fillRect(bx,by,bw,bh);ctx.strokeRect(bx,by,bw,bh);
+      ctx.fillStyle=b.c;ctx.font='bold 18px monospace';ctx.textAlign='center';
+      ctx.fillText(b.l,bx+bw/2,by+bh/2+6);
+    });
+    ctx.fillStyle='#64748b';ctx.font='10px monospace';
+    ctx.fillText('t=d÷r  •  r=d÷t',cx,cy+42);
+  } else if (tpl==='T9') {
+    ctx.fillStyle='#94a3b8';ctx.font='10px monospace';ctx.fillText('Integer number line',cx,py+40);
+    ctx.strokeStyle='#475569';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(px+10,cy);ctx.lineTo(px+pw-10,cy);ctx.stroke();
+    for(let n=-15;n<=15;n+=5){const lx=cx+(n/15)*(pw/2-12);const big=n===0;
+      ctx.strokeStyle=big?'#fff':'#475569';
+      ctx.beginPath();ctx.moveTo(lx,cy-(big?9:4));ctx.lineTo(lx,cy+(big?9:4));ctx.stroke();
+      ctx.fillStyle=big?'#fff':'#64748b';ctx.font=`${big?10:9}px monospace`;ctx.textAlign='center';
+      ctx.fillText(n.toString(),lx,cy+18);}
+  } else if (tpl==='T10') {
+    ctx.fillStyle='#ffd700';ctx.font='bold 11px monospace';ctx.fillText('Rounding guide',cx,py+40);
+    ctx.fillStyle='#e0e6ed';ctx.font='11px monospace';
+    ctx.fillText('Look at the digit',cx,cy-20);ctx.fillText('to the right.',cx,cy-4);
+    ctx.fillStyle='#22c55e';ctx.font='bold 11px monospace';
+    ctx.fillText('≥ 5  →  round UP',cx,cy+26);
+    ctx.fillStyle='#ef4444';ctx.fillText('< 5  →  keep same',cx,cy+44);
+  } else if (tpl==='T11') {
+    ctx.fillStyle='#ffd700';ctx.font='bold 11px monospace';ctx.fillText('Angle reference',cx,py+38);
+    [{a:Math.PI/2,label:'90°',c:'#22c55e'},{a:Math.PI,label:'180°',c:'#f59e0b'},{a:PI2,label:'360°',c:'#a855f7'}]
+    .forEach(({a,label,c},i)=>{
+      const ox=px+28+i*60,oy=cy;
+      ctx.strokeStyle=c;ctx.lineWidth=2;
+      ctx.beginPath();ctx.moveTo(ox,oy);ctx.arc(ox,oy,24,0,a);ctx.lineTo(ox,oy);ctx.stroke();
+      ctx.fillStyle=c;ctx.font='9px monospace';ctx.textAlign='center';ctx.fillText(label,ox,oy+34);
+    });
+  } else if (tpl==='T12') {
+    ctx.fillStyle='#ffd700';ctx.font='bold 11px monospace';ctx.fillText('Expected Value',cx,py+40);
+    ctx.fillStyle='#e0e6ed';ctx.font='11px monospace';
+    ctx.fillText('EV=(p×V₁)+((1−p)×V₂)',cx,cy-20);
+    ctx.fillStyle='#64748b';ctx.font='10px monospace';
+    ctx.fillText('p = probability (0–1)',cx,cy+18);ctx.fillText('V = value of outcome',cx,cy+34);
+  } else if (tpl==='T1'||tpl==='T2') {
+    ctx.fillStyle='#ffd700';ctx.font='bold 11px monospace';ctx.fillText('Balance both sides',cx,py+40);
+    ctx.fillStyle='#22d3ee';ctx.font='12px monospace';ctx.fillText('Left = Right',cx,cy-18);
+    ctx.strokeStyle='#334155';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(cx,cy-6);ctx.lineTo(cx,cy+48);ctx.stroke();
+    ctx.fillStyle='#a855f7';ctx.font='10px monospace';
+    ctx.fillText('− same from both',cx,cy+18);ctx.fillText('÷ same on both',cx,cy+34);
+  } else if (tpl==='T3'||tpl==='T4') {
+    ctx.fillStyle='#ffd700';ctx.font='bold 11px monospace';ctx.fillText('Percent ↔ Decimal',cx,py+38);
+    const bw=160;
+    ctx.fillStyle='rgba(255,255,255,0.06)';ctx.fillRect(px+17,cy-10,bw,18);
+    ['0%','25%','50%','75%','100%'].forEach((lbl,i)=>{
+      const lx=px+17+i*(bw/4);
+      ctx.strokeStyle='#475569';ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(lx,cy-10);ctx.lineTo(lx,cy+8);ctx.stroke();
+      ctx.fillStyle='#94a3b8';ctx.font='9px monospace';ctx.textAlign='center';ctx.fillText(lbl,lx,cy+22);
+    });
+    ctx.fillStyle='#22c55e';ctx.font='10px monospace';
+    ctx.fillText('% → decimal: ÷100',cx,cy+44);ctx.fillText('decimal → %: ×100',cx,cy+58);
+  } else {
+    ctx.fillStyle='#94a3b8';ctx.font='10px monospace';ctx.fillText('Number line',cx,py+40);
+    ctx.strokeStyle='#475569';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(px+10,cy);ctx.lineTo(px+pw-10,cy);ctx.stroke();
+    for(let n=-10;n<=20;n+=5){const lx=cx-(pw/2-12)+(n+10)/30*(pw-24);
+      ctx.strokeStyle=n===0?'#fff':'#475569';
+      ctx.beginPath();ctx.moveTo(lx,cy-4);ctx.lineTo(lx,cy+4);ctx.stroke();
+      ctx.fillStyle=n===0?'#fff':'#64748b';ctx.font='9px monospace';ctx.textAlign='center';
+      ctx.fillText(n.toString(),lx,cy+16);}
+  }
+  ctx.textAlign='left';
+}
+
+// ── ABILITY VISUAL EFFECTS (Pass 5) ────────────────────────────
+function drawAbilityEffects() {
+  if (!abilityBuffType) return;
+  if (abilityBuffType === 'overclock' && abilityBuffTimer > 0) {
+    ctx.fillStyle = 'rgba(168,85,247,0.06)';
+    ctx.fillRect(0, 0, W, H);
+  }
+  if (softstepFlashTimer > 0) {
+    const alpha = Math.min(1, softstepFlashTimer * 2);
+    const rad = (1 - softstepFlashTimer / 0.5) * TILE * 3;
+    ctx.strokeStyle = `rgba(34,211,238,${alpha * 0.7})`;
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(player.x, player.y, Math.max(4, rad), 0, PI2); ctx.stroke();
   }
 }
 
@@ -2456,17 +2888,10 @@ function gameLoop(timestamp) {
 
       // Draw world behind vault overlay
       ctx.save(); ctx.translate(shakeX, shakeY);
-      drawTiles();
-      drawLoot();
-      drawInteractables();
-      drawCameras();
-      drawGuards();
-      drawPlayer();
-      drawParticles();
+      drawTiles(); drawLoot(); drawInteractables(); drawCameras();
+      drawGuards(); drawPlayer(); drawParticles(); drawAbilityEffects();
       ctx.restore();
-      drawHUD();
-      drawVaultOverlay();
-      drawFocusOverlay();
+      drawHUD(); drawVaultOverlay(); drawScaffold(); drawFocusOverlay();
       break;
 
     case STATE.PLAYING:
@@ -2474,14 +2899,10 @@ function gameLoop(timestamp) {
       // Update
       if (gameState === STATE.PLAYING) {
         missionTimer += dt;
-        if (missionTimer >= missionTimeLimit) {
-          gameState = STATE.CAUGHT;
-        }
-        updatePlayer(dt);
-        updateEscape(dt);
-        heat = Math.max(0, heat - 0.5 * dt); // slow heat decay
+        if (missionTimer >= missionTimeLimit) { gameState = STATE.CAUGHT; }
+        updatePlayer(dt); updateEscape(dt);
+        heat = Math.max(0, heat - 0.5 * dt);
       }
-      // Focus mode score drain and time scale
       effDt = (focusModeActive && mathActive) ? dt * FOCUS_TIME_SCALE : dt;
       if (focusModeActive && mathActive) {
         focusDrainAccum += 2 * dt;
@@ -2493,20 +2914,12 @@ function gameLoop(timestamp) {
 
       // Draw
       ctx.save(); ctx.translate(shakeX, shakeY);
-      drawTiles();
-      drawLoot();
-      drawInteractables();
-      drawCameras();
-      drawGadget();
-      drawEchoGhost();
-      drawGuards();
-      drawPlayer();
-      drawParticles();
+      drawTiles(); drawLoot(); drawInteractables(); drawCameras();
+      drawGadget(); drawEchoGhost(); drawGuards(); drawPlayer();
+      drawParticles(); drawAbilityEffects();
       ctx.restore();
-      drawHUD();
-      drawEchoRecordingIndicator();
-      drawEscapeOverlay();
-      drawFocusOverlay();
+      drawHUD(); drawEchoRecordingIndicator(); drawEscapeOverlay();
+      drawScaffold(); drawFocusOverlay();
       break;
 
     case STATE.RESULTS:
@@ -2514,21 +2927,72 @@ function gameLoop(timestamp) {
       break;
 
     case STATE.CAUGHT:
-      // Draw game behind
       ctx.save(); ctx.translate(shakeX, shakeY);
-      drawTiles();
-      drawLoot();
-      drawInteractables();
-      drawCameras();
-      drawGuards();
-      drawPlayer();
+      drawTiles(); drawLoot(); drawInteractables(); drawCameras();
+      drawGuards(); drawPlayer();
       ctx.restore();
-      drawHUD();
-      drawCaught();
+      drawHUD(); drawCaught();
+      break;
+
+    case STATE.MISSION_SELECT:
+      drawMissionSelect();
       break;
   }
 
   requestAnimationFrame(gameLoop);
+}
+
+// ── MISSION SELECT SCREEN (Pass 5) ──────────────────────────────
+const DIST_COLORS = ['#00e5ff','#a855f7','#f97316'];
+function drawMissionSelect() {
+  ctx.fillStyle = '#0a0a0f'; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle = '#00e5ff'; ctx.font = 'bold 20px monospace'; ctx.textAlign = 'center';
+  ctx.fillText('SELECT MISSION', W/2, 40);
+  ctx.fillStyle = '#64748b'; ctx.font = '12px monospace';
+  ctx.fillText(`${completedMissions.size}/30 completed  ·  Esc: back`, W/2, 62);
+  const cw = 176, ch = 72, colGap = 8, rowGap = 8;
+  const startX = (W - 5*cw - 4*colGap)/2, startY = 78;
+  for (let i = 0; i < 30; i++) {
+    const col = i % 5, row = Math.floor(i / 5);
+    const x = startX + col*(cw+colGap), y = startY + row*(ch+rowGap);
+    const m = MISSIONS[i], mId = m.id;
+    const done = completedMissions.has(mId);
+    const sel = i === missionSelectIdx;
+    const dist = getDistrict(i);
+    ctx.fillStyle = sel ? 'rgba(255,255,255,0.08)' : 'rgba(20,26,40,0.9)';
+    ctx.strokeStyle = sel ? DIST_COLORS[dist] : done ? 'rgba(34,197,94,0.5)' : '#1e293b';
+    ctx.lineWidth = sel ? 2 : 1;
+    ctx.beginPath(); ctx.roundRect(x,y,cw,ch,6); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = DIST_COLORS[dist]; ctx.font = 'bold 10px monospace'; ctx.textAlign = 'left';
+    ctx.fillText(`M${mId}`, x+8, y+14);
+    if (done) { ctx.fillStyle='#22c55e'; ctx.fillText('✓',x+cw-16,y+14); }
+    ctx.fillStyle = sel ? '#fff' : '#94a3b8'; ctx.font = '11px monospace';
+    const name = m.name.length > 16 ? m.name.slice(0,15)+'…' : m.name;
+    ctx.fillText(name, x+8, y+30);
+    const best = highScores[mId];
+    if (best) {
+      ctx.fillStyle = '#ffd700'; ctx.font = '10px monospace';
+      ctx.fillText(`$${best}`, x+8, y+46);
+    }
+    if (sel) {
+      ctx.fillStyle = DIST_COLORS[dist]; ctx.font = 'bold 10px monospace'; ctx.textAlign='center';
+      ctx.fillText('[ENTER]', x+cw/2, y+ch-6);
+    }
+  }
+  // Legend
+  ctx.fillStyle = '#475569'; ctx.font = '11px monospace'; ctx.textAlign = 'center';
+  ctx.fillText('←→↑↓ navigate  ·  Enter: start  ·  Esc: menu', W/2, H-16);
+}
+function handleMissionSelectKey(e) {
+  if (e.key === 'ArrowRight') missionSelectIdx = Math.min(29, missionSelectIdx+1);
+  else if (e.key === 'ArrowLeft') missionSelectIdx = Math.max(0, missionSelectIdx-1);
+  else if (e.key === 'ArrowDown') missionSelectIdx = Math.min(29, missionSelectIdx+5);
+  else if (e.key === 'ArrowUp') missionSelectIdx = Math.max(0, missionSelectIdx-5);
+  else if (e.key === 'Enter' || e.key === ' ') {
+    currentMission = missionSelectIdx;
+    isDailyContract = false;
+    gameState = STATE.BRIEFING;
+  } else if (e.key === 'Escape') { gameState = STATE.MENU; }
 }
 
 // Start
