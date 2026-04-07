@@ -14,7 +14,7 @@ canvas { display:block; width:100vw; height:100vh; }
 <canvas id="c"></canvas>
 <script>
 // ═══════════════════════════════════════════════════
-//  WATERING HOLE COUNT — P0/P1 Prototype
+//  WATERING HOLE COUNT — P0/P1 Prototype (Feel Pass)
 //  Family: Enumerate-and-report
 //  Skill: Counting / cardinality
 //  Age band: 4–6 (Pre-K to Grade 1)
@@ -40,13 +40,16 @@ resize();
 
 // ── Constants ───────────────────────────────────
 const ANIMAL_TYPES = [
-  { name:'zebras',    singular:'zebra',    color:'#333',    stripe:'#fff',   sound:'neigh' },
-  { name:'flamingos', singular:'flamingo', color:'#FF6B9D', stripe:'#FF8DB5',sound:'squawk'},
-  { name:'turtles',   singular:'turtle',   color:'#2D8B46', stripe:'#3DAF5C',sound:'click' },
-  { name:'frogs',     singular:'frog',     color:'#4ADE80', stripe:'#6BEB9B',sound:'ribbit'}
+  { name:'zebras',    singular:'zebra',    body:'#F5F5F0', accent:'#222',    belly:'#E8E4DC', sound:'neigh' },
+  { name:'flamingos', singular:'flamingo', body:'#FF6B9D', accent:'#FF3D7F', belly:'#FFB5CC', sound:'squawk'},
+  { name:'turtles',   singular:'turtle',   body:'#2D8B46', accent:'#1A5C2E', belly:'#8BC34A', sound:'click' },
+  { name:'frogs',     singular:'frog',     body:'#4ADE80', accent:'#22A85A', belly:'#B5F5C8', sound:'ribbit'}
 ];
 
 const PRAISE = ["That's right!","Great counting!","You got it!","Perfect!"];
+
+// ── Global animation time ───────────────────────
+let T = 0; // continuous time for animations
 
 // ── Tier definitions ────────────────────────────
 const TIERS = {
@@ -95,19 +98,20 @@ const TIERS = {
 };
 
 // ── Game state ──────────────────────────────────
-let state = 'tier_select'; // tier_select | scene_setup | animals_arrive | question | answer | feedback_correct | feedback_wrong | scaffold | reveal | session_end
+let state = 'tier_select';
 let tier = localStorage.getItem('wh_tier') || 'sprout';
 let roundIndex = 0;
 let roundData = null;
 let animals = [];
 let otherAnimals = [];
-let ellie = { x:0, y:0, trunkUp:false, shakeHead:false, shakeTimer:0, trunkTimer:0, bounce:0 };
+let ellie = { x:0, y:0, trunkUp:false, shakeHead:false, shakeTimer:0, trunkTimer:0, bounce:0, earFlap:0 };
 let choices = [];
 let selectedChoice = -1;
 let wrongAttempts = 0;
 let greyedOut = [];
 let stateTimer = 0;
 let particles = [];
+let splashes = [];
 let scaffoldIndex = -1;
 let scaffoldTimer = 0;
 let revealGlow = 0;
@@ -117,7 +121,6 @@ let wanderWarned = false;
 let paused = false;
 let muted = false;
 
-// ── Occlusion objects (rocks, trees, grass) ─────
 let obstacles = [];
 
 // ── Audio ───────────────────────────────────────
@@ -143,22 +146,19 @@ function playTone(freq, dur, type, gain) {
 }
 
 function sfxCorrect() {
-  playTone(300, 0.15, 'triangle', 0.25);
-  setTimeout(() => playTone(500, 0.18, 'triangle', 0.25), 150);
+  playTone(400, 0.12, 'triangle', 0.2);
+  setTimeout(() => playTone(600, 0.12, 'triangle', 0.2), 120);
+  setTimeout(() => playTone(800, 0.18, 'triangle', 0.25), 240);
 }
 
-function sfxWrong() {
-  playTone(200, 0.2, 'sine', 0.12);
-}
-
-function sfxTap() {
-  playTone(800, 0.03, 'sine', 0.08);
-}
+function sfxWrong() { playTone(200, 0.2, 'sine', 0.12); }
+function sfxTap() { playTone(800, 0.03, 'sine', 0.08); }
+function sfxPop() { playTone(600, 0.06, 'sine', 0.1); }
+function sfxScaffoldBoop(n) { playTone(350 + n * 40, 0.08, 'triangle', 0.12); }
 
 function sfxTrumpet() {
   if (muted) return;
-  const o = AC.createOscillator();
-  const g = AC.createGain();
+  const o = AC.createOscillator(); const g = AC.createGain();
   o.type = 'sawtooth';
   o.frequency.setValueAtTime(200, AC.currentTime);
   o.frequency.linearRampToValueAtTime(400, AC.currentTime + 0.3);
@@ -168,12 +168,17 @@ function sfxTrumpet() {
   o.start(); o.stop(AC.currentTime + 0.4);
 }
 
-function sfxPop() {
-  playTone(600, 0.06, 'sine', 0.1);
-}
-
-function sfxScaffoldBoop(n) {
-  playTone(350 + n * 40, 0.08, 'triangle', 0.12);
+function sfxSplash() {
+  if (muted) return;
+  // White noise burst for splash
+  const buf = AC.createBuffer(1, AC.sampleRate * 0.15, AC.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i/d.length);
+  const s = AC.createBufferSource(); s.buffer = buf;
+  const f = AC.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 800;
+  const g = AC.createGain(); g.gain.value = 0.12;
+  s.connect(f); f.connect(g); g.connect(AC.destination);
+  s.start(); s.stop(AC.currentTime + 0.2);
 }
 
 // ── Speech ──────────────────────────────────────
@@ -185,7 +190,6 @@ function speak(text, rate, onEnd) {
   const u = new SpeechSynthesisUtterance(text);
   u.rate = rate || 0.85;
   u.pitch = 1.1;
-  // Try to pick a good voice
   const voices = window.speechSynthesis.getVoices();
   const preferred = voices.find(v => /samantha|karen|female|zira/i.test(v.name));
   if (preferred) u.voice = preferred;
@@ -194,8 +198,6 @@ function speak(text, rate, onEnd) {
   u.onerror = () => { speaking = false; if (onEnd) onEnd(); };
   window.speechSynthesis.speak(u);
 }
-
-// Preload voices
 if (window.speechSynthesis) {
   window.speechSynthesis.getVoices();
   window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
@@ -212,7 +214,6 @@ function drawRoundedRect(x, y, w, h, r) {
 }
 
 function drawDots(cx, cy, count, sz) {
-  // Draw dot pattern for a number (1–15) in a compact layout
   X.fillStyle = 'rgba(255,255,255,0.9)';
   const dotR = sz * 0.12;
   const positions = getDotPositions(count, sz * 0.35);
@@ -224,273 +225,634 @@ function drawDots(cx, cy, count, sz) {
 }
 
 function getDotPositions(n, spread) {
-  // Arrange dots in recognizable patterns
   if (n <= 0) return [];
   const s = spread;
   const layouts = {
-    1: [[0,0]],
-    2: [[-s*0.4,0],[s*0.4,0]],
-    3: [[-s*0.4,s*0.3],[s*0.4,s*0.3],[0,-s*0.3]],
-    4: [[-s*0.4,-s*0.3],[s*0.4,-s*0.3],[-s*0.4,s*0.3],[s*0.4,s*0.3]],
-    5: [[-s*0.4,-s*0.3],[s*0.4,-s*0.3],[-s*0.4,s*0.3],[s*0.4,s*0.3],[0,0]],
-    6: [[-s*0.4,-s*0.4],[0,-s*0.4],[s*0.4,-s*0.4],[-s*0.4,s*0.2],[0,s*0.2],[s*0.4,s*0.2]],
+    1:[[0,0]],2:[[-s*.4,0],[s*.4,0]],3:[[-s*.4,s*.3],[s*.4,s*.3],[0,-s*.3]],
+    4:[[-s*.4,-s*.3],[s*.4,-s*.3],[-s*.4,s*.3],[s*.4,s*.3]],
+    5:[[-s*.4,-s*.3],[s*.4,-s*.3],[-s*.4,s*.3],[s*.4,s*.3],[0,0]],
+    6:[[-s*.4,-s*.4],[0,-s*.4],[s*.4,-s*.4],[-s*.4,s*.2],[0,s*.2],[s*.4,s*.2]],
   };
   if (layouts[n]) return layouts[n];
-  // For 7+, arrange in rows
   const cols = Math.ceil(Math.sqrt(n));
   const rows = Math.ceil(n / cols);
-  const pts = [];
-  let idx = 0;
+  const pts = []; let idx = 0;
   for (let r = 0; r < rows && idx < n; r++) {
-    const rowCount = Math.min(cols, n - idx);
-    const rowW = (rowCount - 1) * s * 0.3;
-    for (let c = 0; c < rowCount; c++) {
-      pts.push([c * s * 0.3 - rowW/2, r * s * 0.3 - (rows-1)*s*0.15]);
-      idx++;
-    }
+    const rc = Math.min(cols, n - idx);
+    const rw = (rc - 1) * s * 0.3;
+    for (let c = 0; c < rc; c++) { pts.push([c*s*0.3 - rw/2, r*s*0.3 - (rows-1)*s*0.15]); idx++; }
   }
   return pts;
 }
 
-// ── Scene drawing ───────────────────────────────
-const SKY_TOP = '#87CEEB';
-const SKY_BOT = '#B5E8B5';
-const WATER_COLOR = '#4A90D9';
-const GROUND_COLOR = '#7CB342';
-const GROUND_DARK = '#5D8A2F';
-
+// ── Background ──────────────────────────────────
 function drawBackground() {
-  // Sky gradient
-  const skyG = X.createLinearGradient(0, 0, 0, H * 0.4);
+  const t = T;
+
+  // Sky
+  const skyG = X.createLinearGradient(0, 0, 0, H * 0.45);
   if (state === 'session_end') {
-    skyG.addColorStop(0, '#FF8C42');
-    skyG.addColorStop(1, '#FFD166');
+    skyG.addColorStop(0, '#FF7B3A'); skyG.addColorStop(1, '#FFD166');
   } else if (tier === 'tree') {
-    skyG.addColorStop(0, '#E8836B');
-    skyG.addColorStop(1, '#F0C987');
+    skyG.addColorStop(0, '#D96E5B'); skyG.addColorStop(1, '#F0C987');
   } else {
-    skyG.addColorStop(0, SKY_TOP);
-    skyG.addColorStop(1, '#C8E6C8');
+    skyG.addColorStop(0, '#5BB5E8'); skyG.addColorStop(1, '#A8DBA8');
   }
   X.fillStyle = skyG;
-  X.fillRect(0, 0, W, H * 0.4);
+  X.fillRect(0, 0, W, H * 0.45);
 
-  // Ground
-  X.fillStyle = GROUND_COLOR;
-  X.fillRect(0, H * 0.35, W, H * 0.35);
-
-  // Water
-  const wy = H * 0.42;
-  const wh = H * 0.15;
-  X.fillStyle = WATER_COLOR;
-  X.beginPath();
-  X.ellipse(W/2, wy + wh/2, W * 0.42, wh/2, 0, 0, Math.PI * 2);
-  X.fill();
-  // Water shimmer
-  X.fillStyle = 'rgba(255,255,255,0.15)';
-  for (let i = 0; i < 5; i++) {
-    const sx = W * 0.25 + i * W * 0.1 + Math.sin(Date.now()/800 + i) * 5;
-    const sy = wy + wh * 0.3 + Math.cos(Date.now()/600 + i*2) * 3;
-    X.fillRect(sx, sy, W * 0.06, 2);
+  // Clouds
+  X.fillStyle = 'rgba(255,255,255,0.6)';
+  for (let i = 0; i < 3; i++) {
+    const cx = ((t * 8 + i * W * 0.4) % (W + 200)) - 100;
+    const cy = H * 0.08 + i * H * 0.06;
+    X.beginPath();
+    X.ellipse(cx, cy, 50 + i*10, 18 + i*4, 0, 0, Math.PI*2); X.fill();
+    X.beginPath();
+    X.ellipse(cx + 30, cy - 8, 35, 14, 0, 0, Math.PI*2); X.fill();
+    X.beginPath();
+    X.ellipse(cx - 25, cy + 2, 30, 12, 0, 0, Math.PI*2); X.fill();
   }
 
-  // Ground texture below water
-  X.fillStyle = GROUND_DARK;
-  X.fillRect(0, H * 0.62, W, H * 0.38);
-
-  // Simple grass tufts
-  X.fillStyle = '#6AAF35';
-  for (let i = 0; i < 8; i++) {
-    const gx = W * 0.05 + i * W * 0.12;
-    const gy = H * 0.61;
+  // Distant trees (background)
+  X.fillStyle = '#3A7A3A';
+  for (let i = 0; i < 6; i++) {
+    const tx = W * 0.08 + i * W * 0.17;
+    const ty = H * 0.33;
     X.beginPath();
-    X.moveTo(gx, gy); X.lineTo(gx-3, gy-12); X.lineTo(gx+3, gy-8);
-    X.lineTo(gx+6, gy-14); X.lineTo(gx+9, gy);
+    X.moveTo(tx, ty); X.lineTo(tx - 25, ty + 15); X.lineTo(tx + 25, ty + 15);
     X.fill();
+    X.beginPath(); X.arc(tx, ty, 22, Math.PI, 0); X.fill();
+  }
+
+  // Ground — lush green gradient
+  const groundG = X.createLinearGradient(0, H * 0.35, 0, H);
+  groundG.addColorStop(0, '#6DBF47');
+  groundG.addColorStop(0.3, '#5AAE38');
+  groundG.addColorStop(1, '#3D7A28');
+  X.fillStyle = groundG;
+  X.fillRect(0, H * 0.35, W, H * 0.65);
+
+  // Water — animated ripple ellipse
+  const wy = H * 0.44;
+  const wRx = W * 0.38;
+  const wRy = H * 0.08;
+
+  // Water shadow
+  X.fillStyle = 'rgba(0,80,40,0.2)';
+  X.beginPath();
+  X.ellipse(W/2, wy + wRy + 4, wRx + 6, wRy + 3, 0, 0, Math.PI*2);
+  X.fill();
+
+  // Main water body
+  const waterG = X.createRadialGradient(W/2, wy, 10, W/2, wy, wRx);
+  waterG.addColorStop(0, '#6BC5E8');
+  waterG.addColorStop(0.6, '#4A9ED9');
+  waterG.addColorStop(1, '#3580B8');
+  X.fillStyle = waterG;
+  X.beginPath();
+  X.ellipse(W/2, wy, wRx, wRy, 0, 0, Math.PI*2);
+  X.fill();
+
+  // Ripple rings
+  X.strokeStyle = 'rgba(255,255,255,0.2)';
+  X.lineWidth = 1.5;
+  for (let i = 0; i < 3; i++) {
+    const rPhase = (t * 0.5 + i * 2) % 4;
+    const rScale = rPhase / 4;
+    const rAlpha = 1 - rScale;
+    X.globalAlpha = rAlpha * 0.3;
+    X.beginPath();
+    X.ellipse(W * 0.45 + i * W * 0.08, wy, 15 + rScale * 40, 6 + rScale * 15, 0, 0, Math.PI*2);
+    X.stroke();
+  }
+  X.globalAlpha = 1;
+
+  // Shimmer highlights
+  X.fillStyle = 'rgba(255,255,255,0.25)';
+  for (let i = 0; i < 6; i++) {
+    const sx = W * 0.28 + i * W * 0.08 + Math.sin(t * 1.5 + i * 1.3) * 8;
+    const sy = wy - wRy * 0.2 + Math.cos(t * 1.2 + i * 0.9) * 4;
+    X.beginPath();
+    X.ellipse(sx, sy, 8 + Math.sin(t * 2 + i) * 3, 2, 0.3, 0, Math.PI*2);
+    X.fill();
+  }
+
+  // Grass tufts along water edge
+  for (let i = 0; i < 12; i++) {
+    const gx = W * 0.05 + i * W * 0.085;
+    const gy = H * 0.52;
+    const sway = Math.sin(t * 1.8 + i * 0.7) * 3;
+    X.fillStyle = i % 2 === 0 ? '#4CAF35' : '#5BBF42';
+    for (let b = -1; b <= 1; b++) {
+      X.beginPath();
+      X.moveTo(gx + b*4, gy);
+      X.quadraticCurveTo(gx + b*4 + sway, gy - 16 - Math.abs(b)*4, gx + b*2 + sway*1.3, gy - 22 - Math.abs(b)*3);
+      X.quadraticCurveTo(gx + b*4 + sway*0.5, gy - 14, gx + b*4 + 2, gy);
+      X.fill();
+    }
+  }
+
+  // Flowers
+  const flowerColors = ['#FFD700', '#FF6B9D', '#E8A0FF', '#FF8C42'];
+  for (let i = 0; i < 5; i++) {
+    const fx = W * 0.1 + i * W * 0.2 + Math.sin(i * 3) * 20;
+    const fy = H * 0.56 + Math.cos(i * 5) * 10;
+    X.fillStyle = flowerColors[i % flowerColors.length];
+    for (let p = 0; p < 5; p++) {
+      const a = p * Math.PI * 2 / 5 + Math.sin(t + i) * 0.1;
+      X.beginPath();
+      X.ellipse(fx + Math.cos(a) * 4, fy + Math.sin(a) * 4, 3, 2, a, 0, Math.PI*2);
+      X.fill();
+    }
+    X.fillStyle = '#FFE082';
+    X.beginPath(); X.arc(fx, fy, 2.5, 0, Math.PI*2); X.fill();
   }
 }
 
 function drawObstacles() {
   for (const ob of obstacles) {
     if (ob.type === 'rock') {
-      X.fillStyle = '#8B8680';
-      X.beginPath();
-      X.ellipse(ob.x, ob.y, ob.w/2, ob.h/2, 0, 0, Math.PI*2);
-      X.fill();
-      X.fillStyle = '#9E9890';
-      X.beginPath();
-      X.ellipse(ob.x - ob.w*0.1, ob.y - ob.h*0.15, ob.w*0.25, ob.h*0.2, -0.2, 0, Math.PI*2);
-      X.fill();
+      // Rounder, more natural rock
+      const rg = X.createRadialGradient(ob.x - ob.w*0.1, ob.y - ob.h*0.2, 2, ob.x, ob.y, ob.w*0.6);
+      rg.addColorStop(0, '#AAA59E'); rg.addColorStop(1, '#7A756E');
+      X.fillStyle = rg;
+      X.beginPath(); X.ellipse(ob.x, ob.y, ob.w/2, ob.h/2, 0.1, 0, Math.PI*2); X.fill();
+      // Highlight
+      X.fillStyle = 'rgba(255,255,255,0.15)';
+      X.beginPath(); X.ellipse(ob.x - ob.w*0.12, ob.y - ob.h*0.18, ob.w*0.2, ob.h*0.15, -0.3, 0, Math.PI*2); X.fill();
     } else if (ob.type === 'tree') {
-      X.fillStyle = '#5D3A1A';
-      X.fillRect(ob.x - 6, ob.y - ob.h*0.3, 12, ob.h*0.6);
-      X.fillStyle = '#2D7A3A';
-      X.beginPath();
-      X.arc(ob.x, ob.y - ob.h*0.4, ob.w/2, 0, Math.PI*2);
-      X.fill();
+      // Trunk
+      X.fillStyle = '#6B4226';
+      X.fillRect(ob.x - 7, ob.y - ob.h*0.2, 14, ob.h*0.55);
+      // Canopy layers
+      X.fillStyle = '#2E8B3E';
+      X.beginPath(); X.arc(ob.x, ob.y - ob.h*0.35, ob.w*0.5, 0, Math.PI*2); X.fill();
+      X.fillStyle = '#3CA84E';
+      X.beginPath(); X.arc(ob.x - 8, ob.y - ob.h*0.42, ob.w*0.35, 0, Math.PI*2); X.fill();
+      X.beginPath(); X.arc(ob.x + 10, ob.y - ob.h*0.38, ob.w*0.32, 0, Math.PI*2); X.fill();
     } else if (ob.type === 'grass') {
+      const sway = Math.sin(T * 1.5 + ob.x * 0.01) * 4;
       X.fillStyle = '#3D8B3D';
-      for (let i = -2; i <= 2; i++) {
+      for (let i = -3; i <= 3; i++) {
         X.beginPath();
-        X.moveTo(ob.x + i*5, ob.y);
-        X.lineTo(ob.x + i*5 - 2, ob.y - ob.h);
-        X.lineTo(ob.x + i*5 + 2, ob.y - ob.h + 4);
+        X.moveTo(ob.x + i*4, ob.y);
+        X.quadraticCurveTo(ob.x + i*4 + sway, ob.y - ob.h*0.6, ob.x + i*3 + sway*1.2, ob.y - ob.h);
+        X.quadraticCurveTo(ob.x + i*4 + sway*0.5, ob.y - ob.h*0.5, ob.x + i*4 + 2, ob.y);
         X.fill();
       }
     }
   }
 }
 
-// ── Animal drawing ──────────────────────────────
+// ── Animal drawing (completely rewritten) ───────
 function drawAnimal(a) {
   if (!a.visible) return;
-  const ax = a.x, ay = a.y;
-  const sz = 28 * SCALE;
   const t = ANIMAL_TYPES[a.type];
-  const bobY = Math.sin(Date.now()/500 + a.phase) * 2;
+  const sz = 42 * SCALE; // MUCH larger than before (was 28)
+  const time = T + a.phase;
 
-  // Highlight glow during scaffold
+  // Idle animation
+  const bobY = Math.sin(time * 2) * 3;
+  const breathe = 1 + Math.sin(time * 2.5) * 0.03;
+  const headTilt = Math.sin(time * 1.2) * 0.08;
+  const tailWag = Math.sin(time * 4) * 0.3;
+  const legCycle = Math.sin(time * 3);
+
+  // Celebration: big bouncy jump + squash/stretch
+  let cY = 0, cSquash = 1, cStretch = 1;
+  if (a.celebrating) {
+    const cPhase = (T * 6 + a.phase) % (Math.PI * 2);
+    cY = Math.abs(Math.sin(cPhase)) * sz * 0.6;
+    cSquash = cY > sz * 0.2 ? 0.85 : 1.1; // squash on ground, stretch in air
+    cStretch = cY > sz * 0.2 ? 1.15 : 0.9;
+  }
+
+  // Scaffold highlight glow
   if (a.highlighted) {
     X.save();
+    const glowPulse = 0.5 + Math.sin(T * 6) * 0.3;
     X.shadowColor = '#FFD700';
-    X.shadowBlur = 20;
-    X.fillStyle = 'rgba(255,215,0,0.3)';
+    X.shadowBlur = 25 + Math.sin(T * 8) * 10;
+    X.fillStyle = `rgba(255,215,0,${glowPulse})`;
     X.beginPath();
-    X.arc(ax, ay + bobY - sz*0.2, sz*0.8, 0, Math.PI*2);
+    X.ellipse(a.x, a.y + bobY - cY, sz * 0.7, sz * 0.5, 0, 0, Math.PI*2);
     X.fill();
     X.restore();
   }
 
-  // Celebration bounce
-  const cBounce = a.celebrating ? Math.abs(Math.sin(Date.now()/150)) * 8 : 0;
-
   X.save();
-  X.translate(ax, ay + bobY - cBounce);
+  X.translate(a.x, a.y + bobY - cY);
+  X.scale(cSquash, cStretch);
 
-  // Body
-  X.fillStyle = t.color;
-  X.beginPath();
-  X.ellipse(0, 0, sz*0.5, sz*0.35, 0, 0, Math.PI*2);
-  X.fill();
-
-  // Head
-  X.fillStyle = t.color;
-  X.beginPath();
-  X.arc(sz*0.35, -sz*0.25, sz*0.22, 0, Math.PI*2);
-  X.fill();
-
-  // Eye
-  X.fillStyle = '#fff';
-  X.beginPath();
-  X.arc(sz*0.42, -sz*0.3, sz*0.07, 0, Math.PI*2);
-  X.fill();
-  X.fillStyle = '#111';
-  X.beginPath();
-  X.arc(sz*0.44, -sz*0.3, sz*0.035, 0, Math.PI*2);
-  X.fill();
-
-  // Stripe/marking
-  X.fillStyle = t.stripe;
-  if (a.type === 0) { // zebra stripes
-    for (let i = 0; i < 3; i++) {
-      X.fillRect(-sz*0.2 + i*sz*0.18, -sz*0.15, sz*0.06, sz*0.3);
-    }
-  } else if (a.type === 2) { // turtle shell pattern
-    X.beginPath();
-    X.arc(0, 0, sz*0.25, 0, Math.PI*2);
-    X.fill();
-    X.fillStyle = t.color;
-    X.beginPath();
-    X.arc(0, 0, sz*0.18, 0, Math.PI*2);
-    X.fill();
-  }
-
-  // Legs
-  X.fillStyle = t.color;
-  X.fillRect(-sz*0.3, sz*0.2, sz*0.1, sz*0.2);
-  X.fillRect(sz*0.15, sz*0.2, sz*0.1, sz*0.2);
+  if (a.type === 0) drawZebra(sz, time, headTilt, tailWag, legCycle, a.celebrating);
+  else if (a.type === 1) drawFlamingo(sz, time, headTilt, a.celebrating);
+  else if (a.type === 2) drawTurtle(sz, time, headTilt, legCycle, a.celebrating);
+  else if (a.type === 3) drawFrog(sz, time, a.celebrating);
 
   X.restore();
 }
 
-// ── Ellie ───────────────────────────────────────
+function drawZebra(sz, time, headTilt, tailWag, legCycle, celebrating) {
+  const s = sz;
+  // Legs (behind body)
+  X.fillStyle = '#E8E4DC';
+  const legH = s * 0.3;
+  X.save(); X.translate(-s*0.25, s*0.15);
+  X.rotate(legCycle * 0.12);
+  X.fillRect(-3, 0, 7, legH); X.restore();
+  X.save(); X.translate(s*0.15, s*0.15);
+  X.rotate(-legCycle * 0.12);
+  X.fillRect(-3, 0, 7, legH); X.restore();
+  // Hooves
+  X.fillStyle = '#333';
+  X.fillRect(-s*0.28, s*0.15 + legH - 4, 7, 5);
+  X.fillRect(s*0.13, s*0.15 + legH - 4, 7, 5);
+
+  // Body
+  X.fillStyle = '#F5F5F0';
+  X.beginPath(); X.ellipse(0, 0, s*0.4, s*0.28, 0, 0, Math.PI*2); X.fill();
+  // Stripes
+  X.strokeStyle = '#333'; X.lineWidth = 2.5;
+  for (let i = 0; i < 4; i++) {
+    const sx = -s*0.2 + i*s*0.13;
+    X.beginPath(); X.moveTo(sx, -s*0.2); X.lineTo(sx + 2, s*0.15); X.stroke();
+  }
+  // Belly highlight
+  X.fillStyle = 'rgba(255,255,255,0.3)';
+  X.beginPath(); X.ellipse(0, s*0.08, s*0.25, s*0.1, 0, 0, Math.PI*2); X.fill();
+
+  // Tail
+  X.save(); X.translate(-s*0.38, -s*0.05);
+  X.rotate(tailWag);
+  X.strokeStyle = '#333'; X.lineWidth = 2; X.lineCap = 'round';
+  X.beginPath(); X.moveTo(0, 0); X.quadraticCurveTo(-s*0.15, -s*0.1, -s*0.12, -s*0.2); X.stroke();
+  // Tail tuft
+  X.fillStyle = '#222';
+  X.beginPath(); X.arc(-s*0.12, -s*0.22, 4, 0, Math.PI*2); X.fill();
+  X.restore();
+
+  // Head
+  X.save(); X.translate(s*0.32, -s*0.2);
+  X.rotate(headTilt);
+  X.fillStyle = '#F5F5F0';
+  X.beginPath(); X.ellipse(0, 0, s*0.18, s*0.15, 0.2, 0, Math.PI*2); X.fill();
+  // Muzzle
+  X.fillStyle = '#E8E0D0';
+  X.beginPath(); X.ellipse(s*0.12, s*0.04, s*0.09, s*0.08, 0, 0, Math.PI*2); X.fill();
+  // Nostril
+  X.fillStyle = '#999';
+  X.beginPath(); X.arc(s*0.17, s*0.05, 1.5, 0, Math.PI*2); X.fill();
+  // Eye
+  X.fillStyle = '#fff';
+  X.beginPath(); X.arc(s*0.05, -s*0.05, s*0.055, 0, Math.PI*2); X.fill();
+  X.fillStyle = '#2C1810';
+  X.beginPath(); X.arc(s*0.06, -s*0.045, s*0.03, 0, Math.PI*2); X.fill();
+  // Eye shine
+  X.fillStyle = '#fff';
+  X.beginPath(); X.arc(s*0.07, -s*0.055, s*0.012, 0, Math.PI*2); X.fill();
+  // Ear
+  X.fillStyle = '#E8E4DC';
+  X.beginPath(); X.ellipse(s*0.02, -s*0.14, s*0.05, s*0.08, -0.3, 0, Math.PI*2); X.fill();
+  X.fillStyle = '#FFB5A0';
+  X.beginPath(); X.ellipse(s*0.02, -s*0.13, s*0.03, s*0.05, -0.3, 0, Math.PI*2); X.fill();
+  // Mane
+  X.fillStyle = '#333';
+  for (let i = 0; i < 5; i++) {
+    X.beginPath();
+    X.ellipse(-s*0.06 + i*s*0.03, -s*0.12 - i*s*0.01, 3, 6 + i, -0.4 + i*0.1, 0, Math.PI*2);
+    X.fill();
+  }
+  X.restore();
+}
+
+function drawFlamingo(sz, time, headTilt, celebrating) {
+  const s = sz;
+  // Long leg
+  X.strokeStyle = '#FF8CA0'; X.lineWidth = 3; X.lineCap = 'round';
+  const legBend = Math.sin(time * 1.5) * 0.08;
+  X.save(); X.translate(0, s*0.1);
+  X.beginPath(); X.moveTo(0, 0);
+  X.quadraticCurveTo(s*0.05, s*0.25 + legBend * 20, -s*0.02, s*0.5);
+  X.stroke();
+  // Second leg (slightly behind)
+  X.globalAlpha = 0.6;
+  X.beginPath(); X.moveTo(s*0.06, 0);
+  X.quadraticCurveTo(s*0.08, s*0.2, s*0.04, s*0.45);
+  X.stroke();
+  X.globalAlpha = 1;
+  X.restore();
+
+  // Body
+  X.fillStyle = '#FF6B9D';
+  X.beginPath(); X.ellipse(0, 0, s*0.3, s*0.22, 0.15, 0, Math.PI*2); X.fill();
+  // Wing
+  X.fillStyle = '#FF3D7F';
+  X.save(); X.translate(0, -s*0.05);
+  const wingFlap = celebrating ? Math.sin(T * 12) * 0.5 : Math.sin(time * 1.5) * 0.08;
+  X.rotate(wingFlap);
+  X.beginPath(); X.ellipse(-s*0.05, 0, s*0.25, s*0.15, -0.2, 0, Math.PI*2); X.fill();
+  X.restore();
+  // Wing tip feathers
+  X.fillStyle = '#E8357A';
+  X.beginPath(); X.ellipse(-s*0.22, s*0.02, s*0.08, s*0.05, -0.5, 0, Math.PI*2); X.fill();
+
+  // Belly
+  X.fillStyle = '#FFB5CC';
+  X.beginPath(); X.ellipse(s*0.05, s*0.08, s*0.15, s*0.1, 0, 0, Math.PI*2); X.fill();
+
+  // Neck (curved)
+  X.save();
+  X.translate(s*0.2, -s*0.15);
+  X.strokeStyle = '#FF6B9D'; X.lineWidth = s*0.08; X.lineCap = 'round';
+  X.beginPath();
+  X.moveTo(0, 0);
+  X.bezierCurveTo(s*0.1, -s*0.2, s*0.15, -s*0.35, s*0.05 + Math.sin(time)*3, -s*0.45);
+  X.stroke();
+
+  // Head
+  X.save(); X.translate(s*0.05 + Math.sin(time)*3, -s*0.45);
+  X.rotate(headTilt * 1.5);
+  X.fillStyle = '#FF6B9D';
+  X.beginPath(); X.arc(0, 0, s*0.1, 0, Math.PI*2); X.fill();
+  // Eye
+  X.fillStyle = '#fff';
+  X.beginPath(); X.arc(s*0.04, -s*0.02, s*0.04, 0, Math.PI*2); X.fill();
+  X.fillStyle = '#111';
+  X.beginPath(); X.arc(s*0.05, -s*0.015, s*0.02, 0, Math.PI*2); X.fill();
+  X.fillStyle = '#fff';
+  X.beginPath(); X.arc(s*0.055, -s*0.025, s*0.008, 0, Math.PI*2); X.fill();
+  // Beak
+  X.fillStyle = '#FF8C42';
+  X.beginPath();
+  X.moveTo(s*0.1, -s*0.02);
+  X.lineTo(s*0.2, 0);
+  X.lineTo(s*0.1, s*0.03);
+  X.closePath(); X.fill();
+  X.fillStyle = '#333';
+  X.beginPath();
+  X.moveTo(s*0.12, 0);
+  X.lineTo(s*0.2, 0);
+  X.lineTo(s*0.12, s*0.02);
+  X.closePath(); X.fill();
+  X.restore();
+  X.restore();
+}
+
+function drawTurtle(sz, time, headTilt, legCycle, celebrating) {
+  const s = sz;
+  // Legs
+  X.fillStyle = '#5A9E3A';
+  const legW = s*0.1, legH = s*0.12;
+  [-0.28, -0.1, 0.08, 0.22].forEach((lx, i) => {
+    X.save(); X.translate(s*lx, s*0.18);
+    X.rotate((i%2===0?1:-1) * legCycle * 0.15);
+    X.beginPath(); X.ellipse(0, legH/2, legW/2, legH/2, 0, 0, Math.PI*2); X.fill();
+    X.restore();
+  });
+
+  // Shell
+  const shellG = X.createRadialGradient(-s*0.05, -s*0.1, 2, 0, 0, s*0.4);
+  shellG.addColorStop(0, '#3DAF5C'); shellG.addColorStop(0.7, '#2D8B46'); shellG.addColorStop(1, '#1A5C2E');
+  X.fillStyle = shellG;
+  X.beginPath(); X.ellipse(0, 0, s*0.38, s*0.28, 0, 0, Math.PI*2); X.fill();
+  // Shell dome
+  X.fillStyle = '#3DAF5C';
+  X.beginPath(); X.ellipse(0, -s*0.05, s*0.32, s*0.22, 0, Math.PI, 0); X.fill();
+
+  // Shell pattern
+  X.strokeStyle = '#1A5C2E'; X.lineWidth = 1.5;
+  X.beginPath(); X.ellipse(0, -s*0.02, s*0.18, s*0.13, 0, 0, Math.PI*2); X.stroke();
+  for (let i = 0; i < 6; i++) {
+    const a = i * Math.PI / 3;
+    X.beginPath();
+    X.moveTo(Math.cos(a)*s*0.18, -s*0.02 + Math.sin(a)*s*0.13);
+    X.lineTo(Math.cos(a)*s*0.32, -s*0.02 + Math.sin(a)*s*0.2);
+    X.stroke();
+  }
+
+  // Head
+  X.save(); X.translate(s*0.35, -s*0.05);
+  X.rotate(headTilt * 0.6);
+  // Neck
+  X.fillStyle = '#5A9E3A';
+  X.beginPath(); X.ellipse(-s*0.05, 0, s*0.1, s*0.06, 0, 0, Math.PI*2); X.fill();
+  // Head
+  X.fillStyle = '#4CAF50';
+  X.beginPath(); X.ellipse(s*0.05, -s*0.02, s*0.1, s*0.08, 0.1, 0, Math.PI*2); X.fill();
+  // Eye
+  X.fillStyle = '#fff';
+  X.beginPath(); X.arc(s*0.08, -s*0.06, s*0.035, 0, Math.PI*2); X.fill();
+  X.fillStyle = '#111';
+  X.beginPath(); X.arc(s*0.09, -s*0.055, s*0.018, 0, Math.PI*2); X.fill();
+  X.fillStyle = '#fff';
+  X.beginPath(); X.arc(s*0.095, -s*0.062, s*0.007, 0, Math.PI*2); X.fill();
+  // Smile
+  X.strokeStyle = '#2D6B1A'; X.lineWidth = 1.2;
+  X.beginPath(); X.arc(s*0.1, -s*0.01, s*0.04, 0, Math.PI*0.8); X.stroke();
+  X.restore();
+
+  // Tail
+  X.fillStyle = '#5A9E3A';
+  X.beginPath();
+  X.moveTo(-s*0.35, s*0.05);
+  X.quadraticCurveTo(-s*0.45, s*0.02, -s*0.42, -s*0.02);
+  X.quadraticCurveTo(-s*0.38, 0, -s*0.35, s*0.05);
+  X.fill();
+}
+
+function drawFrog(sz, time, celebrating) {
+  const s = sz;
+  // Back legs (powerful, visible)
+  X.fillStyle = '#3DBF6A';
+  X.save(); X.translate(-s*0.2, s*0.12);
+  X.beginPath(); X.ellipse(0, s*0.05, s*0.12, s*0.06, -0.5, 0, Math.PI*2); X.fill();
+  X.beginPath(); X.ellipse(-s*0.08, s*0.12, s*0.08, s*0.04, 0.3, 0, Math.PI*2); X.fill();
+  X.restore();
+  X.save(); X.translate(s*0.2, s*0.12);
+  X.beginPath(); X.ellipse(0, s*0.05, s*0.12, s*0.06, 0.5, 0, Math.PI*2); X.fill();
+  X.beginPath(); X.ellipse(s*0.08, s*0.12, s*0.08, s*0.04, -0.3, 0, Math.PI*2); X.fill();
+  X.restore();
+
+  // Body
+  const bodyG = X.createRadialGradient(0, -s*0.03, 2, 0, 0, s*0.35);
+  bodyG.addColorStop(0, '#5BEB90'); bodyG.addColorStop(1, '#3DBF6A');
+  X.fillStyle = bodyG;
+  X.beginPath(); X.ellipse(0, 0, s*0.32, s*0.22, 0, 0, Math.PI*2); X.fill();
+
+  // Belly
+  X.fillStyle = '#B5F5C8';
+  X.beginPath(); X.ellipse(0, s*0.06, s*0.2, s*0.12, 0, 0, Math.PI*2); X.fill();
+
+  // Spots
+  X.fillStyle = '#2DAF5A';
+  X.beginPath(); X.arc(-s*0.1, -s*0.08, s*0.04, 0, Math.PI*2); X.fill();
+  X.beginPath(); X.arc(s*0.08, -s*0.05, s*0.03, 0, Math.PI*2); X.fill();
+  X.beginPath(); X.arc(-s*0.05, s*0.02, s*0.025, 0, Math.PI*2); X.fill();
+
+  // Eyes (big, bulging — characteristic frog eyes)
+  const blink = Math.sin(time * 0.8) > 0.95 ? 0.3 : 1; // occasional blink
+  // Left eye
+  X.fillStyle = '#4ADE80';
+  X.beginPath(); X.ellipse(-s*0.14, -s*0.2, s*0.09, s*0.09, 0, 0, Math.PI*2); X.fill();
+  X.fillStyle = '#fff';
+  X.beginPath(); X.ellipse(-s*0.14, -s*0.2, s*0.07, s*0.07 * blink, 0, 0, Math.PI*2); X.fill();
+  X.fillStyle = '#111';
+  X.beginPath(); X.ellipse(-s*0.13, -s*0.19, s*0.035, s*0.04 * blink, 0, 0, Math.PI*2); X.fill();
+  X.fillStyle = '#fff';
+  X.beginPath(); X.arc(-s*0.12, -s*0.21, s*0.012, 0, Math.PI*2); X.fill();
+  // Right eye
+  X.fillStyle = '#4ADE80';
+  X.beginPath(); X.ellipse(s*0.14, -s*0.2, s*0.09, s*0.09, 0, 0, Math.PI*2); X.fill();
+  X.fillStyle = '#fff';
+  X.beginPath(); X.ellipse(s*0.14, -s*0.2, s*0.07, s*0.07 * blink, 0, 0, Math.PI*2); X.fill();
+  X.fillStyle = '#111';
+  X.beginPath(); X.ellipse(s*0.15, -s*0.19, s*0.035, s*0.04 * blink, 0, 0, Math.PI*2); X.fill();
+  X.fillStyle = '#fff';
+  X.beginPath(); X.arc(s*0.16, -s*0.21, s*0.012, 0, Math.PI*2); X.fill();
+
+  // Mouth
+  X.strokeStyle = '#2D8B46'; X.lineWidth = 1.5;
+  X.beginPath(); X.arc(0, s*0.02, s*0.12, 0.1, Math.PI - 0.1); X.stroke();
+
+  // Front legs
+  X.fillStyle = '#3DBF6A';
+  X.beginPath(); X.ellipse(-s*0.22, s*0.1, s*0.06, s*0.04, -0.4, 0, Math.PI*2); X.fill();
+  X.beginPath(); X.ellipse(s*0.22, s*0.1, s*0.06, s*0.04, 0.4, 0, Math.PI*2); X.fill();
+}
+
+// ── Ellie (bigger, more expressive) ─────────────
 function drawEllie() {
-  const ex = W * 0.12, ey = H * 0.52;
+  const ex = W * 0.13, ey = H * 0.5;
   ellie.x = ex; ellie.y = ey;
-  const sz = 40 * SCALE;
-  const bounce = ellie.bounce > 0 ? Math.sin(ellie.bounce * 8) * 5 : 0;
+  const s = 55 * SCALE;
+  const time = T;
+  const bounce = ellie.bounce > 0 ? Math.sin(ellie.bounce * 8) * 8 : 0;
+  const breathe = 1 + Math.sin(time * 1.5) * 0.02;
 
   X.save();
   X.translate(ex, ey - bounce);
 
-  // Shake head animation
   let shakeX = 0;
-  if (ellie.shakeHead && ellie.shakeTimer > 0) {
-    shakeX = Math.sin(ellie.shakeTimer * 15) * 4;
-  }
+  if (ellie.shakeHead && ellie.shakeTimer > 0) shakeX = Math.sin(ellie.shakeTimer * 15) * 6;
   X.translate(shakeX, 0);
-
-  // Body
-  X.fillStyle = '#8B8B8B';
-  X.beginPath();
-  X.ellipse(0, 0, sz*0.55, sz*0.45, 0, 0, Math.PI*2);
-  X.fill();
-
-  // Head
-  X.fillStyle = '#7A7A7A';
-  X.beginPath();
-  X.arc(sz*0.3, -sz*0.35, sz*0.3, 0, Math.PI*2);
-  X.fill();
-
-  // Ears
-  X.fillStyle = '#9A9A9A';
-  X.beginPath();
-  X.ellipse(sz*0.55, -sz*0.45, sz*0.18, sz*0.25, 0.3, 0, Math.PI*2);
-  X.fill();
-  X.beginPath();
-  X.ellipse(sz*0.1, -sz*0.5, sz*0.15, sz*0.22, -0.3, 0, Math.PI*2);
-  X.fill();
-
-  // Eye
-  X.fillStyle = '#fff';
-  X.beginPath();
-  X.arc(sz*0.4, -sz*0.4, sz*0.07, 0, Math.PI*2);
-  X.fill();
-  X.fillStyle = '#222';
-  X.beginPath();
-  X.arc(sz*0.42, -sz*0.4, sz*0.035, 0, Math.PI*2);
-  X.fill();
-
-  // Trunk
-  X.strokeStyle = '#7A7A7A';
-  X.lineWidth = sz * 0.1;
-  X.lineCap = 'round';
-  X.beginPath();
-  const trunkEnd = ellie.trunkUp ? -sz*0.7 : -sz*0.1;
-  X.moveTo(sz*0.5, -sz*0.25);
-  X.quadraticCurveTo(sz*0.7, -sz*0.15, sz*0.65, trunkEnd);
-  X.stroke();
+  X.scale(breathe, breathe);
 
   // Legs
   X.fillStyle = '#7A7A7A';
-  X.fillRect(-sz*0.3, sz*0.25, sz*0.15, sz*0.3);
-  X.fillRect(sz*0.1, sz*0.25, sz*0.15, sz*0.3);
+  const legKick = Math.sin(time * 2) * 0.05;
+  X.save(); X.translate(-s*0.25, s*0.2); X.rotate(legKick);
+  X.beginPath(); X.ellipse(0, s*0.18, s*0.09, s*0.18, 0, 0, Math.PI*2); X.fill(); X.restore();
+  X.save(); X.translate(s*0.12, s*0.2); X.rotate(-legKick);
+  X.beginPath(); X.ellipse(0, s*0.18, s*0.09, s*0.18, 0, 0, Math.PI*2); X.fill(); X.restore();
+  // Toenails
+  X.fillStyle = '#666';
+  X.beginPath(); X.arc(-s*0.25, s*0.38, s*0.09, 0, Math.PI); X.fill();
+  X.beginPath(); X.arc(s*0.12, s*0.38, s*0.09, 0, Math.PI); X.fill();
+
+  // Body
+  const bodyG = X.createRadialGradient(-s*0.05, -s*0.05, 5, 0, 0, s*0.5);
+  bodyG.addColorStop(0, '#9E9E9E'); bodyG.addColorStop(1, '#757575');
+  X.fillStyle = bodyG;
+  X.beginPath(); X.ellipse(0, 0, s*0.45, s*0.35, 0, 0, Math.PI*2); X.fill();
+
+  // Belly
+  X.fillStyle = 'rgba(255,255,255,0.12)';
+  X.beginPath(); X.ellipse(s*0.05, s*0.1, s*0.25, s*0.15, 0, 0, Math.PI*2); X.fill();
+
+  // Head
+  X.fillStyle = '#8A8A8A';
+  X.beginPath(); X.arc(s*0.3, -s*0.28, s*0.25, 0, Math.PI*2); X.fill();
+
+  // Ears (with flap animation)
+  const earFlap = ellie.earFlap > 0 ? Math.sin(ellie.earFlap * 10) * 0.3 : Math.sin(time * 0.8) * 0.05;
+  X.fillStyle = '#9A9A9A';
+  X.save(); X.translate(s*0.5, -s*0.38); X.rotate(earFlap);
+  X.beginPath(); X.ellipse(0, 0, s*0.14, s*0.22, 0.3, 0, Math.PI*2); X.fill();
+  X.fillStyle = '#C4A0A0';
+  X.beginPath(); X.ellipse(0, s*0.02, s*0.08, s*0.14, 0.3, 0, Math.PI*2); X.fill();
+  X.restore();
+  X.fillStyle = '#9A9A9A';
+  X.save(); X.translate(s*0.12, -s*0.42); X.rotate(-earFlap);
+  X.beginPath(); X.ellipse(0, 0, s*0.12, s*0.2, -0.3, 0, Math.PI*2); X.fill();
+  X.fillStyle = '#C4A0A0';
+  X.beginPath(); X.ellipse(0, s*0.02, s*0.07, s*0.12, -0.3, 0, Math.PI*2); X.fill();
+  X.restore();
+
+  // Eyes
+  X.fillStyle = '#fff';
+  X.beginPath(); X.arc(s*0.38, -s*0.33, s*0.06, 0, Math.PI*2); X.fill();
+  X.fillStyle = '#2C1810';
+  X.beginPath(); X.arc(s*0.39, -s*0.32, s*0.035, 0, Math.PI*2); X.fill();
+  X.fillStyle = '#fff';
+  X.beginPath(); X.arc(s*0.4, -s*0.34, s*0.012, 0, Math.PI*2); X.fill();
+
+  // Trunk
+  X.strokeStyle = '#8A8A8A'; X.lineWidth = s*0.09; X.lineCap = 'round';
+  const trunkCurl = ellie.trunkUp ? -s*0.55 : s*0.05;
+  const trunkSway = Math.sin(time * 1.2) * 8;
+  X.beginPath();
+  X.moveTo(s*0.45, -s*0.2);
+  X.bezierCurveTo(s*0.6 + trunkSway, -s*0.15, s*0.65 + trunkSway*0.5, trunkCurl, s*0.55 + trunkSway*0.3, trunkCurl - s*0.1);
+  X.stroke();
+  // Trunk tip
+  X.fillStyle = '#C4A0A0';
+  X.beginPath();
+  X.arc(s*0.55 + trunkSway*0.3, trunkCurl - s*0.1, s*0.04, 0, Math.PI*2);
+  X.fill();
+
+  // Tusk hints
+  X.fillStyle = '#F5F0E0';
+  X.beginPath();
+  X.moveTo(s*0.4, -s*0.12);
+  X.quadraticCurveTo(s*0.5, -s*0.05, s*0.45, s*0.02);
+  X.quadraticCurveTo(s*0.42, -s*0.05, s*0.4, -s*0.12);
+  X.fill();
 
   X.restore();
+}
+
+// ── Splashes ────────────────────────────────────
+function spawnSplash(x, y) {
+  for (let i = 0; i < 6; i++) {
+    splashes.push({
+      x: x + (Math.random() - 0.5) * 30,
+      y: y,
+      vy: -2 - Math.random() * 4,
+      vx: (Math.random() - 0.5) * 3,
+      life: 1,
+      r: 2 + Math.random() * 3
+    });
+  }
+}
+
+function updateSplashes(dt) {
+  for (let i = splashes.length - 1; i >= 0; i--) {
+    const s = splashes[i];
+    s.x += s.vx; s.y += s.vy; s.vy += 5 * dt;
+    s.life -= dt * 1.5;
+    if (s.life <= 0) splashes.splice(i, 1);
+  }
+}
+
+function drawSplashes() {
+  for (const s of splashes) {
+    X.globalAlpha = s.life * 0.7;
+    X.fillStyle = '#8DD8F0';
+    X.beginPath(); X.arc(s.x, s.y, s.r * s.life, 0, Math.PI*2); X.fill();
+  }
+  X.globalAlpha = 1;
 }
 
 // ── Particles ───────────────────────────────────
 function spawnParticles(x, y, count, color1, color2) {
   for (let i = 0; i < count; i++) {
     const angle = Math.random() * Math.PI * 2;
-    const speed = 1 + Math.random() * 3;
+    const speed = 2 + Math.random() * 4;
     particles.push({
-      x, y,
-      vx: Math.cos(angle) * speed,
-      vy: Math.sin(angle) * speed - 1,
-      life: 1,
-      decay: 0.015 + Math.random() * 0.01,
-      r: 3 + Math.random() * 4,
+      x, y, vx: Math.cos(angle)*speed, vy: Math.sin(angle)*speed - 2,
+      life: 1, decay: 0.012 + Math.random() * 0.008,
+      r: 4 + Math.random() * 5,
       color: Math.random() > 0.5 ? color1 : color2
     });
   }
@@ -499,10 +861,7 @@ function spawnParticles(x, y, count, color1, color2) {
 function updateParticles(dt) {
   for (let i = particles.length - 1; i >= 0; i--) {
     const p = particles[i];
-    p.x += p.vx;
-    p.y += p.vy;
-    p.vy += 0.05;
-    p.life -= p.decay;
+    p.x += p.vx; p.y += p.vy; p.vy += 0.06; p.life -= p.decay;
     if (p.life <= 0) particles.splice(i, 1);
   }
 }
@@ -511,143 +870,93 @@ function drawParticles() {
   for (const p of particles) {
     X.globalAlpha = p.life;
     X.fillStyle = p.color;
-    X.beginPath();
-    X.arc(p.x, p.y, p.r * p.life, 0, Math.PI * 2);
-    X.fill();
+    X.beginPath(); X.arc(p.x, p.y, p.r * p.life, 0, Math.PI*2); X.fill();
   }
   X.globalAlpha = 1;
 }
 
 // ── Answer bar ──────────────────────────────────
-let answerBarY = 0;
-let answerBarTargetY = 0;
-let answerBarVisible = false;
+let answerBarY = 0, answerBarTargetY = 0, answerBarVisible = false;
 
 function generateChoices(correct, numChoices) {
   const opts = new Set([correct]);
-  // Distractors: ±1, ±2, ±3
-  const offsets = [-1, 1, -2, 2, -3, 3];
+  const offsets = [-1,1,-2,2,-3,3];
   let oi = 0;
   while (opts.size < numChoices && oi < offsets.length) {
-    const v = correct + offsets[oi];
-    if (v >= 1 && v <= 20) opts.add(v);
-    oi++;
+    const v = correct + offsets[oi]; if (v >= 1 && v <= 20) opts.add(v); oi++;
   }
-  // If still not enough, add nearby
   let d = 4;
   while (opts.size < numChoices) {
-    if (correct + d <= 20) opts.add(correct + d);
-    if (correct - d >= 1 && opts.size < numChoices) opts.add(correct - d);
-    d++;
+    if (correct+d <= 20) opts.add(correct+d);
+    if (correct-d >= 1 && opts.size < numChoices) opts.add(correct-d); d++;
   }
-
-  // For selective counting rounds, make sure the total count of all animals is a distractor
   if (roundData && roundData.others) {
     const totalAll = roundData.qty + roundData.others.qty;
     if (totalAll !== correct && totalAll >= 1 && totalAll <= 20) {
-      const arr = [...opts];
-      // Replace the distractor farthest from correct
-      let farthestIdx = 0, farthestDist = 0;
-      for (let i = 0; i < arr.length; i++) {
-        if (arr[i] === correct) continue;
-        const dist = Math.abs(arr[i] - correct);
-        if (dist > farthestDist) { farthestDist = dist; farthestIdx = i; }
-      }
-      arr[farthestIdx] = totalAll;
-      return shuffle(arr);
+      const arr = [...opts]; let fi=0,fd=0;
+      for (let i=0;i<arr.length;i++){if(arr[i]===correct)continue;const dd=Math.abs(arr[i]-correct);if(dd>fd){fd=dd;fi=i;}}
+      arr[fi]=totalAll; return shuffle(arr);
     }
   }
-
-  // For Tree departures, include peak count as distractor
   if (roundData && roundData.departures > 0) {
     const peak = roundData.qty + roundData.departures;
     if (peak !== correct && peak >= 1 && peak <= 20) {
-      const arr = [...opts];
-      let farthestIdx = 0, farthestDist = 0;
-      for (let i = 0; i < arr.length; i++) {
-        if (arr[i] === correct) continue;
-        const dist = Math.abs(arr[i] - correct);
-        if (dist > farthestDist) { farthestDist = dist; farthestIdx = i; }
-      }
-      arr[farthestIdx] = peak;
-      return shuffle(arr);
+      const arr = [...opts]; let fi=0,fd=0;
+      for (let i=0;i<arr.length;i++){if(arr[i]===correct)continue;const dd=Math.abs(arr[i]-correct);if(dd>fd){fd=dd;fi=i;}}
+      arr[fi]=peak; return shuffle(arr);
     }
   }
-
   return shuffle([...opts].slice(0, numChoices));
 }
 
 function shuffle(arr) {
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
+  for (let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];} return arr;
 }
 
 function drawAnswerBar() {
   if (!answerBarVisible && answerBarY >= H) return;
-
-  // Animate slide
   answerBarY += (answerBarTargetY - answerBarY) * 0.15;
-
   const barH = Math.min(120, H * 0.16);
-  const bw = Math.min(80, (W - 32 - (choices.length - 1) * 12) / choices.length);
-  const totalW = choices.length * bw + (choices.length - 1) * 12;
+  const bw = Math.min(80, (W - 32 - (choices.length-1)*16) / choices.length);
+  const totalW = choices.length * bw + (choices.length-1)*16;
   const startX = (W - totalW) / 2;
 
-  // Bar background
-  X.fillStyle = 'rgba(255,255,255,0.92)';
-  drawRoundedRect(8, answerBarY, W - 16, barH, 16);
-  X.fill();
+  X.fillStyle = 'rgba(255,255,255,0.95)';
+  X.shadowColor = 'rgba(0,0,0,0.1)'; X.shadowBlur = 10; X.shadowOffsetY = -2;
+  drawRoundedRect(8, answerBarY, W-16, barH, 18); X.fill();
+  X.shadowColor = 'transparent'; X.shadowBlur = 0; X.shadowOffsetY = 0;
 
   for (let i = 0; i < choices.length; i++) {
-    const bx = startX + i * (bw + 12);
-    const by = answerBarY + (barH - bw) / 2;
+    const bx = startX + i*(bw+16);
+    const by = answerBarY + (barH-bw)/2;
     const val = choices[i];
     const isGreyed = greyedOut.includes(val);
     const isSelected = selectedChoice === i;
     const isCorrectReveal = state === 'reveal' && val === roundData.qty;
 
-    // Button background
-    if (isGreyed) {
-      X.fillStyle = '#D1D5DB';
-    } else if (isCorrectReveal) {
-      const glow = 0.6 + Math.sin(revealGlow * 4) * 0.4;
+    if (isGreyed) { X.fillStyle = '#E5E7EB'; }
+    else if (isCorrectReveal) {
+      const glow = 0.7 + Math.sin(revealGlow*4)*0.3;
       X.fillStyle = `rgba(251,191,36,${glow})`;
-    } else if (isSelected && state === 'feedback_correct') {
-      X.fillStyle = '#4ADE80';
-    } else {
-      X.fillStyle = '#F0F4F0';
-    }
-    drawRoundedRect(bx, by, bw, bw, 12);
-    X.fill();
+    } else if (isSelected && state === 'feedback_correct') { X.fillStyle = '#4ADE80'; }
+    else { X.fillStyle = '#FAFAFA'; }
+    X.shadowColor = isGreyed ? 'transparent' : 'rgba(0,0,0,0.08)'; X.shadowBlur = 4; X.shadowOffsetY = 2;
+    drawRoundedRect(bx, by, bw, bw, 14); X.fill();
+    X.shadowColor = 'transparent'; X.shadowBlur = 0; X.shadowOffsetY = 0;
 
-    // Border
-    X.strokeStyle = isGreyed ? '#9CA3AF' : '#2D5016';
-    X.lineWidth = 2;
-    drawRoundedRect(bx, by, bw, bw, 12);
-    X.stroke();
+    X.strokeStyle = isGreyed ? '#D1D5DB' : isSelected && state==='feedback_correct' ? '#22A85A' : '#C8D6C0';
+    X.lineWidth = 2; drawRoundedRect(bx, by, bw, bw, 14); X.stroke();
 
-    // Number
-    X.fillStyle = isGreyed ? '#9CA3AF' : '#1F2937';
-    X.font = `bold ${bw * 0.38}px sans-serif`;
-    X.textAlign = 'center';
-    X.textBaseline = 'middle';
-    X.fillText(val, bx + bw/2, by + bw * 0.35);
+    X.fillStyle = isGreyed ? '#B0B5B0' : '#1F2937';
+    X.font = `bold ${bw*0.4}px "Segoe UI",system-ui,sans-serif`;
+    X.textAlign = 'center'; X.textBaseline = 'middle';
+    X.fillText(val, bx+bw/2, by+bw*0.35);
 
-    // Dots
-    if (!isGreyed) {
-      drawDots(bx + bw/2, by + bw * 0.68, val, bw);
-    }
+    if (!isGreyed) drawDots(bx+bw/2, by+bw*0.7, val, bw);
 
-    // Store button bounds for hit testing
     choices[i] = val;
     if (!choiceBounds[i]) choiceBounds[i] = {};
-    choiceBounds[i].x = bx;
-    choiceBounds[i].y = by;
-    choiceBounds[i].w = bw;
-    choiceBounds[i].h = bw;
+    choiceBounds[i].x = bx; choiceBounds[i].y = by; choiceBounds[i].w = bw; choiceBounds[i].h = bw;
   }
 }
 
@@ -655,161 +964,150 @@ let choiceBounds = [];
 
 // ── Mute button ─────────────────────────────────
 function drawMuteButton() {
-  const mx = W - 44, my = 10, ms = 34;
+  const mx = W-44, my = 10, ms = 34;
   X.fillStyle = 'rgba(255,255,255,0.7)';
-  drawRoundedRect(mx, my, ms, ms, 8);
-  X.fill();
-  X.font = `${ms * 0.55}px sans-serif`;
-  X.textAlign = 'center';
-  X.textBaseline = 'middle';
-  X.fillText(muted ? '\u{1F507}' : '\u{1F50A}', mx + ms/2, my + ms/2);
+  drawRoundedRect(mx, my, ms, ms, 8); X.fill();
+  X.font = `${ms*0.55}px sans-serif`;
+  X.textAlign = 'center'; X.textBaseline = 'middle';
+  X.fillText(muted ? '\u{1F507}' : '\u{1F50A}', mx+ms/2, my+ms/2);
 }
 
-// ── Tier select screen ──────────────────────────
+// ── Tier select ─────────────────────────────────
 function drawTierSelect() {
-  // Background
-  const skyG = X.createLinearGradient(0, 0, 0, H);
-  skyG.addColorStop(0, '#87CEEB');
-  skyG.addColorStop(0.5, '#B5E8B5');
-  skyG.addColorStop(1, '#5D8A2F');
-  X.fillStyle = skyG;
-  X.fillRect(0, 0, W, H);
+  const skyG = X.createLinearGradient(0,0,0,H);
+  skyG.addColorStop(0,'#5BB5E8'); skyG.addColorStop(0.4,'#A8DBA8'); skyG.addColorStop(1,'#3D7A28');
+  X.fillStyle = skyG; X.fillRect(0,0,W,H);
 
-  // Title
-  X.fillStyle = '#2D5016';
-  X.font = `bold ${Math.min(28, W * 0.065)}px sans-serif`;
-  X.textAlign = 'center';
-  X.textBaseline = 'middle';
-  X.fillText('Watering Hole Count', W/2, H * 0.08);
-
-  // Ellie centered
-  X.save();
-  X.translate(W/2, H * 0.22);
-  const esz = 50 * SCALE;
-  X.fillStyle = '#8B8B8B';
-  X.beginPath(); X.ellipse(0, 0, esz*0.55, esz*0.45, 0, 0, Math.PI*2); X.fill();
-  X.fillStyle = '#7A7A7A';
-  X.beginPath(); X.arc(esz*0.3, -esz*0.35, esz*0.3, 0, Math.PI*2); X.fill();
-  X.fillStyle = '#9A9A9A';
-  X.beginPath(); X.ellipse(esz*0.55, -esz*0.45, esz*0.18, esz*0.25, 0.3, 0, Math.PI*2); X.fill();
-  X.beginPath(); X.ellipse(esz*0.1, -esz*0.5, esz*0.15, esz*0.22, -0.3, 0, Math.PI*2); X.fill();
-  X.fillStyle = '#fff'; X.beginPath(); X.arc(esz*0.4, -esz*0.4, esz*0.07, 0, Math.PI*2); X.fill();
-  X.fillStyle = '#222'; X.beginPath(); X.arc(esz*0.42, -esz*0.4, esz*0.035, 0, Math.PI*2); X.fill();
-  X.strokeStyle = '#7A7A7A'; X.lineWidth = esz*0.1; X.lineCap = 'round';
-  X.beginPath(); X.moveTo(esz*0.5, -esz*0.25); X.quadraticCurveTo(esz*0.7, -esz*0.15, esz*0.65, -esz*0.6); X.stroke();
-  X.restore();
-
-  // Subtitle
-  X.fillStyle = '#3D6B2E';
-  X.font = `${Math.min(16, W * 0.04)}px sans-serif`;
-  X.fillText('Pick a path, Ranger!', W/2, H * 0.36);
-
-  // Three tier buttons
-  const tiers = ['sprout', 'sapling', 'tree'];
-  const btnW = Math.min(110, (W - 64) / 3);
-  const btnH = btnW * 1.3;
-  const totalBtnW = 3 * btnW + 2 * 16;
-  const startBtnX = (W - totalBtnW) / 2;
-  const btnY = H * 0.42;
-
-  const colors = ['#4ADE80', '#22C55E', '#F59E0B'];
-  const bgColors = ['#D1FAE5', '#BBF7D0', '#FEF3C7'];
-
-  for (let i = 0; i < 3; i++) {
-    const bx = startBtnX + i * (btnW + 16);
-    const t = TIERS[tiers[i]];
-
-    X.fillStyle = bgColors[i];
-    drawRoundedRect(bx, btnY, btnW, btnH, 16);
-    X.fill();
-    X.strokeStyle = colors[i];
-    X.lineWidth = 3;
-    drawRoundedRect(bx, btnY, btnW, btnH, 16);
-    X.stroke();
-
-    // Icon
-    X.font = `${btnW * 0.35}px sans-serif`;
-    X.textAlign = 'center';
-    X.fillStyle = '#333';
-    X.fillText(t.icon, bx + btnW/2, btnY + btnH * 0.3);
-
-    // Label
-    X.font = `bold ${Math.min(13, btnW * 0.13)}px sans-serif`;
-    X.fillStyle = '#2D5016';
-    X.fillText(t.label, bx + btnW/2, btnY + btnH * 0.6);
-
-    // Tier name
-    X.font = `${Math.min(11, btnW * 0.1)}px sans-serif`;
-    X.fillStyle = '#6B7280';
-    const tierDesc = i === 0 ? 'Count 1-5' : i === 1 ? 'Count 3-8' : 'Count 5-12';
-    X.fillText(tierDesc, bx + btnW/2, btnY + btnH * 0.78);
-
-    // Store bounds
-    if (!tierBounds[i]) tierBounds[i] = {};
-    tierBounds[i].x = bx;
-    tierBounds[i].y = btnY;
-    tierBounds[i].w = btnW;
-    tierBounds[i].h = btnH;
+  // Clouds
+  X.fillStyle = 'rgba(255,255,255,0.5)';
+  for (let i=0;i<3;i++){
+    const cx = ((T*6+i*W*0.35)%(W+150))-75;
+    X.beginPath(); X.ellipse(cx, H*0.06+i*H*0.04, 40, 14, 0, 0, Math.PI*2); X.fill();
+    X.beginPath(); X.ellipse(cx+20, H*0.05+i*H*0.04, 28, 10, 0, 0, Math.PI*2); X.fill();
   }
 
+  X.fillStyle = '#2D5016';
+  X.font = `bold ${Math.min(30, W*0.07)}px "Segoe UI",system-ui,sans-serif`;
+  X.textAlign = 'center'; X.textBaseline = 'middle';
+  X.fillText('Watering Hole Count', W/2, H*0.08);
+
+  // Draw a bigger, friendlier Ellie on the title screen
+  X.save(); X.translate(W/2, H*0.24);
+  const s = 60*SCALE;
+  // Simplified Ellie for title
+  X.fillStyle = '#8B8B8B';
+  X.beginPath(); X.ellipse(0,0,s*0.45,s*0.35,0,0,Math.PI*2); X.fill();
+  X.fillStyle = '#7A7A7A';
+  X.beginPath(); X.arc(s*0.25,-s*0.25,s*0.22,0,Math.PI*2); X.fill();
+  X.fillStyle = '#9A9A9A';
+  X.beginPath(); X.ellipse(s*0.42,-s*0.35,s*0.12,s*0.18,0.3,0,Math.PI*2); X.fill();
+  X.beginPath(); X.ellipse(s*0.08,-s*0.38,s*0.1,s*0.16,-0.3,0,Math.PI*2); X.fill();
+  X.fillStyle = '#C4A0A0';
+  X.beginPath(); X.ellipse(s*0.42,-s*0.33,s*0.06,s*0.1,0.3,0,Math.PI*2); X.fill();
+  X.fillStyle = '#fff'; X.beginPath(); X.arc(s*0.32,-s*0.3,s*0.05,0,Math.PI*2); X.fill();
+  X.fillStyle = '#222'; X.beginPath(); X.arc(s*0.33,-s*0.29,s*0.025,0,Math.PI*2); X.fill();
+  X.fillStyle = '#fff'; X.beginPath(); X.arc(s*0.34,-s*0.3,s*0.01,0,Math.PI*2); X.fill();
+  // Trunk wave
+  X.strokeStyle = '#7A7A7A'; X.lineWidth = s*0.08; X.lineCap = 'round';
+  const tw = Math.sin(T*2)*8;
+  X.beginPath(); X.moveTo(s*0.4,-s*0.18);
+  X.bezierCurveTo(s*0.55+tw,-s*0.1,s*0.6+tw*0.5,-s*0.45,s*0.5+tw*0.3,-s*0.55);
+  X.stroke();
+  X.restore();
+
+  X.fillStyle = '#3D6B2E';
+  X.font = `${Math.min(17, W*0.042)}px "Segoe UI",system-ui,sans-serif`;
+  X.fillText('Pick a path, Ranger!', W/2, H*0.39);
+
+  const tkeys = ['sprout','sapling','tree'];
+  const btnW = Math.min(120, (W-64)/3);
+  const btnH = btnW*1.3;
+  const totalBtnW = 3*btnW + 2*20;
+  const startBtnX = (W-totalBtnW)/2;
+  const btnY = H*0.44;
+  const colors = ['#4ADE80','#22C55E','#F59E0B'];
+  const bgColors = ['#E8FBE8','#D4F5D4','#FFF8E0'];
+
+  for (let i=0;i<3;i++){
+    const bx = startBtnX + i*(btnW+20);
+    const t2 = TIERS[tkeys[i]];
+    // Hover-like subtle animation
+    const lift = Math.sin(T*1.5 + i*1.5) * 2;
+
+    X.shadowColor = 'rgba(0,0,0,0.1)'; X.shadowBlur = 8; X.shadowOffsetY = 3;
+    X.fillStyle = bgColors[i];
+    drawRoundedRect(bx, btnY-lift, btnW, btnH, 18); X.fill();
+    X.shadowColor = 'transparent'; X.shadowBlur = 0; X.shadowOffsetY = 0;
+    X.strokeStyle = colors[i]; X.lineWidth = 3;
+    drawRoundedRect(bx, btnY-lift, btnW, btnH, 18); X.stroke();
+
+    X.font = `${btnW*0.35}px sans-serif`;
+    X.textAlign = 'center'; X.fillStyle = '#333';
+    X.fillText(t2.icon, bx+btnW/2, btnY-lift+btnH*0.28);
+
+    X.font = `bold ${Math.min(14,btnW*0.13)}px "Segoe UI",system-ui,sans-serif`;
+    X.fillStyle = '#2D5016';
+    X.fillText(t2.label, bx+btnW/2, btnY-lift+btnH*0.55);
+
+    X.font = `${Math.min(12,btnW*0.11)}px "Segoe UI",system-ui,sans-serif`;
+    X.fillStyle = '#6B7280';
+    X.fillText(i===0?'Count 1-5':i===1?'Count 3-8':'Count 5-12', bx+btnW/2, btnY-lift+btnH*0.72);
+
+    if(!tierBounds[i]) tierBounds[i]={};
+    tierBounds[i].x=bx; tierBounds[i].y=btnY-lift; tierBounds[i].w=btnW; tierBounds[i].h=btnH;
+  }
   drawMuteButton();
 }
 
 let tierBounds = [{},{},{}];
 
-// ── Session end screen ──────────────────────────
+// ── Session end ─────────────────────────────────
 function drawSessionEnd() {
   drawBackground();
+
+  // Draw all animals celebrating at the watering hole
+  for (const a of [...animals, ...otherAnimals]) { if(a.visible) { a.celebrating = true; drawAnimal(a); } }
   drawEllie();
 
-  // Message
-  X.fillStyle = 'rgba(255,255,255,0.9)';
-  drawRoundedRect(W * 0.08, H * 0.3, W * 0.84, H * 0.25, 20);
-  X.fill();
+  X.fillStyle = 'rgba(255,255,255,0.92)';
+  X.shadowColor = 'rgba(0,0,0,0.1)'; X.shadowBlur = 12;
+  drawRoundedRect(W*0.08, H*0.28, W*0.84, H*0.22, 22); X.fill();
+  X.shadowColor = 'transparent'; X.shadowBlur = 0;
 
   X.fillStyle = '#2D5016';
-  X.font = `bold ${Math.min(22, W * 0.055)}px sans-serif`;
+  X.font = `bold ${Math.min(24,W*0.06)}px "Segoe UI",system-ui,sans-serif`;
   X.textAlign = 'center';
-  X.fillText('Great safari, Ranger!', W/2, H * 0.38);
-
-  X.font = `${Math.min(17, W * 0.042)}px sans-serif`;
+  X.fillText('Great safari, Ranger!', W/2, H*0.36);
+  X.font = `${Math.min(17,W*0.042)}px "Segoe UI",system-ui,sans-serif`;
   X.fillStyle = '#3D6B2E';
-  X.fillText(`You counted 8 groups today!`, W/2, H * 0.45);
+  X.fillText('You counted 8 groups today!', W/2, H*0.43);
 
-  // Ellie trunk wave
   ellie.trunkUp = true;
+  ellie.earFlap = T;
 
-  // Buttons
-  const btnW = Math.min(100, W * 0.25);
-  const btnH = btnW * 0.65;
-  const gap = 24;
-
-  // Replay button
-  const rx = W/2 - btnW - gap/2;
-  const ry = H * 0.6;
+  const btnW = Math.min(100, W*0.25), btnH = btnW*0.65, gap = 24;
+  const rx = W/2-btnW-gap/2, ry = H*0.58;
   X.fillStyle = '#4ADE80';
-  drawRoundedRect(rx, ry, btnW, btnH, 14);
-  X.fill();
-  X.font = `${btnH * 0.45}px sans-serif`;
-  X.textAlign = 'center';
-  X.textBaseline = 'middle';
-  X.fillText('\u{1F504}', rx + btnW/2, ry + btnH/2);
-  endBounds.replay = { x:rx, y:ry, w:btnW, h:btnH };
+  X.shadowColor = 'rgba(0,0,0,0.1)'; X.shadowBlur = 6;
+  drawRoundedRect(rx,ry,btnW,btnH,14); X.fill();
+  X.shadowColor = 'transparent'; X.shadowBlur = 0;
+  X.font = `${btnH*0.45}px sans-serif`; X.textAlign = 'center'; X.textBaseline = 'middle';
+  X.fillText('\u{1F504}', rx+btnW/2, ry+btnH/2);
+  endBounds.replay = {x:rx,y:ry,w:btnW,h:btnH};
 
-  // Home button
-  const hx = W/2 + gap/2;
-  X.fillStyle = '#F0F4F0';
-  drawRoundedRect(hx, ry, btnW, btnH, 14);
-  X.fill();
-  X.strokeStyle = '#2D5016';
-  X.lineWidth = 2;
-  drawRoundedRect(hx, ry, btnW, btnH, 14);
-  X.stroke();
+  const hx = W/2+gap/2;
+  X.fillStyle = '#F5F5F0';
+  X.shadowColor = 'rgba(0,0,0,0.08)'; X.shadowBlur = 4;
+  drawRoundedRect(hx,ry,btnW,btnH,14); X.fill();
+  X.shadowColor = 'transparent'; X.shadowBlur = 0;
+  X.strokeStyle = '#B0C0A0'; X.lineWidth = 2;
+  drawRoundedRect(hx,ry,btnW,btnH,14); X.stroke();
   X.fillStyle = '#333';
-  X.fillText('\u{1F3E0}', hx + btnW/2, ry + btnH/2);
-  endBounds.home = { x:hx, y:ry, w:btnW, h:btnH };
+  X.fillText('\u{1F3E0}', hx+btnW/2, ry+btnH/2);
+  endBounds.home = {x:hx,y:ry,w:btnW,h:btnH};
 
   drawParticles();
+  drawSplashes();
   drawMuteButton();
 }
 
@@ -819,137 +1117,74 @@ let endBounds = {};
 function setupRound() {
   const rd = TIERS[tier].rounds[roundIndex];
   roundData = rd;
-  animals = [];
-  otherAnimals = [];
-  obstacles = [];
-  greyedOut = [];
-  wrongAttempts = 0;
-  selectedChoice = -1;
-  scaffoldIndex = -1;
-  answerBarVisible = false;
-  answerBarY = H + 20;
-  answerBarTargetY = H + 20;
-  choiceBounds = [];
-  wanderWarned = false;
-  paused = false;
-  ellie.trunkUp = false;
-  ellie.shakeHead = false;
-  ellie.shakeTimer = 0;
-  ellie.bounce = 0;
+  animals = []; otherAnimals = []; obstacles = []; greyedOut = [];
+  wrongAttempts = 0; selectedChoice = -1; scaffoldIndex = -1;
+  answerBarVisible = false; answerBarY = H+20; answerBarTargetY = H+20;
+  choiceBounds = []; wanderWarned = false; paused = false;
+  ellie.trunkUp = false; ellie.shakeHead = false; ellie.shakeTimer = 0; ellie.bounce = 0; ellie.earFlap = 0;
 
   roundLog = {
-    round: roundIndex + 1,
-    tier: tier,
-    animalType: ANIMAL_TYPES[rd.animal].name,
-    correctAnswer: rd.qty,
-    attemptsNeeded: 0,
-    scaffoldTriggered: false,
-    answerRevealed: false,
-    wrongAnswersTapped: [],
-    timeToFirstTap: 0,
-    timeToCorrectTap: 0,
-    hadOcclusion: rd.occlusion > 0,
-    hadSelectiveCounting: rd.others !== null,
-    hadDeparture: rd.departures > 0,
-    hadLateArrival: rd.lateArrivals > 0,
-    barAppearedAt: 0
+    round: roundIndex+1, tier, animalType: ANIMAL_TYPES[rd.animal].name,
+    correctAnswer: rd.qty, attemptsNeeded: 0, scaffoldTriggered: false,
+    answerRevealed: false, wrongAnswersTapped: [], timeToFirstTap: 0,
+    timeToCorrectTap: 0, hadOcclusion: rd.occlusion>0, hadSelectiveCounting: rd.others!==null,
+    hadDeparture: rd.departures>0, hadLateArrival: rd.lateArrivals>0, barAppearedAt: 0
   };
 
-  // Place obstacles for occlusion
-  const occlusionTypes = ['rock', 'tree', 'grass'];
-  for (let i = 0; i < rd.occlusion; i++) {
+  const occTypes = ['rock','tree','grass'];
+  for (let i=0; i<rd.occlusion; i++) {
     obstacles.push({
-      type: occlusionTypes[i % 3],
-      x: W * 0.4 + i * W * 0.2 + Math.random() * W * 0.1,
-      y: H * 0.38 + Math.random() * H * 0.05,
-      w: 40 + Math.random() * 20,
-      h: 45 + Math.random() * 15
+      type: occTypes[i%3],
+      x: W*0.4 + i*W*0.2 + Math.random()*W*0.1,
+      y: H*0.38 + Math.random()*H*0.05,
+      w: 45+Math.random()*20, h: 50+Math.random()*15
     });
   }
 
-  // Determine total to place initially
   const initialCount = rd.qty - rd.lateArrivals + rd.departures;
-  const totalAsked = rd.qty + rd.departures; // peak count before departures
+  const totalAsked = rd.qty + rd.departures;
+  const spacing = Math.min(85, (W*0.6) / Math.max(totalAsked, 1));
 
-  // Place main animals
-  const spacing = Math.min(70, (W * 0.65) / Math.max(totalAsked, 1));
-  for (let i = 0; i < totalAsked; i++) {
-    const willDepart = i >= totalAsked - rd.departures;
-    const isLate = i >= initialCount && i < initialCount + rd.lateArrivals;
-    // Actually, let's recalculate: we want initialCount on screen, then lateArrivals come in, then departures leave
-    // Peak = initialCount + lateArrivals = rd.qty + rd.departures
-    // After departures: rd.qty animals remain (the correct answer)
+  for (let i=0; i<totalAsked; i++) {
     const a = {
       type: rd.animal,
-      x: W * 0.28 + (i % 6) * spacing + Math.random() * 15,
-      y: H * 0.36 + Math.floor(i / 6) * 40 + Math.random() * 15,
-      targetX: 0, targetY: 0,
-      visible: true,
-      arriving: false,
-      departing: false,
-      departed: false,
-      lateArrival: false,
-      lateArrivalTime: 0,
-      departureTime: 0,
-      highlighted: false,
-      celebrating: false,
-      phase: Math.random() * Math.PI * 2,
-      opacity: 1
+      x: W*0.3 + (i%5)*spacing + (Math.random()-0.5)*20,
+      y: H*0.36 + Math.floor(i/5)*55 + (Math.random()-0.5)*10,
+      targetX:0, targetY:0, visible:true, arriving:false,
+      departing:false, departed:false, lateArrival:false, lateArrivalTime:0,
+      departureTime:0, highlighted:false, celebrating:false,
+      phase: Math.random()*Math.PI*2, opacity:1
     };
-    a.targetX = a.x;
-    a.targetY = a.y;
-
+    a.targetX = a.x; a.targetY = a.y;
     animals.push(a);
   }
 
-  // Mark late arrivals (last N animals start off-screen)
-  for (let i = 0; i < rd.lateArrivals; i++) {
-    const idx = initialCount + i; // but we may have more animals due to departures
-    // Actually let's index from the end of non-departing animals
-    // Re-think: we have totalAsked animals. The last rd.departures will leave.
-    // The "late arrivals" should be among the ones that STAY.
-    // So: animals 0..initialCount-1 are on screen initially
-    // animals initialCount..initialCount+lateArrivals-1 arrive late
-    // animals totalAsked-departures..totalAsked-1 depart
-    if (idx < animals.length) {
-      animals[idx].visible = false;
-      animals[idx].lateArrival = true;
-      animals[idx].lateArrivalTime = 3 + i * 2; // seconds
-      animals[idx].x = -50; // off-screen left
+  for (let i=0; i<rd.lateArrivals; i++) {
+    const idx = initialCount+i;
+    if (idx<animals.length) {
+      animals[idx].visible=false; animals[idx].lateArrival=true;
+      animals[idx].lateArrivalTime=3+i*2; animals[idx].x=-50;
     }
   }
-
-  // Mark departures
-  for (let i = 0; i < rd.departures; i++) {
-    const idx = totalAsked - 1 - i;
-    if (idx >= 0 && idx < animals.length) {
-      animals[idx].departing = true;
-      animals[idx].departureTime = 8 + i * 2; // seconds
-    }
+  for (let i=0; i<rd.departures; i++) {
+    const idx = totalAsked-1-i;
+    if (idx>=0 && idx<animals.length) { animals[idx].departing=true; animals[idx].departureTime=8+i*2; }
   }
 
-  // Place "other" animals (for selective counting)
   if (rd.others) {
-    for (let i = 0; i < rd.others.qty; i++) {
+    for (let i=0; i<rd.others.qty; i++) {
       otherAnimals.push({
         type: rd.others.type,
-        x: W * 0.55 + i * spacing * 0.8 + Math.random() * 20,
-        y: H * 0.40 + Math.random() * 15,
-        visible: true,
-        highlighted: false,
-        celebrating: false,
-        phase: Math.random() * Math.PI * 2,
-        opacity: 1
+        x: W*0.58 + i*spacing*0.8 + (Math.random()-0.5)*20,
+        y: H*0.42 + (Math.random()-0.5)*10,
+        visible:true, highlighted:false, celebrating:false,
+        phase: Math.random()*Math.PI*2, opacity:1
       });
     }
   }
 
-  // Generate answer choices
-  const numChoices = TIERS[tier].choices;
-  choices = generateChoices(rd.qty, numChoices);
-
-  state = 'scene_setup';
-  stateTimer = 0;
+  choices = generateChoices(rd.qty, TIERS[tier].choices);
+  state = 'scene_setup'; stateTimer = 0;
 }
 
 // ── State machine ───────────────────────────────
@@ -958,327 +1193,182 @@ let questionSpoken = false;
 let barDelay = 0;
 
 function update(dt) {
+  T += dt;
   stateTimer += dt;
   updateParticles(dt);
+  updateSplashes(dt);
 
-  // Ellie animations
   if (ellie.shakeTimer > 0) ellie.shakeTimer -= dt;
   if (ellie.shakeTimer <= 0) ellie.shakeHead = false;
   if (ellie.trunkTimer > 0) { ellie.trunkTimer -= dt; if (ellie.trunkTimer <= 0) ellie.trunkUp = false; }
   if (ellie.bounce > 0) ellie.bounce -= dt;
+  if (ellie.earFlap > 0) ellie.earFlap -= dt * 0.5;
 
   if (state === 'scene_setup') {
-    if (stateTimer > 1.5) {
-      state = 'animals_arrive';
-      stateTimer = 0;
-      // Play arrival sound
-      sfxPop();
-    }
+    if (stateTimer > 1.5) { state = 'animals_arrive'; stateTimer = 0; sfxPop(); }
   }
   else if (state === 'animals_arrive') {
-    // Animals walk in (simple: fade in over 1s)
-    for (const a of animals) {
-      if (!a.lateArrival && a.visible) {
-        a.opacity = Math.min(1, stateTimer / 0.8);
-      }
-    }
-    if (stateTimer > 1.5) {
-      state = 'question';
-      stateTimer = 0;
-      questionSpoken = false;
-    }
+    for (const a of animals) { if (!a.lateArrival && a.visible) a.opacity = Math.min(1, stateTimer/0.8); }
+    if (stateTimer > 1.5) { state = 'question'; stateTimer = 0; questionSpoken = false; }
   }
   else if (state === 'question') {
-    // Handle late arrivals
     for (const a of animals) {
-      if (a.lateArrival && !a.visible && stateTimer >= a.lateArrivalTime) {
-        a.visible = true;
-        a.x = -30;
-        a.opacity = 0;
-        sfxPop();
-      }
-      if (a.lateArrival && a.visible) {
-        a.x += (a.targetX - a.x) * 0.05;
-        a.opacity = Math.min(1, a.opacity + dt * 2);
-      }
+      if (a.lateArrival && !a.visible && stateTimer >= a.lateArrivalTime) { a.visible=true; a.x=-30; a.opacity=0; sfxPop(); }
+      if (a.lateArrival && a.visible) { a.x += (a.targetX-a.x)*0.05; a.opacity = Math.min(1,a.opacity+dt*2); }
+      if (a.departing && !a.departed && stateTimer >= a.departureTime) a.departed = true;
+      if (a.departed) { a.x += dt*80; a.opacity = Math.max(0,a.opacity-dt); if (a.x>W+50) a.visible=false; }
     }
-
-    // Handle departures
-    for (const a of animals) {
-      if (a.departing && !a.departed && stateTimer >= a.departureTime) {
-        a.departed = true;
-      }
-      if (a.departed) {
-        a.x += dt * 80; // walk off right
-        a.opacity = Math.max(0, a.opacity - dt);
-        if (a.x > W + 50) a.visible = false;
-      }
-    }
-
     if (!questionSpoken) {
-      questionSpoken = true;
-      sfxTrumpet();
-      const animalName = ANIMAL_TYPES[roundData.animal].name;
-      setTimeout(() => {
-        speak(`How many ${animalName} are at the watering hole?`, 0.85);
-      }, 400);
-      // Show answer bar after fixed delay (don't depend on speech callback)
+      questionSpoken = true; sfxTrumpet();
+      ellie.trunkUp = true; ellie.trunkTimer = 4;
+      setTimeout(() => speak(`How many ${ANIMAL_TYPES[roundData.animal].name} are at the watering hole?`, 0.85), 400);
       barDelay = 3.0;
     }
-
     if (barDelay > 0) {
       barDelay -= dt;
       if (barDelay <= 0) {
-        state = 'answer';
-        stateTimer = 0;
-        answerBarVisible = true;
-        answerBarTargetY = H - Math.min(130, H * 0.18);
-        roundLog.barAppearedAt = performance.now();
-        sfxPop();
+        state = 'answer'; stateTimer = 0;
+        answerBarVisible = true; answerBarTargetY = H - Math.min(130, H*0.18);
+        roundLog.barAppearedAt = performance.now(); sfxPop();
       }
     }
-
-    // Wander warning (Sapling/Tree)
     const wt = TIERS[tier].wanderTime;
-    if (wt < Infinity && stateTimer > wt - 2 && !wanderWarned) {
-      wanderWarned = true;
-      speak("They're starting to leave!", 0.9);
-    }
+    if (wt < Infinity && stateTimer > wt-2 && !wanderWarned) { wanderWarned = true; speak("They're starting to leave!", 0.9); }
   }
   else if (state === 'answer') {
-    // Continue late arrivals / departures in Tree
     for (const a of animals) {
-      if (a.lateArrival && a.visible) {
-        a.x += (a.targetX - a.x) * 0.05;
-        a.opacity = Math.min(1, a.opacity + dt * 2);
-      }
-      if (a.departed) {
-        a.x += dt * 80;
-        a.opacity = Math.max(0, a.opacity - dt);
-        if (a.x > W + 50) a.visible = false;
-      }
-      if (a.departing && !a.departed && stateTimer + (questionSpoken ? 3 : 0) >= a.departureTime) {
-        a.departed = true;
-      }
+      if (a.lateArrival && a.visible) { a.x += (a.targetX-a.x)*0.05; a.opacity = Math.min(1,a.opacity+dt*2); }
+      if (a.departed) { a.x += dt*80; a.opacity = Math.max(0,a.opacity-dt); if (a.x>W+50) a.visible=false; }
+      if (a.departing && !a.departed && stateTimer + 3 >= a.departureTime) a.departed = true;
     }
-
-    // Auto-pause for Sapling/Tree
     const pt = TIERS[tier].pauseTime;
-    if (pt < Infinity && stateTimer > pt && !paused) {
-      paused = true;
-      // Freeze animals
-      speak("Take your time!", 0.85);
-    }
+    if (pt < Infinity && stateTimer > pt && !paused) { paused = true; speak("Take your time!", 0.85); }
   }
   else if (state === 'feedback_correct') {
-    // Celebration animation
-    for (const a of [...animals, ...otherAnimals]) {
-      if (a.visible) a.celebrating = true;
+    for (const a of [...animals, ...otherAnimals]) { if (a.visible) a.celebrating = true; }
+    ellie.trunkUp = true; ellie.earFlap = 1;
+    // Spawn water splashes during celebration
+    if (stateTimer < 0.5 && Math.random() < 0.3) {
+      const va = animals.filter(a => a.visible);
+      if (va.length) { const ra = va[Math.floor(Math.random()*va.length)]; spawnSplash(ra.x, H*0.44); sfxSplash(); }
     }
-    ellie.trunkUp = true;
-    if (stateTimer > 2.0) {
-      // End celebration, advance
+    if (stateTimer > 2.2) {
       for (const a of [...animals, ...otherAnimals]) a.celebrating = false;
       advanceRound();
     }
   }
   else if (state === 'feedback_wrong') {
-    if (stateTimer > 1.5) {
-      state = 'answer';
-      stateTimer = 0;
-    }
+    if (stateTimer > 1.5) { state = 'answer'; stateTimer = 0; }
   }
   else if (state === 'scaffold') {
     scaffoldTimer += dt;
     const interval = 0.7;
     const targetIdx = Math.floor(scaffoldTimer / interval);
     const visibleAnimals = animals.filter(a => a.visible && !a.departed);
-
     if (targetIdx !== scaffoldIndex && targetIdx < visibleAnimals.length) {
       scaffoldIndex = targetIdx;
-      // Highlight this animal
       for (const a of animals) a.highlighted = false;
       visibleAnimals[scaffoldIndex].highlighted = true;
       sfxScaffoldBoop(scaffoldIndex);
-      speak(`${scaffoldIndex + 1}`, 0.7);
+      speak(`${scaffoldIndex+1}`, 0.7);
     }
-
-    if (targetIdx >= visibleAnimals.length && scaffoldTimer > visibleAnimals.length * interval + 0.8) {
-      // Scaffold complete
+    if (targetIdx >= visibleAnimals.length && scaffoldTimer > visibleAnimals.length*interval+0.8) {
       for (const a of animals) a.highlighted = false;
       const n = roundData.qty;
-      speak(`${n}! There are ${n} ${ANIMAL_TYPES[roundData.animal].name}.`, 0.8, () => {
-        state = 'answer';
-        stateTimer = 0;
-      });
-      state = 'scaffold_done';
-      stateTimer = 0;
+      speak(`${n}! There are ${n} ${ANIMAL_TYPES[roundData.animal].name}.`, 0.8, () => { state='answer'; stateTimer=0; });
+      state = 'scaffold_done'; stateTimer = 0;
     }
   }
-  else if (state === 'scaffold_done') {
-    // Wait for speech to finish
-    if (stateTimer > 2.5) {
-      state = 'answer';
-      stateTimer = 0;
-    }
-  }
-  else if (state === 'reveal') {
-    revealGlow += dt;
-    // Just wait for player to tap the correct answer
-  }
+  else if (state === 'scaffold_done') { if (stateTimer > 2.5) { state='answer'; stateTimer=0; } }
+  else if (state === 'reveal') { revealGlow += dt; }
 }
 
 function advanceRound() {
   roundIndex++;
   if (roundIndex >= 8) {
-    state = 'session_end';
-    stateTimer = 0;
-    logSession();
+    state = 'session_end'; stateTimer = 0; logSession();
     speak("Great safari, Ranger! You counted 8 groups today!", 0.85);
-    spawnParticles(W/2, H*0.35, 20, '#4ADE80', '#FFD700');
-  } else {
-    setupRound();
-  }
+    spawnParticles(W/2, H*0.35, 25, '#4ADE80', '#FFD700');
+  } else { setupRound(); }
 }
 
 // ── Input ───────────────────────────────────────
 function handleTap(px, py) {
   unlockAudio();
-
-  // Mute button (always active)
-  if (px > W - 48 && py < 48) {
-    muted = !muted;
-    return;
-  }
+  if (px > W-48 && py < 48) { muted = !muted; return; }
 
   if (state === 'tier_select') {
-    const tiers = ['sprout', 'sapling', 'tree'];
-    for (let i = 0; i < 3; i++) {
+    const tkeys = ['sprout','sapling','tree'];
+    for (let i=0;i<3;i++){
       const b = tierBounds[i];
-      if (px >= b.x && px <= b.x + b.w && py >= b.y && py <= b.y + b.h) {
-        tier = tiers[i];
-        localStorage.setItem('wh_tier', tier);
-        roundIndex = 0;
-        sessionLog = [];
-        speak(TIERS[tier].label + '!', 0.9);
-        // Start game after short delay (don't depend on speech callback)
-        setTimeout(() => { if (state === 'loading') setupRound(); }, 1200);
-        state = 'loading';
-        return;
+      if (px>=b.x && px<=b.x+b.w && py>=b.y && py<=b.y+b.h) {
+        tier = tkeys[i]; localStorage.setItem('wh_tier',tier);
+        roundIndex = 0; sessionLog = [];
+        speak(TIERS[tier].label+'!', 0.9);
+        setTimeout(() => { if (state==='loading') setupRound(); }, 1200);
+        state = 'loading'; return;
       }
     }
-    // Tap Ellie area to hear instruction again
-    if (py > H * 0.12 && py < H * 0.32) {
-      speak('Pick a path, Ranger!', 0.85);
-    }
+    if (py > H*0.15 && py < H*0.35) speak('Pick a path, Ranger!', 0.85);
     return;
   }
 
   if (state === 'session_end') {
-    if (endBounds.replay && px >= endBounds.replay.x && px <= endBounds.replay.x + endBounds.replay.w &&
-        py >= endBounds.replay.y && py <= endBounds.replay.y + endBounds.replay.h) {
-      sessionLog[sessionLog.length - 1].replayChosen = true;
-      roundIndex = 0;
-      sessionLog = [];
-      setupRound();
-      return;
+    if (endBounds.replay && px>=endBounds.replay.x && px<=endBounds.replay.x+endBounds.replay.w && py>=endBounds.replay.y && py<=endBounds.replay.y+endBounds.replay.h) {
+      if (sessionLog.length) sessionLog[sessionLog.length-1].replayChosen = true;
+      roundIndex = 0; sessionLog = []; setupRound(); return;
     }
-    if (endBounds.home && px >= endBounds.home.x && px <= endBounds.home.x + endBounds.home.w &&
-        py >= endBounds.home.y && py <= endBounds.home.y + endBounds.home.h) {
-      state = 'tier_select';
-      return;
-    }
+    if (endBounds.home && px>=endBounds.home.x && px<=endBounds.home.x+endBounds.home.w && py>=endBounds.home.y && py<=endBounds.home.y+endBounds.home.h) { state = 'tier_select'; return; }
     return;
   }
 
-  // Tap Ellie to re-hear question
-  if ((state === 'answer' || state === 'question') && roundData) {
-    const ed = Math.hypot(px - ellie.x, py - ellie.y);
-    if (ed < 50) {
-      const animalName = ANIMAL_TYPES[roundData.animal].name;
-      speak(`How many ${animalName} are at the watering hole?`, 0.85);
-      return;
-    }
+  if ((state==='answer'||state==='question') && roundData) {
+    const ed = Math.hypot(px-ellie.x, py-ellie.y);
+    if (ed < 60) { speak(`How many ${ANIMAL_TYPES[roundData.animal].name} are at the watering hole?`, 0.85); return; }
   }
 
-  // Answer bar taps
-  if (state === 'answer' || state === 'reveal') {
-    for (let i = 0; i < choices.length; i++) {
-      const b = choiceBounds[i];
-      if (!b || !b.x) continue;
-      if (px >= b.x && px <= b.x + b.w && py >= b.y && py <= b.y + b.h) {
+  if (state==='answer' || state==='reveal') {
+    for (let i=0;i<choices.length;i++){
+      const b = choiceBounds[i]; if(!b||!b.x) continue;
+      if (px>=b.x && px<=b.x+b.w && py>=b.y && py<=b.y+b.h) {
         const val = choices[i];
-        if (greyedOut.includes(val)) return; // already tried
-
+        if (greyedOut.includes(val)) return;
         sfxTap();
         const now = performance.now();
-
-        if (roundLog.attemptsNeeded === 0) {
-          roundLog.timeToFirstTap = now - roundLog.barAppearedAt;
-        }
+        if (roundLog.attemptsNeeded === 0) roundLog.timeToFirstTap = now - roundLog.barAppearedAt;
 
         if (val === roundData.qty) {
-          // CORRECT
-          roundLog.attemptsNeeded = wrongAttempts + 1;
+          roundLog.attemptsNeeded = wrongAttempts+1;
           roundLog.timeToCorrectTap = now - roundLog.barAppearedAt;
-          selectedChoice = i;
-          state = 'feedback_correct';
-          stateTimer = 0;
-          sfxCorrect();
-          sfxTrumpet();
-          spawnParticles(b.x + b.w/2, b.y + b.h/2, 12, '#4ADE80', '#FFD700');
-          ellie.bounce = 0.6;
-          const praise = PRAISE[Math.floor(Math.random() * PRAISE.length)];
+          selectedChoice = i; state = 'feedback_correct'; stateTimer = 0;
+          sfxCorrect(); sfxTrumpet();
+          spawnParticles(b.x+b.w/2, b.y, 18, '#4ADE80', '#FFD700');
+          spawnParticles(b.x+b.w/2, b.y, 8, '#FFD700', '#FF8C42');
+          ellie.bounce = 0.8; ellie.earFlap = 1;
+          const praise = PRAISE[Math.floor(Math.random()*PRAISE.length)];
           speak(`${praise} ${roundData.qty} ${ANIMAL_TYPES[roundData.animal].name}!`, 0.85);
           sessionLog.push({...roundLog});
         } else {
-          // WRONG
-          wrongAttempts++;
-          roundLog.wrongAnswersTapped.push(val);
-          greyedOut.push(val);
-          sfxWrong();
-
+          wrongAttempts++; roundLog.wrongAnswersTapped.push(val); greyedOut.push(val); sfxWrong();
           const maxWrong = TIERS[tier].choices - 1;
-
           if (wrongAttempts === 1) {
-            // First wrong
-            ellie.shakeHead = true;
-            ellie.shakeTimer = 0.5;
+            ellie.shakeHead = true; ellie.shakeTimer = 0.6;
             speak("Hmm, not quite. Count them again!", 0.85);
-            state = 'feedback_wrong';
-            stateTimer = 0;
+            state = 'feedback_wrong'; stateTimer = 0;
           } else if (wrongAttempts === 2) {
-            // Second wrong — scaffold
-            ellie.trunkUp = true;
-            ellie.trunkTimer = 5;
+            ellie.trunkUp = true; ellie.trunkTimer = 5;
             roundLog.scaffoldTriggered = true;
             speak("Let me help! Count with me.", 0.8);
-            // Start scaffold after fixed delay
-            setTimeout(() => {
-              if (state === 'feedback_wrong') {
-                state = 'scaffold';
-                stateTimer = 0;
-                scaffoldTimer = 0;
-                scaffoldIndex = -1;
-              }
-            }, 1800);
-            state = 'feedback_wrong';
-            stateTimer = 0;
+            setTimeout(() => { if (state==='feedback_wrong') { state='scaffold'; stateTimer=0; scaffoldTimer=0; scaffoldIndex=-1; } }, 1800);
+            state = 'feedback_wrong'; stateTimer = 0;
           } else if (wrongAttempts >= maxWrong) {
-            // All wrong — reveal
-            roundLog.answerRevealed = true;
-            roundLog.attemptsNeeded = wrongAttempts + 1;
+            roundLog.answerRevealed = true; roundLog.attemptsNeeded = wrongAttempts+1;
             roundLog.timeToCorrectTap = now - roundLog.barAppearedAt;
-            state = 'reveal';
-            stateTimer = 0;
-            revealGlow = 0;
+            state = 'reveal'; stateTimer = 0; revealGlow = 0;
             speak(`It's ${roundData.qty}! Tap ${roundData.qty}.`, 0.85);
           } else {
-            state = 'feedback_wrong';
-            stateTimer = 0;
-            ellie.shakeHead = true;
-            ellie.shakeTimer = 0.5;
-            speak("Try again!", 0.85);
+            state = 'feedback_wrong'; stateTimer = 0;
+            ellie.shakeHead = true; ellie.shakeTimer = 0.5; speak("Try again!", 0.85);
           }
         }
         return;
@@ -1295,101 +1385,54 @@ C.addEventListener('pointerdown', (e) => {
 
 // ── Logging ─────────────────────────────────────
 function logSession() {
-  const firstTryCorrect = sessionLog.filter(r => r.attemptsNeeded === 1).length;
-  const scaffoldCount = sessionLog.filter(r => r.scaffoldTriggered).length;
-  const answerRevealCount = sessionLog.filter(r => r.answerRevealed).length;
-  const avgTimeFirst = sessionLog.reduce((s,r) => s + r.timeToFirstTap, 0) / sessionLog.length;
-  const avgTimeCorrect = sessionLog.reduce((s,r) => s + r.timeToCorrectTap, 0) / sessionLog.length;
-
-  const summary = {
-    tier,
-    rounds: 8,
-    firstTryCorrect,
-    scaffoldCount,
-    answerRevealCount,
-    avgTimeToFirstTapMs: Math.round(avgTimeFirst),
-    avgTimeToCorrectTapMs: Math.round(avgTimeCorrect),
-    sessionDurationSec: 0, // would need session start tracking
-    replayChosen: false,
-    roundDetails: sessionLog
-  };
-
+  const firstTryCorrect = sessionLog.filter(r=>r.attemptsNeeded===1).length;
+  const scaffoldCount = sessionLog.filter(r=>r.scaffoldTriggered).length;
+  const answerRevealCount = sessionLog.filter(r=>r.answerRevealed).length;
+  const avgFirst = sessionLog.reduce((s,r)=>s+r.timeToFirstTap,0)/sessionLog.length;
+  const avgCorrect = sessionLog.reduce((s,r)=>s+r.timeToCorrectTap,0)/sessionLog.length;
   console.log('=== WATERING HOLE COUNT — SESSION LOG ===');
-  console.log(JSON.stringify(summary, null, 2));
-  console.log('=== PER-ROUND DETAILS ===');
-  for (const r of sessionLog) {
-    console.log(`R${r.round}: ${r.animalType} x${r.correctAnswer} | attempts:${r.attemptsNeeded} | scaffold:${r.scaffoldTriggered} | firstTap:${Math.round(r.timeToFirstTap)}ms | correctTap:${Math.round(r.timeToCorrectTap)}ms | wrong:${JSON.stringify(r.wrongAnswersTapped)}`);
-  }
+  console.log(JSON.stringify({tier,rounds:8,firstTryCorrect,scaffoldCount,answerRevealCount,
+    avgTimeToFirstTapMs:Math.round(avgFirst),avgTimeToCorrectTapMs:Math.round(avgCorrect)}, null, 2));
+  for (const r of sessionLog)
+    console.log(`R${r.round}: ${r.animalType} x${r.correctAnswer} | attempts:${r.attemptsNeeded} | scaffold:${r.scaffoldTriggered} | firstTap:${Math.round(r.timeToFirstTap)}ms`);
 }
 
 // ── Main render ─────────────────────────────────
 function draw() {
-  X.clearRect(0, 0, W, H);
+  X.clearRect(0,0,W,H);
+  if (state === 'tier_select') { drawTierSelect(); return; }
+  if (state === 'session_end') { drawSessionEnd(); return; }
+  if (state === 'loading') { X.fillStyle='#3D7A28'; X.fillRect(0,0,W,H); return; }
 
-  if (state === 'tier_select') {
-    drawTierSelect();
-    return;
-  }
-
-  if (state === 'session_end') {
-    drawSessionEnd();
-    return;
-  }
-
-  if (state === 'loading') {
-    X.fillStyle = '#2D5016';
-    X.fillRect(0, 0, W, H);
-    return;
-  }
-
-  // Game scene
   drawBackground();
   drawObstacles();
-
-  // Draw other animals (not asked about)
   for (const a of otherAnimals) drawAnimal(a);
-
-  // Draw main animals
   for (const a of animals) {
-    if (a.visible && a.opacity > 0) {
-      X.globalAlpha = a.opacity;
-      drawAnimal(a);
-      X.globalAlpha = 1;
-    }
+    if (a.visible && a.opacity > 0) { X.globalAlpha = a.opacity; drawAnimal(a); X.globalAlpha = 1; }
   }
-
   drawEllie();
+  drawSplashes();
   drawAnswerBar();
   drawParticles();
   drawMuteButton();
 
-  // Round indicator
-  X.fillStyle = 'rgba(255,255,255,0.7)';
-  drawRoundedRect(8, 8, 70, 28, 8);
-  X.fill();
+  X.fillStyle = 'rgba(255,255,255,0.75)';
+  drawRoundedRect(8,8,66,26,8); X.fill();
   X.fillStyle = '#2D5016';
-  X.font = 'bold 13px sans-serif';
-  X.textAlign = 'center';
-  X.textBaseline = 'middle';
-  X.fillText(`${roundIndex + 1} / 8`, 43, 22);
+  X.font = 'bold 13px "Segoe UI",system-ui,sans-serif';
+  X.textAlign = 'center'; X.textBaseline = 'middle';
+  X.fillText(`${roundIndex+1} / 8`, 41, 21);
 }
 
 // ── Game loop ───────────────────────────────────
 function loop() {
   const now = performance.now();
-  const dt = Math.min((now - lastTime) / 1000, 0.05);
+  const dt = Math.min((now-lastTime)/1000, 0.05);
   lastTime = now;
-
-  resize();
-  update(dt);
-  draw();
+  resize(); update(dt); draw();
 }
-
-// Use setInterval for reliable ticking (rAF pauses in background tabs)
 lastTime = performance.now();
 setInterval(loop, 16);
-
-// Auto-speak on tier select
 setTimeout(() => speak('Pick a path, Ranger!', 0.85), 500);
 </script>
 </body>
