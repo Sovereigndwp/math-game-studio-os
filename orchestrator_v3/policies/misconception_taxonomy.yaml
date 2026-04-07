@@ -1,0 +1,48 @@
+# Misconception Taxonomy
+# Canonical six categories required by OS spec 2026 Rule C.
+# Used by Misconception Architect agent to validate its output.
+# Misconception Library entries (artifacts/misconception_library/) must use these exact ids.
+
+categories:
+
+  procedure_slip:
+    id: procedure_slip
+    label: "Procedure slip"
+    description: "Learner knows the rule but makes an execution error. Strategy is correct; accuracy is not."
+    example: "Adds correctly for first three items then miscounts the last one."
+    detection_hint: "Error is small (off by 1–3). Strategy is visible in surrounding choices. Not systematic."
+
+  concept_confusion:
+    id: concept_confusion
+    label: "Concept confusion"
+    description: "Learner has the wrong mental model of the underlying concept. The strategy itself is wrong, not just its execution."
+    example: "Believes order total means item count, not sum of values."
+    detection_hint: "Error is systematic across orders. The pattern reveals a specific wrong model."
+
+  representation_mismatch:
+    id: representation_mismatch
+    label: "Representation mismatch"
+    description: "Learner cannot connect the symbol, icon, or notation to its mathematical meaning."
+    example: "Reads +4 label on pastry as a rank or priority, not a value."
+    detection_hint: "Consistent mismatch between displayed symbol and behavior. Often correlates with one specific visual element."
+
+  impulsive_guess:
+    id: impulsive_guess
+    label: "Impulsive guess"
+    description: "Learner acts before engaging the mathematical question. Treats the game as a reaction task."
+    example: "Taps three items in under 1500ms without computing any running total."
+    detection_hint: "Very fast action sequences. High overshoot rate. No pause before committing."
+
+  rule_misunderstanding:
+    id: rule_misunderstanding
+    label: "Rule misunderstanding"
+    description: "Learner misinterprets the game's mechanical constraint or scoring rule."
+    example: "Believes trucks return to yard after dispatch and tries to reselect them."
+    detection_hint: "Confusion about game rules specifically, not the math. Often appears at mechanic introduction."
+
+  strategic_overload:
+    id: strategic_overload
+    label: "Strategic overload"
+    description: "Learner handles each attribute correctly in isolation but cannot maintain both simultaneously."
+    example: "Correct capacity matching but consistent urgency-bonus misses at the same level."
+    detection_hint: "Performance degrades at attribute combination point. Correct on simpler version of the same task."

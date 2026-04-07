@@ -1,0 +1,1675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Grocery Dash!</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{width:100%;height:100%;background:#0a0f1e;overflow:hidden;font-family:'Courier New',monospace}
+  body{display:flex;flex-direction:column;align-items:center;justify-content:center}
+  #root{display:flex;flex-direction:column;align-items:center;gap:6px;padding:6px;width:100%;max-width:1200px}
+  #gtitle{font-family:'Press Start 2P',monospace;font-size:20px;color:#fbbf24;text-shadow:3px 3px 0 #92400e,0 0 24px rgba(251,191,36,0.5);letter-spacing:3px;text-align:center}
+  #sbar{display:none;gap:10px;justify-content:center}
+  .sb{background:rgba(30,41,59,0.95);border:2px solid #334155;border-radius:10px;padding:6px 18px;text-align:center;min-width:110px}
+  .sb-l{font-size:7px;color:#64748b;letter-spacing:1px;margin-bottom:2px;font-family:'Press Start 2P',monospace}
+  .sb-v{font-size:22px;font-weight:700}
+  #gwrap{display:flex;gap:12px;align-items:flex-start;width:100%;justify-content:center}
+  canvas{display:block;border:3px solid #334155;border-radius:10px;box-shadow:0 0 40px rgba(59,130,246,0.25);flex-shrink:0}
+  #panel{background:rgba(15,23,42,0.97);border:2px solid #334155;border-radius:12px;padding:14px;flex-shrink:0;display:none;flex-direction:column;overflow-y:auto;overflow-x:hidden}
+  #ptitle{font-family:'Press Start 2P',monospace;font-size:7px;color:#fbbf24;text-align:center;letter-spacing:1px;margin-bottom:8px}
+  #rname{font-size:14px;font-weight:700;color:#f8fafc;text-align:center;margin-bottom:5px}
+  #rscale{font-size:11px;color:#94a3b8;text-align:center;line-height:1.5;margin-bottom:6px}
+  .hdiv{border-top:1px solid #1e293b;margin:6px 0;flex-shrink:0}
+  .ingr{display:flex;align-items:flex-start;gap:7px;margin-bottom:5px;padding:6px 8px;border-radius:8px;background:rgba(30,41,59,0.6)}
+  .ingr-em{font-size:20px;line-height:1;flex-shrink:0;margin-top:2px}
+  .ingr-inf{flex:1;min-width:0}
+  .ingr-nm{font-size:12px;color:#f1f5f9;font-weight:700}
+  .ingr-sub{font-size:10px;color:#94a3b8;margin-top:1px;line-height:1.4}
+  .ingr-sub b{color:#fbbf24}
+  .ingr-ct{font-size:13px;font-weight:700;color:#fbbf24;flex-shrink:0;min-width:28px;text-align:right;margin-top:2px}
+  .ingr-hint{font-size:11px;font-weight:700;color:#fbbf24;font-style:normal;margin-top:6px;letter-spacing:0.3px;line-height:1.3}
+  #cart-section{flex-shrink:0}
+  .cart-hd{font-family:'Press Start 2P',monospace;font-size:7px;color:#94a3b8;letter-spacing:1px;margin-bottom:5px}
+  .cart-it{font-size:12px;color:#e2e8f0;background:rgba(30,41,59,0.6);border:1px solid rgba(100,116,139,0.3);border-radius:6px;padding:5px 9px;margin-bottom:4px;display:flex;justify-content:space-between}
+  .cart-it-qty{color:#fbbf24;font-weight:700}
+  #spent-info{font-size:12px;color:#94a3b8;text-align:center;padding-top:8px;border-top:1px solid #1e293b;margin-top:auto}
+  #spacehint{font-size:11px;color:#475569;text-align:center;margin-top:5px;line-height:1.6}
+  #ctrls{font-size:10px;color:#475569;text-align:center;margin-top:4px}
+  #dpad{display:none;flex-direction:column;align-items:center;gap:4px;margin-top:8px}
+  @media(pointer:coarse){#dpad{display:flex}}
+  .dpr{display:flex;align-items:center;gap:4px}
+  .dpb{width:56px;height:56px;background:rgba(30,41,59,0.9);border:2px solid #334155;border-radius:10px;color:#94a3b8;font-size:20px;cursor:pointer;user-select:none;-webkit-user-select:none;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+  .dpb:active{background:#1e293b}
+  .dpc{width:56px;height:56px}
+</style>
+</head>
+<body>
+<div id="root">
+  <div id="gtitle">&#9733; GROCERY DASH &#9733;</div>
+  <div id="sbar">
+    <div class="sb"><div class="sb-l">TIME</div><div class="sb-v" id="tv" style="color:#475569">--:--</div></div>
+    <div class="sb"><div class="sb-l">LEVEL</div><div class="sb-v" id="lv" style="color:#a78bfa">— / 8</div></div>
+  </div>
+  <div id="gwrap">
+    <canvas id="gc"></canvas>
+    <div id="panel">
+      <div id="ptitle">RECIPE CARD</div>
+      <div id="rname">&mdash;</div>
+      <div id="rscale">&mdash;</div>
+      <div class="hdiv"></div>
+      <div id="ingr-list"></div>
+      <div id="spacehint">SPACE to grab a pack &middot; BACKSPACE to return one</div>
+    </div>
+  </div>
+  <div id="ctrls">Arrow Keys / WASD &middot; SPACE grab &middot; BACKSPACE return &middot; Head to CHECKOUT when ready</div>
+  <div id="dpad">
+    <div class="dpr"><button class="dpb" id="dbu">&#9650;</button></div>
+    <div class="dpr"><button class="dpb" id="dbl">&#9664;</button><div class="dpc"></div><button class="dpb" id="dbr">&#9654;</button></div>
+    <div class="dpr"><button class="dpb" id="dbd">&#9660;</button></div>
+  </div>
+</div>
+<script>
+// ─── Layout constants ─────────────────────────────────────────────────────────
+const T = 32;          // tile size in px
+const NC = 21;         // columns
+const NR = 17;         // rows
+const MDELAY = 120;
+
+const CV = document.getElementById('gc');
+const CX = CV.getContext('2d');
+
+// Size canvas to fill most of the screen
+function sizeCanvas() {
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const panelVisible = document.getElementById('panel').style.display !== 'none';
+  const panelW = panelVisible ? 300 : 0;
+  const availW = vw - panelW - 60;
+  const availH = vh - 90 - 50;
+  const scaleByW = availW / (NC * T);
+  const scaleByH = availH / (NR * T);
+  const scale = Math.min(scaleByW, scaleByH, 1.6);
+  CV.width = Math.floor(NC * T * scale);
+  CV.height = Math.floor(NR * T * scale);
+  CX.scale(scale, scale);
+  document.getElementById('panel').style.height = CV.height + 'px';
+  document.getElementById('panel').style.width = '300px';
+}
+sizeCanvas();
+window.addEventListener('resize', () => {
+  CX.setTransform(1,0,0,1,0,0); sizeCanvas();
+  // Rebuild active screen so scBtns positions match the new canvas scale
+  if(typeof gs !== 'undefined'){
+    if(gs==='menu') enterMenu();
+    else if(gs==='levelintro' && screen) screen=makeLevelIntroSc();
+    else if(gs==='checkout' && screen) screen=makeCheckoutSc();
+  }
+});
+
+// ─── Colors ───────────────────────────────────────────────────────────────────
+const GRP = { produce:'#4ade80', grain:'#facc15', dairy:'#60a5fa', protein:'#f87171', condiment:'#fb923c' };
+
+// ─── Map ──────────────────────────────────────────────────────────────────────
+// 0=floor, 1=shelf, 2=wall, 3=checkout
+const MAP = (()=>{
+  const m = Array.from({length:NR}, ()=>new Array(NC).fill(0));
+  // walls
+  for(let c=0;c<NC;c++){m[0][c]=2;m[NR-1][c]=2;}
+  for(let r=0;r<NR;r++){m[r][0]=2;m[r][NC-1]=2;}
+  // shelf columns at c=2-3, 6-7, 10-11, 14-15, 18-19 (pairs)
+  // shelf rows at r=2-4, 7-9, 12-14
+  const CG = [[2,3],[6,7],[10,11],[14,15],[18,19]];
+  const RB = [[2,4],[7,9],[12,14]];
+  for(const[r1,r2] of RB) for(const[c1,c2] of CG) for(let r=r1;r<=r2;r++){m[r][c1]=1;m[r][c2]=1;}
+  // checkout tiles bottom-right area
+  for(let c=15;c<=19;c++) m[NR-2][c]=3;
+  return m;
+})();
+
+// ─── Level data ───────────────────────────────────────────────────────────────
+// Each ingredient:
+//   recipeAmt: how many units the recipe calls for (for base servings)
+//   packSize:  how many units are in one pack
+//   packLabel: what one pack is called
+//   price:     cost per pack
+//
+// Player must buy enough packs so that:
+//   packsInCart * packSize >= recipeAmt * scaleFactor
+// and ideally not waste too much. Checkout checks each ingredient.
+
+// npcCount: how many wandering shoppers appear
+const LEVELS = [
+  { name:'Grilled Cheese', servings:2, dinersOptions:[2], hintMode:2, budget:15, time:120, npcCount:0,
+    desc:'Perfect starter — the recipe already serves 2! No math today.',
+    ingredients:[
+      {id:0,em:'🍞',name:'Bread', grp:'grain', unit:'slices',recipeAmt:2,packSize:20,packLabel:'20-slice loaf', price:3.49,c:4,r:3},
+      {id:1,em:'🧀',name:'Cheese',grp:'dairy', unit:'slices',recipeAmt:2,packSize:8, packLabel:'8-slice pack', price:2.99,c:8,r:3},
+      {id:2,em:'🧈',name:'Butter',grp:'dairy', unit:'tbsp',  recipeAmt:1,packSize:8, packLabel:'8-tbsp stick', price:2.79,c:12,r:3},
+    ], distractors:[] },
+  { name:'Pancake Breakfast', servings:4, dinersOptions:[4], hintMode:2, budget:20, time:110, npcCount:0,
+    desc:'Cooking for 4 — same as the recipe! But some items need 2 packs...',
+    ingredients:[
+      {id:0,em:'🥞',name:'Pancake Mix',grp:'grain',  unit:'cups',recipeAmt:3,packSize:2, packLabel:'2-cup packet', price:2.49,c:4,r:3},
+      {id:1,em:'🥚',name:'Eggs',       grp:'protein',unit:'eggs',recipeAmt:5,packSize:6, packLabel:'6-pack',       price:2.49,c:8,r:3},
+      {id:2,em:'🥛',name:'Milk',       grp:'dairy',  unit:'cups',recipeAmt:2,packSize:4, packLabel:'4-cup carton', price:1.99,c:12,r:3},
+      {id:3,em:'🧈',name:'Butter',     grp:'dairy',  unit:'tbsp',recipeAmt:2,packSize:8, packLabel:'8-tbsp stick', price:2.79,c:16,r:3},
+    ], distractors:[{id:10,em:'🍫',name:'Chocolate',grp:'grain',price:2.49,c:8,r:8}] },
+  { name:'Taco Night', servings:2, dinersOptions:[4], hintMode:1, budget:22, time:105, npcCount:0,
+    desc:'Recipe makes 2 — you need 4! Double every ingredient.',
+    ingredients:[
+      {id:0,em:'🌮',name:'Tortillas',  grp:'grain',  unit:'tortillas',recipeAmt:4,packSize:10,packLabel:'pack of 10',price:2.49,c:4,r:3},
+      {id:1,em:'🥩',name:'Ground Beef',grp:'protein',unit:'lbs',      recipeAmt:1,packSize:1, packLabel:'1 lb pack', price:4.99,c:8,r:3},
+      {id:2,em:'🧀',name:'Cheese',     grp:'dairy',  unit:'oz',       recipeAmt:4,packSize:8, packLabel:'8 oz bag',  price:2.99,c:12,r:3},
+      {id:3,em:'🍅',name:'Tomatoes',   grp:'produce',unit:'tomatoes', recipeAmt:2,packSize:3, packLabel:'bag of 3',  price:2.29,c:16,r:3},
+    ], distractors:[{id:10,em:'🧃',name:'Juice Box',grp:'produce',price:1.99,c:8,r:8}] },
+  { name:'Fruit Salad', servings:2, dinersOptions:[4], hintMode:1, budget:20, time:100, npcCount:1,
+    desc:'Doubling again — but some packs do not divide evenly. Round up!',
+    ingredients:[
+      {id:0,em:'🍓',name:'Strawberries',grp:'produce',  unit:'oz',     recipeAmt:6, packSize:16,packLabel:'16 oz container',price:3.99,c:4,r:3},
+      {id:1,em:'🍇',name:'Grapes',      grp:'produce',  unit:'oz',     recipeAmt:10,packSize:16,packLabel:'16 oz bag',      price:3.49,c:8,r:3},
+      {id:2,em:'🍌',name:'Bananas',     grp:'produce',  unit:'bananas',recipeAmt:2, packSize:3, packLabel:'bunch of 3',     price:1.29,c:12,r:3,variants:[{packSize:6,packLabel:'bunch of 6',c:16,r:3}]},
+      {id:3,em:'🍊',name:'Oranges',     grp:'produce',  unit:'oranges',recipeAmt:1, packSize:3, packLabel:'bag of 3',       price:2.49,c:4,r:8},
+      {id:4,em:'🍯',name:'Honey',       grp:'condiment',unit:'tbsp',   recipeAmt:2, packSize:12,packLabel:'12-tbsp jar',    price:4.49,c:8,r:8},
+    ], distractors:[
+      {id:10,em:'🥫',name:'Canned Beans',grp:'produce',price:1.29,c:12,r:8},
+      {id:11,em:'🍬',name:'Candy',       grp:'grain',  price:1.49,c:16,r:8},
+    ] },
+  { name:'Mac & Cheese', servings:2, dinersOptions:[6], hintMode:0, budget:22, time:100, npcCount:1,
+    desc:'Recipe for 2, guests: 6 — triple it! First shopper in the aisles.',
+    ingredients:[
+      {id:0,em:'🍝',name:'Macaroni',grp:'grain',    unit:'oz',  recipeAmt:4,packSize:8, packLabel:'8 oz box',      price:1.99,c:4,r:3,variants:[{packSize:16,packLabel:'16 oz box',c:5,r:3}]},
+      {id:1,em:'🧀',name:'Cheddar', grp:'dairy',    unit:'oz',  recipeAmt:3,packSize:6, packLabel:'6 oz bag',      price:2.99,c:8,r:3},
+      {id:2,em:'🥛',name:'Milk',    grp:'dairy',    unit:'cups',recipeAmt:1,packSize:4, packLabel:'4-cup carton',  price:1.99,c:12,r:3},
+      {id:3,em:'🧈',name:'Butter',  grp:'dairy',    unit:'tbsp',recipeAmt:2,packSize:8, packLabel:'8-tbsp stick',  price:2.79,c:16,r:3},
+      {id:4,em:'🧂',name:'Salt',    grp:'condiment',unit:'tsp', recipeAmt:1,packSize:50,packLabel:'50-tsp canister',price:1.49,c:4,r:8},
+    ], distractors:[{id:10,em:'🍿',name:'Chips',grp:'grain',price:2.49,c:8,r:8}] },
+  { name:'Pasta Bolognese', servings:2, dinersOptions:[8], hintMode:0, budget:35, time:105, npcCount:2,
+    desc:'Recipe for 2, guests: 8. Quadruple everything. Two shoppers!',
+    ingredients:[
+      {id:0,em:'🍝',name:'Spaghetti',  grp:'grain',  unit:'oz',   recipeAmt:4,packSize:8,packLabel:'8 oz box', price:1.79,c:4,r:3,variants:[{packSize:16,packLabel:'16 oz box',c:5,r:3}]},
+      {id:1,em:'🥩',name:'Ground Beef',grp:'protein',unit:'lbs',  recipeAmt:1,packSize:1,packLabel:'1 lb pack',price:4.99,c:8,r:3},
+      {id:2,em:'🥫',name:'Tomato Sauce',grp:'produce',unit:'cans',recipeAmt:1,packSize:1,packLabel:'1 can',    price:2.49,c:12,r:3},
+      {id:3,em:'🧀',name:'Parmesan',  grp:'dairy',  unit:'oz',   recipeAmt:2,packSize:6,packLabel:'6 oz bag', price:3.99,c:16,r:3,variants:[{packSize:3,packLabel:'3 oz bag',c:17,r:3}]},
+      {id:4,em:'🧅',name:'Onion',     grp:'produce',unit:'onions',recipeAmt:1,packSize:3,packLabel:'bag of 3',price:1.49,c:4,r:8},
+    ], distractors:[
+      {id:10,em:'🍬',name:'Candy',    grp:'produce',price:1.49,c:8,r:8},
+      {id:11,em:'🍦',name:'Ice Cream',grp:'dairy',  price:4.49,c:12,r:8},
+    ] },
+  { name:'Veggie Stir Fry', servings:2, dinersOptions:[10], hintMode:0, budget:38, time:110, npcCount:2,
+    desc:'Recipe for 2, guests: 10 — multiply by 5! Six ingredients.',
+    ingredients:[
+      {id:0,em:'🥦',name:'Broccoli', grp:'produce',  unit:'heads',  recipeAmt:1,packSize:1, packLabel:'1 head',      price:1.49,c:4,r:3},
+      {id:1,em:'🥕',name:'Carrots',  grp:'produce',  unit:'carrots',recipeAmt:2,packSize:5, packLabel:'bag of 5',    price:1.99,c:8,r:3,variants:[{packSize:3,packLabel:'bag of 3',c:9,r:3}]},
+      {id:2,em:'🍄',name:'Mushrooms',grp:'produce',  unit:'oz',     recipeAmt:4,packSize:8, packLabel:'8 oz pack',   price:2.79,c:12,r:3},
+      {id:3,em:'🍚',name:'Rice',     grp:'grain',    unit:'cups',   recipeAmt:1,packSize:2, packLabel:'2-cup bag',   price:2.99,c:16,r:3},
+      {id:4,em:'🥃',name:'Soy Sauce',grp:'condiment',unit:'oz',     recipeAmt:2,packSize:10,packLabel:'10 oz bottle',price:3.49,c:4,r:8},
+      {id:5,em:'🧄',name:'Garlic',   grp:'produce',  unit:'bulbs',  recipeAmt:1,packSize:3, packLabel:'bag of 3',    price:1.29,c:8,r:8},
+    ], distractors:[
+      {id:10,em:'🍿',name:'Chips',grp:'grain',  price:2.49,c:12,r:8},
+      {id:11,em:'🧃',name:'Juice',grp:'produce',price:3.49,c:16,r:8},
+      {id:12,em:'🍰',name:'Cake', grp:'dairy',  price:5.99,c:4,r:13},
+    ] },
+  { name:'Chicken Soup', servings:2, dinersOptions:[12], hintMode:0, budget:40, time:110, npcCount:3,
+    desc:'Recipe for 2, guests: 12. Six times everything — three shoppers!',
+    ingredients:[
+      {id:0,em:'🍗',name:'Chicken',grp:'protein',  unit:'lbs',   recipeAmt:1,packSize:2,packLabel:'2 lb pack', price:5.99,c:4,r:3},
+      {id:1,em:'🥕',name:'Carrots',grp:'produce',  unit:'carrots',recipeAmt:2,packSize:4,packLabel:'bag of 4', price:1.99,c:8,r:3,variants:[{packSize:3,packLabel:'bag of 3',c:9,r:3}]},
+      {id:2,em:'🧅',name:'Onion',  grp:'produce',  unit:'onions',recipeAmt:1,packSize:2,packLabel:'bag of 2', price:1.29,c:12,r:3},
+      {id:3,em:'🥬',name:'Celery', grp:'produce',  unit:'stalks',recipeAmt:2,packSize:6,packLabel:'bunch of 6',price:1.79,c:16,r:3,variants:[{packSize:4,packLabel:'bunch of 4',c:17,r:3}]},
+      {id:4,em:'🍜',name:'Noodles',grp:'grain',    unit:'oz',    recipeAmt:3,packSize:8,packLabel:'8 oz bag', price:2.29,c:4,r:8},
+      {id:5,em:'🍲',name:'Broth',  grp:'condiment',unit:'cans',  recipeAmt:1,packSize:1,packLabel:'1 can',    price:1.49,c:8,r:8},
+    ], distractors:[
+      {id:10,em:'🍦',name:'Ice Cream',grp:'dairy',  price:4.49,c:12,r:8},
+      {id:11,em:'🧃',name:'Juice',    grp:'produce',price:1.99,c:16,r:8},
+      {id:12,em:'🍰',name:'Cake',     grp:'dairy',  price:5.99,c:4,r:13},
+    ] },
+  { name:'Pizza Party', servings:2, dinersOptions:[6,12], hintMode:0, budget:45, time:115, npcCount:3,
+    desc:'Guests: 6 or 12? Check the chalkboard! Three shoppers block the aisles.',
+    ingredients:[
+      {id:0,em:'🧀',name:'Mozzarella',  grp:'dairy',  unit:'oz',    recipeAmt:4,packSize:8, packLabel:'8 oz bag',     price:3.49,c:4,r:3,variants:[{packSize:5,packLabel:'5 oz bag',c:5,r:3}]},
+      {id:1,em:'🥫',name:'Tomato Sauce',grp:'produce',unit:'cans',  recipeAmt:1,packSize:3, packLabel:'3-can pack',   price:2.99,c:8,r:3,variants:[{packSize:1,packLabel:'1 can',c:9,r:3}]},
+      {id:2,em:'🥩',name:'Pepperoni',   grp:'protein',unit:'slices',recipeAmt:8,packSize:20,packLabel:'20-slice pack',price:4.49,c:12,r:3,variants:[{packSize:12,packLabel:'12-slice pack',c:13,r:3}]},
+      {id:3,em:'🥗',name:'Bell Peppers',grp:'produce',unit:'peppers',recipeAmt:1,packSize:4,packLabel:'bag of 4',     price:2.49,c:16,r:3},
+      {id:4,em:'🧄',name:'Garlic',      grp:'produce',unit:'bulbs', recipeAmt:2,packSize:7, packLabel:'bag of 7',     price:1.99,c:4,r:8},
+      {id:5,em:'🧅',name:'Onion',       grp:'produce',unit:'onions',recipeAmt:1,packSize:3, packLabel:'bag of 3',     price:1.79,c:8,r:8},
+    ], distractors:[
+      {id:10,em:'🍦',name:'Ice Cream',grp:'dairy', price:4.49,c:12,r:8},
+      {id:11,em:'🍿',name:'Chips',    grp:'grain', price:2.49,c:16,r:8},
+      {id:12,em:'🍰',name:'Cake',     grp:'dairy', price:5.99,c:4,r:13},
+      {id:13,em:'🧃',name:'Juice',    grp:'produce',price:1.99,c:8,r:13},
+    ] },
+  { name:'Breakfast Burritos', servings:3, dinersOptions:[15,21], hintMode:0, budget:48, time:120, npcCount:3,
+    desc:'Guests: 15 or 21? The multiplier changes which packs you need!',
+    ingredients:[
+      {id:0,em:'🌮',name:'Tortillas',  grp:'grain',    unit:'tortillas',recipeAmt:4,packSize:6, packLabel:'pack of 6',price:2.49,c:4,r:3,variants:[{packSize:10,packLabel:'pack of 10',c:5,r:3}]},
+      {id:1,em:'🥚',name:'Eggs',       grp:'protein',  unit:'eggs',     recipeAmt:3,packSize:6, packLabel:'6-pack',   price:2.49,c:8,r:3,variants:[{packSize:12,packLabel:'12-pack',c:9,r:3}]},
+      {id:2,em:'🥫',name:'Black Beans',grp:'produce',  unit:'cans',     recipeAmt:1,packSize:3, packLabel:'3-can pack',price:1.49,c:12,r:3},
+      {id:3,em:'🧀',name:'Cheddar',    grp:'dairy',    unit:'oz',       recipeAmt:3,packSize:8, packLabel:'8 oz bag', price:2.99,c:16,r:3,variants:[{packSize:6,packLabel:'6 oz bag',c:17,r:3}]},
+      {id:4,em:'🥑',name:'Avocado',    grp:'produce',  unit:'avocados', recipeAmt:1,packSize:2, packLabel:'bag of 2', price:2.99,c:4,r:8},
+      {id:5,em:'🌶️',name:'Salsa',grp:'condiment',unit:'oz',       recipeAmt:4,packSize:16,packLabel:'16 oz jar',price:3.49,c:8,r:8,variants:[{packSize:12,packLabel:'12 oz jar',c:9,r:8}]},
+    ], distractors:[
+      {id:10,em:'🍬',name:'Candy',    grp:'produce',price:1.49,c:12,r:8},
+      {id:11,em:'🍦',name:'Ice Cream',grp:'dairy',  price:4.49,c:16,r:8},
+      {id:12,em:'🍰',name:'Cake',     grp:'dairy',  price:5.99,c:4,r:13},
+      {id:13,em:'🍿',name:'Chips',    grp:'grain',  price:2.49,c:8,r:13},
+    ] },
+  { name:'Holiday Roast', servings:4, dinersOptions:[16,20,24], hintMode:0, budget:65, time:125, npcCount:4,
+    desc:'Holiday feast — 3 guest counts. Seven ingredients. Four shoppers.',
+    ingredients:[
+      {id:0,em:'🥩',name:'Roast Beef',grp:'protein',  unit:'lbs',   recipeAmt:2,packSize:3,packLabel:'3 lb pack',      price:8.99,c:4,r:3,variants:[{packSize:2,packLabel:'2 lb pack',c:5,r:3}]},
+      {id:1,em:'🥕',name:'Carrots',   grp:'produce',  unit:'lbs',   recipeAmt:1,packSize:2,packLabel:'2 lb bag',       price:1.99,c:8,r:3},
+      {id:2,em:'🥔',name:'Potatoes',  grp:'produce',  unit:'lbs',   recipeAmt:2,packSize:5,packLabel:'5 lb bag',       price:3.49,c:12,r:3,variants:[{packSize:3,packLabel:'3 lb bag',c:13,r:3}]},
+      {id:3,em:'🧅',name:'Onions',    grp:'produce',  unit:'onions',recipeAmt:3,packSize:4,packLabel:'bag of 4',       price:1.49,c:16,r:3},
+      {id:4,em:'🥫',name:'Beef Broth',grp:'condiment',unit:'cans',  recipeAmt:2,packSize:4,packLabel:'4-can pack',     price:3.99,c:4,r:8,variants:[{packSize:6,packLabel:'6-can pack',c:5,r:8}]},
+      {id:5,em:'🧄',name:'Garlic',    grp:'produce',  unit:'bulbs', recipeAmt:3,packSize:8,packLabel:'bag of 8 bulbs', price:1.79,c:8,r:8},
+      {id:6,em:'🍄',name:'Mushrooms', grp:'produce',  unit:'oz',    recipeAmt:4,packSize:8,packLabel:'8 oz pack',      price:2.79,c:12,r:8},
+    ], distractors:[
+      {id:10,em:'🍬',name:'Candy',    grp:'produce',price:1.49,c:16,r:8},
+      {id:11,em:'🍦',name:'Ice Cream',grp:'dairy',  price:4.49,c:4,r:13},
+      {id:12,em:'🍰',name:'Cake',     grp:'dairy',  price:5.99,c:8,r:13},
+      {id:13,em:'🍿',name:'Chips',    grp:'grain',  price:2.49,c:12,r:13},
+      {id:14,em:'🧃',name:'Juice',    grp:'produce',price:1.99,c:16,r:13},
+    ] },
+  { name:'Sushi Night', servings:3, dinersOptions:[15,18,21], hintMode:0, budget:70, time:130, npcCount:5,
+    desc:"Sushi night — five shoppers, seriously tough math. You've got this.",
+    ingredients:[
+      {id:0,em:'🍚',name:'Sushi Rice',  grp:'grain',    unit:'cups',     recipeAmt:2,packSize:6, packLabel:'6-cup bag',     price:3.49,c:4,r:3,variants:[{packSize:9,packLabel:'9-cup bag',c:5,r:3}]},
+      {id:1,em:'🐟',name:'Salmon',      grp:'protein',  unit:'oz',       recipeAmt:4,packSize:8, packLabel:'8 oz pack',     price:7.99,c:8,r:3,variants:[{packSize:12,packLabel:'12 oz pack',c:9,r:3}]},
+      {id:2,em:'🥑',name:'Avocado',     grp:'produce',  unit:'avocados', recipeAmt:1,packSize:3, packLabel:'bag of 3',      price:2.99,c:12,r:3},
+      {id:3,em:'🌿',name:'Nori Sheets', grp:'grain',    unit:'sheets',   recipeAmt:3,packSize:10,packLabel:'10-sheet pack', price:3.99,c:16,r:3,variants:[{packSize:7,packLabel:'7-sheet pack',c:17,r:3}]},
+      {id:4,em:'🥒',name:'Cucumber',    grp:'produce',  unit:'cucumbers',recipeAmt:1,packSize:3, packLabel:'pack of 3',     price:2.49,c:4,r:8},
+      {id:5,em:'🍶',name:'Rice Vinegar',grp:'condiment',unit:'tbsp',     recipeAmt:3,packSize:8, packLabel:'8-tbsp bottle', price:2.99,c:8,r:8,variants:[{packSize:12,packLabel:'12-tbsp bottle',c:9,r:8}]},
+      {id:6,em:'🥃',name:'Soy Sauce',   grp:'condiment',unit:'oz',       recipeAmt:2,packSize:5, packLabel:'5 oz bottle',   price:1.99,c:12,r:8},
+    ], distractors:[
+      {id:10,em:'🍬',name:'Candy',    grp:'produce',price:1.49,c:16,r:8},
+      {id:11,em:'🍦',name:'Ice Cream',grp:'dairy',  price:4.49,c:4,r:13},
+      {id:12,em:'🍰',name:'Cake',     grp:'dairy',  price:5.99,c:8,r:13},
+      {id:13,em:'🍿',name:'Chips',    grp:'grain',  price:2.49,c:12,r:13},
+      {id:14,em:'🧃',name:'Juice',    grp:'produce',price:1.99,c:16,r:13},
+    ] },
+];
+
+// ─── State ────────────────────────────────────────────────────────────────────
+let gs, levelIdx, diners, items, player, npcs, chaser, timeLeft, keys, lastMv, parts, toasts, tmrID, screen, scBtns, totalScore, menuSel, lives, levelsCleared, grabHistory, playerFrozenUntil;
+
+// ─── LocalStorage Score System ────────────────────────────────────────────────
+let levelStars = new Array(LEVELS.length).fill(0);
+let levelBestTime = new Array(LEVELS.length).fill(0);
+let levelBestScore = new Array(LEVELS.length).fill(0);
+
+function loadScores(){
+  try {
+    const s = JSON.parse(localStorage.getItem('gdash_scores') || '{}');
+    levelStars = s.stars || new Array(LEVELS.length).fill(0);
+    levelBestTime = s.best || new Array(LEVELS.length).fill(0);
+    levelBestScore = s.scores || new Array(LEVELS.length).fill(0);
+    // Ensure arrays are right length
+    while(levelStars.length < LEVELS.length) levelStars.push(0);
+    while(levelBestTime.length < LEVELS.length) levelBestTime.push(0);
+    while(levelBestScore.length < LEVELS.length) levelBestScore.push(0);
+  } catch(e){
+    levelStars = new Array(LEVELS.length).fill(0);
+    levelBestTime = new Array(LEVELS.length).fill(0);
+    levelBestScore = new Array(LEVELS.length).fill(0);
+  }
+}
+function saveScores(){
+  try { localStorage.setItem('gdash_scores', JSON.stringify({stars:levelStars, best:levelBestTime, scores:levelBestScore})); } catch(e){}
+}
+
+// ─── Screen Shake ─────────────────────────────────────────────────────────────
+let shakeX=0, shakeY=0, shakeUntil=0;
+function triggerShake(intensity=6, duration=300){
+  shakeUntil = Date.now() + duration;
+  shakeX = (Math.random()-0.5)*intensity;
+  shakeY = (Math.random()-0.5)*intensity;
+}
+
+// ─── Tutorial ─────────────────────────────────────────────────────────────────
+let tutorialStep = -1;
+
+function getLevel(){ return LEVELS[levelIdx]; }
+function getScale(){ return diners / getLevel().servings; }
+
+function packsNeeded(ing){
+  return Math.ceil(ing.recipeAmt * getScale() / ing.packSize);
+}
+function unitsNeeded(ing){
+  return ing.recipeAmt * getScale();
+}
+
+function buildItems(){
+  const l = getLevel();
+  items = [];
+  l.ingredients.forEach(ing => {
+    // Main shelf item
+    items.push({ ...ing, type:'recipe', packsInCart:0, variantOf:null, playerHere:false });
+    // Decoy variants — same ingredient, different pack size, different shelf spot
+    if(ing.variants){
+      ing.variants.forEach((v,vi) => {
+        items.push({
+          ...ing, ...v,
+          id: 1000 + ing.id*10 + vi,   // unique id far from ingredient IDs (0–9)
+          type:'recipe',
+          packsInCart:0,
+          variantOf: ing.id,       // links back to master ingredient
+          playerHere:false,
+        });
+      });
+    }
+  });
+  l.distractors.forEach(d => {
+    items.push({...d, type:'distractor', inCart:false, packsInCart:0, playerHere:false});
+  });
+}
+
+// Total units grabbed for an ingredient (main + all its variants)
+function totalUnitsForIng(ingId){
+  return items
+    .filter(i=>i.type==='recipe' && (i.id===ingId || i.variantOf===ingId))
+    .reduce((sum,i)=>sum + i.packsInCart * i.packSize, 0);
+}
+
+function isCartReady(){
+  if(!items || gs!=='playing') return false;
+  if(items.some(i=>i.type==='distractor' && i.packsInCart>0)) return false;
+  const l=getLevel(), sc=getScale();
+  return l.ingredients.every(ing=>{
+    const got=totalUnitsForIng(ing.id);
+    const need=ing.recipeAmt*sc;
+    if(got<need) return false;
+    const variantItms=items.filter(i=>i.type==='recipe'&&(i.id===ing.id||i.variantOf===ing.id));
+    const minShoot=Math.min(...variantItms.map(v=>{ const p=Math.ceil(need/v.packSize); return p*v.packSize-need; }));
+    return (got-need)<=minShoot;
+  });
+}
+
+function resetForLevel(){
+  const l = getLevel();
+  const opts = l.dinersOptions;
+  diners = opts[Math.floor(Math.random()*opts.length)];
+  buildItems();
+  player = { c:13, r:NR-2, px:13*T, py:(NR-2)*T };
+  timeLeft=l.time;keys={};lastMv=0;parts=[];toasts=[];scBtns=[];grabHistory=[];playerFrozenUntil=0;
+  clearCheckoutHighlights();
+  if(tmrID) clearInterval(tmrID); tmrID=null;
+
+  // Spawn NPC shoppers on random floor tiles away from player start
+  const itemPositions = new Set(items.map(i=>`${i.c},${i.r}`));
+  const floorTiles = [];
+  for(let r=2;r<NR-2;r++) for(let c=2;c<NC-2;c++){
+    if(MAP[r][c]===0 && !(c===13&&r>=NR-3) && !itemPositions.has(`${c},${r}`))
+      floorTiles.push({c,r});
+  }
+  // Shuffle
+  for(let i=floorTiles.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [floorTiles[i],floorTiles[j]]=[floorTiles[j],floorTiles[i]];
+  }
+  const npcCols=['#e879f9','#f97316','#22d3ee'];
+  const npcEms=['🧑','👩','👴'];
+  const dirs=[{dc:1,dr:0},{dc:-1,dr:0},{dc:0,dr:1},{dc:0,dr:-1}];
+  npcs = floorTiles.slice(0, l.npcCount||0).map((pos,i)=>({
+    c:pos.c, r:pos.r, px:pos.c*T, py:pos.r*T,
+    dc:dirs[i%4].dc, dr:dirs[i%4].dr,
+    moveAt:0, col:npcCols[i%npcCols.length], em:npcEms[i%npcEms.length]
+  }));
+
+  // Chaser — only on levels with other shoppers, starts in top-left area
+  if((l.npcCount||0) > 0){
+    const chaserStart = floorTiles.find(t=>t.c<6 && t.r<6) || floorTiles[floorTiles.length-1];
+    chaser = { c:chaserStart.c, r:chaserStart.r, px:chaserStart.c*T, py:chaserStart.r*T, moveAt:0, cooldown:0 };
+  } else {
+    chaser = null;
+  }
+}
+
+function startLevelTimer(){
+  if(tmrID) clearInterval(tmrID);
+  tmrID = setInterval(()=>{
+    if(gs!=='playing') return;
+    timeLeft--; updateUI();
+    if(timeLeft<=0){ gs='gameover'; clearInterval(tmrID); screen=makeGoSc(); syncLayout(); }
+  }, 1000);
+}
+
+function startLevel(){
+  document.getElementById('tv').closest('.sb').style.display='';
+  document.getElementById('lv').closest('.sb').style.display='';
+  gs='playing'; screen=null; buildRecipePanel(); updateUI(); syncLayout();
+  if(levelIdx === 0 && levelStars[0] === 0){
+    tutorialStep = 0; // Show full-screen tutorial BEFORE timer starts
+    // Timer starts only after player dismisses all tutorial steps (see advanceTutorial)
+  } else {
+    tutorialStep = -1;
+    startLevelTimer(); // No tutorial — start timer immediately
+  }
+}
+
+// ─── Recipe Panel ─────────────────────────────────────────────────────────────
+function buildRecipePanel(){
+  const l=getLevel(), scale=getScale();
+  document.getElementById('rname').textContent = l.name;
+  document.getElementById('rscale').innerHTML =
+    `Recipe for <b>${l.servings}</b> &middot; Feeding <b style="color:#fbbf24">${diners}</b> people`;
+
+  const el = document.getElementById('ingr-list');
+  el.innerHTML = '';
+  const shuffled = [...l.ingredients].sort(()=>Math.random()-0.5);
+  shuffled.forEach(ing => {
+    const d = document.createElement('div');
+    d.className = 'ingr'; d.id = 'ingr-' + ing.id;
+    // Show all available pack sizes for this ingredient
+    const variantItems = items.filter(i=>i.type==='recipe' && (i.id===ing.id || i.variantOf===ing.id));
+    const packInfo = variantItems.map(i=>`${i.packLabel} (${i.packSize} ${i.unit})`).join(' or ');
+    d.innerHTML = `
+      <span class="ingr-em">${ing.em}</span>
+      <div class="ingr-inf">
+        <div class="ingr-nm">${ing.name}</div>
+        <div class="ingr-sub">Per serving: <b>${ing.recipeAmt} ${ing.unit}</b></div>
+        <div class="ingr-hint" id="hint-${ing.id}"></div>
+      </div>`;
+    el.appendChild(d);
+  });
+}
+
+
+function applyCheckoutHighlights(){
+  const l=getLevel(),sc=getScale();
+  l.ingredients.forEach(ing=>{
+    const row=document.getElementById('ingr-'+ing.id);
+    const nm=row&&row.querySelector('.ingr-nm');
+    const hint=document.getElementById('hint-'+ing.id);
+    if(!row||!nm||!hint)return;
+    const got=totalUnitsForIng(ing.id),need=ing.recipeAmt*sc;
+    const vi=items.filter(i=>i.type==='recipe'&&(i.id===ing.id||i.variantOf===ing.id));
+    const ms=vi.length?Math.min(...vi.map(v=>{const p=Math.ceil(need/v.packSize);return p*v.packSize-need;})):0;
+    const col=(got>=need&&!((got>need)&&(got-need)>ms))?'#4ade80':got<need?'#f87171':'#fb923c';
+    nm.style.color=col;hint.style.color=col;
+  });
+}
+function clearCheckoutHighlights(){
+  const l=getLevel();if(!l)return;
+  l.ingredients.forEach(ing=>{const r=document.getElementById('ingr-'+ing.id);const n=r&&r.querySelector('.ingr-nm');if(n)n.style.color='';});
+  updateIngrHints();
+}
+function updateIngrHints(){
+  items.filter(i=>i.type==='recipe' && i.variantOf===null).forEach(it=>{
+    const h = document.getElementById('hint-' + it.id);
+    if(!h) return;
+    const total = totalUnitsForIng(it.id);
+    // Show cart total prominently — no ✓/⚠/hints, player works out if it's right
+    if(total === 0){
+      h.textContent = `In cart: 0 ${it.unit}`;
+      h.style.color = '#64748b';
+      h.style.fontWeight = '700';
+    } else {
+      h.textContent = `In cart: ${total} ${it.unit}`;
+      h.style.color = '#fbbf24';
+      h.style.fontWeight = '900';
+    }
+  });
+}
+
+function syncLayout(){
+  if(gs==='title'||gs==='instructions'){
+    document.getElementById('sbar').style.display='none';
+    document.getElementById('panel').style.display='none';
+    CX.setTransform(1,0,0,1,0,0); sizeCanvas(); return;
+  }
+  const inGame = gs==='playing' || gs==='checkout';
+  document.getElementById('sbar').style.display  = inGame ? 'flex' : 'none';
+  document.getElementById('panel').style.display = inGame ? 'flex' : 'none';
+  CX.setTransform(1,0,0,1,0,0); sizeCanvas();
+}
+
+function updateLivesDisplay(){
+  // Lives drawn in-canvas via drawHUD()
+}
+
+function updateUI(){
+  const m=Math.floor(timeLeft/60), s=timeLeft%60;
+  const tv=document.getElementById('tv');
+  tv.textContent=`${m}:${s.toString().padStart(2,'0')}`;
+  tv.style.color=timeLeft<=15?'#ef4444':timeLeft<=30?'#fb923c':'#f87171';
+  document.getElementById('lv').textContent=`${levelIdx+1}/${LEVELS.length}`;
+  updateLivesDisplay();
+  updateIngrHints();
+}
+
+// ─── Particles & Toasts ───────────────────────────────────────────────────────
+function addToast(txt,col){ toasts.push({txt,col,life:2.8,x:CV.width/2/getCVScale(),y:player.py+T/2-28}); }
+function getCVScale(){ return CV.width/(NC*T); }
+
+function spawnParts(x,y,col){
+  for(let i=0;i<18;i++){
+    const a=Math.random()*Math.PI*2, sp=70+Math.random()*160;
+    parts.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-120,col,life:1,r:2+Math.random()*4});
+  }
+}
+
+// ─── Interaction ──────────────────────────────────────────────────────────────
+function tryInteract(){
+  if(gs!=='playing') return;
+  const{c,r}=player;
+  const gi = items.find(i=>i.c===c && i.r===r);
+  if(!gi){ addToast('Nothing to grab here!','#475569'); return; }
+  if(gi.type==='recipe'){
+    gi.packsInCart++; grabHistory.push(gi.id);
+    spawnParts(c*T+T/2, r*T+T/2, GRP[gi.grp]);
+    addToast(`+1 pack ${gi.name} (${gi.packsInCart} pk = ${gi.packsInCart*gi.packSize} ${gi.unit})`, '#93c5fd');
+  } else {
+    gi.packsInCart++; gi.inCart=true; grabHistory.push(gi.id);
+    spawnParts(c*T+T/2, r*T+T/2, '#fbbf24');
+    addToast(`+1 pack ${gi.name}`, '#94a3b8');
+  }
+  updateUI();
+}
+
+function tryReturn(){
+  if(gs!=='playing') return;
+  const{c,r}=player;
+  let target = items.find(i=>i.c===c && i.r===r && i.packsInCart > 0);
+  if(!target){
+    for(let k=grabHistory.length-1; k>=0; k--){
+      const id=grabHistory[k]; const it=items.find(i=>i.id===id && i.packsInCart>0);
+      if(it){ target=it; grabHistory.splice(k,1); break; }
+    }
+  } else { const k=grabHistory.lastIndexOf(target.id); if(k>=0) grabHistory.splice(k,1); }
+  if(!target){ addToast('Nothing to return!','#475569'); return; }
+  target.packsInCart--;
+  if(target.type==='distractor') target.inCart = target.packsInCart > 0;
+  spawnParts(target.c*T+T/2, target.r*T+T/2, '#94a3b8');
+  const detail = target.type==='recipe' ? ` (${target.packsInCart} pk = ${target.packsInCart*target.packSize} ${target.unit})` : '';
+  addToast(`-1 pack ${target.name}${detail}`, '#fbbf24');
+  updateUI();
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function randomFarFloorTile(fromC, fromR, minDist){
+  const candidates=[];
+  for(let r=1;r<NR-1;r++) for(let c=1;c<NC-1;c++){
+    if(MAP[r][c]===0 && Math.abs(c-fromC)+Math.abs(r-fromR)>=minDist) candidates.push({r,c});
+  }
+  if(!candidates.length) return null;
+  return candidates[Math.floor(Math.random()*candidates.length)];
+}
+
+function chaserRespawn(){
+  const now = performance.now();
+  const dest = randomFarFloorTile(player.c, player.r, 10) || {c:2, r:2};
+  chaser.c=dest.c; chaser.r=dest.r; chaser.px=dest.c*T; chaser.py=dest.r*T;
+  chaser.cooldown = now + 2500; chaser.moveAt = now + 2500;
+}
+function managerCatch(ts){
+  if(gs!=='playing') return;
+  const inCart = grabHistory.filter(id=>{ const it=items.find(i=>i.id===id); return it && it.packsInCart > 0; });
+  if(inCart.length > 0){
+    const dropId = inCart[Math.floor(Math.random()*inCart.length)];
+    const dropped = items.find(i=>i.id===dropId);
+    dropped.packsInCart--;
+    if(dropped.type==='distractor') dropped.inCart = dropped.packsInCart > 0;
+    const hi = grabHistory.lastIndexOf(dropId); if(hi >= 0) grabHistory.splice(hi, 1);
+    addToast(`Manager bumped you! ${dropped.em} ${dropped.name} fell out! 📦`, '#ef4444');
+    spawnParts(player.px+T/2, player.py+T/2, '#fbbf24');
+  } else {
+    addToast('Manager stopped you! 😤', '#ef4444');
+    spawnParts(player.px+T/2, player.py+T/2, '#ef4444');
+  }
+  triggerShake(10, 500); updateUI(); chaserRespawn(ts);
+}
+// ─── Movement & Checkout ─────────────────────────────────────────────────────
+function tryMove(dc,dr){
+  if(gs!=='playing') return;
+  if(tutorialStep >= 0) return;
+  if(Date.now() < playerFrozenUntil) return;
+  const nc=player.c+dc, nr=player.r+dr;
+  if(nc<0||nc>=NC||nr<0||nr>=NR) return;
+  const tile=MAP[nr][nc];
+  if(tile===1||tile===2) return;
+  // NPC collision — penalty + teleport the NPC to a far tile so you can't get stuck
+  const bumpedNpc = npcs.find(n=>n.c===nc&&n.r===nr);
+  if(bumpedNpc){
+    const QUIPS=["Oh hey! Haven't seen you in ages!","Wait — is that you?","Did you catch the game?","Love your cart!","Oh wow, small world!","We should catch up soon!"];
+    playerFrozenUntil = Date.now() + 5000;
+    player.chattingWith = bumpedNpc;
+    player.chatQuip = QUIPS[Math.floor(Math.random()*QUIPS.length)];
+    spawnParts(nc*T+T/2, nr*T+T/2, '#a78bfa');
+    triggerShake(4, 200); updateUI(); return;
+  }
+  // Chaser collision
+  if(chaser && chaser.c===nc&&chaser.r===nr&&performance.now()>=chaser.cooldown){
+    managerCatch(); return;
+  }
+  const oldC=player.c,oldR=player.r;player.c=nc;player.r=nr;
+  if(MAP[oldR]&&MAP[oldR][oldC]===3&&tile!==3)clearCheckoutHighlights();
+  else if(tile===3&&!(MAP[oldR]&&MAP[oldR][oldC]===3))applyCheckoutHighlights();
+
+  if(tile===3){
+    const hasDistractors = items.some(i=>i.type==='distractor'&&i.packsInCart>0);
+    if(hasDistractors){
+      addToast('Remove wrong items from your cart first!','#f87171');
+      return;
+    }
+
+    // Validate quantities — block entry and give specific feedback if wrong
+    const l2=getLevel(), sc2=getScale();
+    const issues=[];
+    l2.ingredients.forEach(ing=>{
+      const gotUnits=totalUnitsForIng(ing.id);
+      const needUnits=ing.recipeAmt*sc2;
+      if(gotUnits<needUnits){
+        issues.push({em:ing.em, msg:`${ing.name}: need ${needUnits} ${ing.unit}, have ${gotUnits}`, col:'#f87171'});
+      } else if(gotUnits>needUnits){
+        const variantItms=items.filter(i=>i.type==='recipe'&&(i.id===ing.id||i.variantOf===ing.id));
+        const minShoot=Math.min(...variantItms.map(v=>{ const p=Math.ceil(needUnits/v.packSize); return p*v.packSize-needUnits; }));
+        if(gotUnits-needUnits>minShoot){
+          issues.push({em:ing.em, msg:`${ing.name}: ${gotUnits-needUnits} ${ing.unit} too many — return some`, col:'#fbbf24'});
+        }
+      }
+    });
+
+    if(issues.length>0){
+      addToast('Cart not correct — check your recipe!', '#f87171');
+      return;
+    }
+
+    gs='checkout'; clearInterval(tmrID);
+    screen = makeCheckoutSc(); syncLayout();
+  }
+}
+
+function toward(cur,tgt,amt){ const d=tgt-cur; return Math.abs(d)<=amt?tgt:cur+(d>0?1:-1)*amt; }
+
+// ─── Drawing Helpers ──────────────────────────────────────────────────────────
+function rrPath(x,y,w,h,r){
+  CX.beginPath();
+  CX.moveTo(x+r,y); CX.lineTo(x+w-r,y); CX.arcTo(x+w,y,x+w,y+r,r);
+  CX.lineTo(x+w,y+h-r); CX.arcTo(x+w,y+h,x+w-r,y+h,r);
+  CX.lineTo(x+r,y+h); CX.arcTo(x,y+h,x,y+h-r,r);
+  CX.lineTo(x,y+r); CX.arcTo(x,y,x+r,y,r);
+  CX.closePath();
+}
+
+// ─── Map Drawing ──────────────────────────────────────────────────────────────
+function drawMap(){
+  const now = Date.now();
+  for(let r=0;r<NR;r++) for(let c=0;c<NC;c++){
+    const x=c*T, y=r*T, tile=MAP[r][c];
+    if(r===0 && c>0 && c<NC-1){
+      // Store header band
+      CX.fillStyle='#1d4ed8'; CX.fillRect(x,y,T,T);
+    } else if(tile===2){
+      // Wall
+      CX.fillStyle='#0f172a'; CX.fillRect(x,y,T,T);
+      CX.fillStyle='#1e293b'; CX.fillRect(x+1,y+1,T-2,T-2);
+      // Brick lines
+      CX.strokeStyle='#0f172a'; CX.lineWidth=1;
+      if(r%2===0){
+        CX.beginPath(); CX.moveTo(x+T/2,y); CX.lineTo(x+T/2,y+T); CX.stroke();
+      } else {
+        CX.beginPath(); CX.moveTo(x,y+T/2); CX.lineTo(x+T,y+T/2); CX.stroke();
+      }
+    } else if(tile===0){
+      // Floor — checkerboard
+      CX.fillStyle = (r+c)%2===0 ? '#faf7f0' : '#f0ead6';
+      CX.fillRect(x,y,T,T);
+      // Subtle grid lines
+      CX.strokeStyle='rgba(0,0,0,0.04)'; CX.lineWidth=0.5;
+      CX.strokeRect(x,y,T,T);
+    } else if(tile===1){
+      // Shelf — wooden look
+      CX.fillStyle='#92400e'; CX.fillRect(x,y,T,T);
+      // Wood grain
+      CX.fillStyle='#a16207'; CX.fillRect(x+1,y+1,T-2,6);
+      CX.fillStyle='#78350f'; CX.fillRect(x,y+T-4,T,4);
+      CX.fillStyle='rgba(0,0,0,0.15)'; CX.fillRect(x,y+T/2-1,T,2);
+      // Shelf edge highlight
+      CX.fillStyle='rgba(255,255,255,0.1)'; CX.fillRect(x+1,y+1,T-2,2);
+      // Colorful product tags
+      const DC=['#ef4444','#22c55e','#3b82f6','#f59e0b','#ec4899','#a78bfa','#06b6d4'];
+      for(let i=0;i<3;i++){
+        CX.fillStyle=DC[(r*5+c*3+i*7)%DC.length];
+        CX.fillRect(x+3+i*9,y+8,7,10);
+        CX.fillStyle='rgba(255,255,255,0.3)';
+        CX.fillRect(x+3+i*9,y+8,7,2);
+      }
+    } else if(tile===3){
+      // Checkout — pulsing green
+      const g=Math.abs(Math.sin(now/500));
+      CX.fillStyle=`rgb(${Math.round(5+g*10)},${Math.round(100+g*30)},70)`;
+      CX.fillRect(x,y,T,T);
+      CX.fillStyle='#059669'; CX.fillRect(x+2,y+2,T-4,T-4);
+      // Belt lines
+      CX.strokeStyle='rgba(0,0,0,0.25)'; CX.lineWidth=1;
+      for(let i=4;i<T;i+=6){
+        CX.beginPath(); CX.moveTo(x,y+i); CX.lineTo(x+T,y+i); CX.stroke();
+      }
+    }
+  }
+
+  // Store name banner
+  CX.fillStyle='rgba(29,78,216,0.92)';
+  CX.fillRect(1*T, 0, (NC-2)*T, T);
+  CX.fillStyle='#bfdbfe';
+  CX.font = `bold ${Math.round(T*0.38)}px 'Courier New',monospace`;
+  CX.textAlign='center'; CX.textBaseline='middle';
+  CX.fillText('★  FRESH MART SUPERMARKET  ★', (NC/2)*T, T/2);
+
+  // Checkout label
+  CX.fillStyle='#6ee7b7';
+  CX.font=`bold ${Math.round(T*0.28)}px 'Courier New',monospace`;
+  CX.textAlign='center'; CX.textBaseline='middle';
+  CX.fillText('CHECKOUT', 17*T, (NR-1.5)*T);
+
+  // Checkout arrow — appears when cart is ready
+  if(gs==='playing' && isCartReady()){
+    const now = Date.now();
+    const pulse = 0.7 + Math.sin(now/280)*0.3;
+    const arrowX = 17*T;
+    const arrowY = (NR-3)*T;
+    CX.save();
+    CX.globalAlpha = pulse;
+    // Glow
+    CX.shadowColor='#4ade80'; CX.shadowBlur=18;
+    CX.fillStyle='#4ade80';
+    CX.font=`bold ${Math.round(T*0.38)}px 'Courier New',monospace`;
+    CX.textAlign='center'; CX.textBaseline='middle';
+    CX.fillText('▼ CHECKOUT!', arrowX, arrowY);
+    CX.restore();
+  }
+}
+
+  // Checkout label on green tiles
+  CX.fillStyle='#6ee7b7';
+  CX.font=`bold ${Math.round(T*0.28)}px 'Courier New',monospace`;
+  CX.textAlign='center'; CX.textBaseline='middle';
+  CX.fillText('CHECKOUT', 17*T, (NR-1.5)*T);
+
+// ─── Item Drawing ─────────────────────────────────────────────────────────────
+function drawItems(){
+  const now = Date.now();
+  items.forEach(it=>{
+    const x=it.c*T+T/2, y=it.r*T+T/2;
+    const onPlayer = player.c===it.c && player.r===it.r;
+
+    const bob=Math.sin(now/700+it.id*1.4)*2;
+    const cy=y+bob;
+
+    // Shadow
+    CX.fillStyle='rgba(0,0,0,0.15)';
+    CX.beginPath(); CX.ellipse(x,y+T*0.45,T*0.38,T*0.12,0,0,Math.PI*2); CX.fill();
+
+    // Circle backing
+    CX.fillStyle='rgba(255,255,255,0.97)';
+    CX.beginPath(); CX.arc(x,cy,T*0.42,0,Math.PI*2); CX.fill();
+
+    // Colored ring
+    const ringCol = it.type==='distractor' ? '#94a3b8' : GRP[it.grp];
+    CX.strokeStyle=ringCol; CX.lineWidth=2.5;
+    CX.beginPath(); CX.arc(x,cy,T*0.42,0,Math.PI*2); CX.stroke();
+
+    // Emoji
+    CX.font=`${Math.round(T*0.56)}px serif`;
+    CX.textAlign='center'; CX.textBaseline='middle';
+    CX.fillText(it.em, x, cy+1);
+
+    // Pack size label under the item
+    if(it.type==='recipe'){
+      const label = `${it.packSize} ${it.unit}`;
+      CX.font=`bold ${Math.round(T*0.21)}px system-ui,sans-serif`;
+      CX.textAlign='center'; CX.textBaseline='middle';
+      const lw = CX.measureText(label).width+8;
+      CX.fillStyle='rgba(15,23,42,0.82)';
+      rrPath(x-lw/2, cy+T*0.46, lw, 13, 3); CX.fill();
+      CX.fillStyle=GRP[it.grp]||'#e2e8f0';
+      CX.fillText(label, x, cy+T*0.46+6.5);
+    }
+
+    // Pack count badge if item has packs in cart (recipe or distractor)
+    if(it.packsInCart>0){
+      const bx=x+T*0.28, by=cy-T*0.3;
+      const badgeCol = it.type==='distractor' ? '#dc2626' : '#1d4ed8';
+      CX.fillStyle=badgeCol;
+      CX.beginPath(); CX.arc(bx,by,T*0.22,0,Math.PI*2); CX.fill();
+      CX.fillStyle='#fff';
+      CX.font=`bold ${Math.round(T*0.24)}px 'Courier New',monospace`;
+      CX.textAlign='center'; CX.textBaseline='middle';
+      CX.fillText(it.packsInCart, bx, by+1);
+    }
+
+    // Interaction hint when player is standing on the item
+    if(onPlayer){
+      const willReturn = !it.playerHere && it.packsInCart > 0;
+      const hintTxt = willReturn
+        ? `[SPACE] return 1 pack  (${it.packsInCart} in cart)`
+        : `[SPACE] grab a pack${it.type==='recipe'?' ('+it.packSize+' '+it.unit+')':''}`;
+      const hintCol = willReturn ? '#fb923c' : '#fbbf24';
+      drawHintLabel(x, cy-T*0.52, hintTxt, hintCol);
+    }
+  });
+}
+
+function drawHintLabel(x,y,txt,col){
+  CX.font=`bold ${Math.round(T*0.22)}px 'Courier New',monospace`;
+  CX.textAlign='center';
+  const tw=CX.measureText(txt).width+10;
+  CX.fillStyle='rgba(8,12,26,0.93)';
+  rrPath(x-tw/2, y-8, tw, 16, 4); CX.fill();
+  CX.fillStyle=col; CX.textBaseline='middle';
+  CX.fillText(txt, x, y);
+}
+
+// ─── Player Drawing ───────────────────────────────────────────────────────────
+function drawPlayer(){
+  const x=player.px+T/2, y=player.py+T/2, r=T*0.38;
+
+  // Shadow
+  CX.fillStyle='rgba(0,0,0,0.22)';
+  CX.beginPath(); CX.ellipse(x, y+r*0.8, r*0.88, r*0.26, 0,0,Math.PI*2); CX.fill();
+
+  // Cart body
+  CX.fillStyle='#2563eb';
+  rrPath(x-r, y-r*0.45, r*2, r*1.1, 5); CX.fill();
+  // Shine
+  CX.fillStyle='rgba(255,255,255,0.25)';
+  rrPath(x-r+2, y-r*0.45+2, r*2-4, r*0.4, 3); CX.fill();
+
+  // Cart handle arc
+  CX.strokeStyle='#1d4ed8'; CX.lineWidth=2.5; CX.lineCap='round';
+  CX.beginPath();
+  CX.moveTo(x-r*0.42, y-r*0.45);
+  CX.lineTo(x-r*0.42, y-r*0.9);
+  CX.lineTo(x+r*0.42, y-r*0.9);
+  CX.lineTo(x+r*0.42, y-r*0.45);
+  CX.stroke();
+
+  // Wheels
+  for(const wx of [x-r*0.48, x+r*0.48]){
+    CX.fillStyle='#1e293b';
+    CX.beginPath(); CX.arc(wx, y+r*0.65, r*0.22, 0,Math.PI*2); CX.fill();
+    CX.fillStyle='#64748b';
+    CX.beginPath(); CX.arc(wx, y+r*0.65, r*0.1, 0,Math.PI*2); CX.fill();
+  }
+
+  // Emoji bubbles peeking out of cart for each grabbed ingredient
+  const grabbed = items.filter(i=>i.type==='recipe' && !i.variantOf && totalUnitsForIng(i.id)>0);
+  const maxShow = 3;
+  const show = grabbed.slice(0, maxShow);
+  const bubbleR = r*0.32;
+  const spread = r*0.55;
+  show.forEach((it,i)=>{
+    const offsets = [0, -spread, spread, -spread*0.5, spread*0.5];
+    const bx = x + (offsets[i]||0);
+    const by2 = y - r*0.55 - bubbleR;
+    CX.fillStyle='#fff';
+    CX.beginPath(); CX.arc(bx, by2, bubbleR, 0, Math.PI*2); CX.fill();
+    CX.strokeStyle='rgba(0,0,0,0.12)'; CX.lineWidth=1;
+    CX.beginPath(); CX.arc(bx, by2, bubbleR, 0, Math.PI*2); CX.stroke();
+    CX.font=`${Math.round(bubbleR*1.4)}px serif`;
+    CX.textAlign='center'; CX.textBaseline='middle';
+    CX.fillText(it.em, bx, by2+1);
+  });
+  if(grabbed.length>maxShow){
+    CX.fillStyle='#fbbf24';
+    CX.font=`bold ${Math.round(T*0.22)}px 'Courier New',monospace`;
+    CX.textAlign='center'; CX.textBaseline='middle';
+    CX.fillText(`+${grabbed.length-maxShow}`, x+r*0.6, y-r*0.9);
+  }
+}
+
+// ─── Particles & Toasts ───────────────────────────────────────────────────────
+function drawParts(){
+  parts.forEach(p=>{
+    CX.save(); CX.globalAlpha=Math.max(0,p.life);
+    CX.fillStyle=p.col;
+    CX.beginPath(); CX.arc(p.x,p.y,p.r*p.life,0,Math.PI*2); CX.fill();
+    CX.restore();
+  });
+}
+
+function drawToasts(){
+  toasts.forEach(t=>{
+    const alpha=Math.min(1,t.life*1.8);
+    CX.font=`bold ${Math.round(T*0.32)}px system-ui,sans-serif`;
+    const tw=Math.min(NC*T-20, CX.measureText(t.txt).width+26);
+    CX.save(); CX.globalAlpha=alpha;
+    CX.fillStyle='rgba(8,12,26,0.94)';
+    rrPath(t.x-tw/2, t.y-13, tw, 26, 7); CX.fill();
+    CX.strokeStyle=t.col; CX.lineWidth=1.5;
+    rrPath(t.x-tw/2, t.y-13, tw, 26, 7); CX.stroke();
+    CX.fillStyle=t.col; CX.textAlign='center'; CX.textBaseline='middle';
+    CX.fillText(t.txt, t.x, t.y);
+    CX.restore();
+  });
+}
+
+// ─── NPC Drawing ─────────────────────────────────────────────────────────────
+function drawNPCs(){
+  // Draw chaser first (behind player NPCs)
+  if(chaser && gs==='playing'){
+    const x=chaser.px+T/2, y=chaser.py+T/2, r=T*0.36;
+    const pulse=0.7+Math.sin(Date.now()/180)*0.3;
+    // Warning ring pulsing red
+    CX.save(); CX.globalAlpha=pulse*0.5;
+    CX.strokeStyle='#ef4444'; CX.lineWidth=3;
+    CX.beginPath(); CX.arc(x,y,T*0.58,0,Math.PI*2); CX.stroke();
+    CX.restore();
+    // Body
+    CX.fillStyle='#7f1d1d';
+    rrPath(x-r,y-r*0.45,r*2,r*1.1,4); CX.fill();
+    CX.fillStyle='rgba(255,255,255,0.15)';
+    rrPath(x-r+2,y-r*0.45+2,r*2-4,r*0.38,3); CX.fill();
+    CX.strokeStyle='#ef4444'; CX.lineWidth=2; CX.lineCap='round';
+    CX.beginPath();
+    CX.moveTo(x-r*0.38,y-r*0.45); CX.lineTo(x-r*0.38,y-r*0.9);
+    CX.lineTo(x+r*0.38,y-r*0.9);  CX.lineTo(x+r*0.38,y-r*0.45);
+    CX.stroke();
+    for(const wx of [x-r*0.44,x+r*0.44]){
+      CX.fillStyle='#1e293b'; CX.beginPath(); CX.arc(wx,y+r*0.65,r*0.2,0,Math.PI*2); CX.fill();
+    }
+    CX.font=`${Math.round(T*0.34)}px serif`;
+    CX.textAlign='center'; CX.textBaseline='middle';
+    CX.fillText('😤',x,y+1);
+  }
+
+  npcs.forEach(n=>{
+    const x=n.px+T/2, y=n.py+T/2, r=T*0.32;
+    // Shadow
+    CX.fillStyle='rgba(0,0,0,0.18)';
+    CX.beginPath(); CX.ellipse(x,y+r*0.8,r*0.88,r*0.26,0,0,Math.PI*2); CX.fill();
+    // Cart body
+    CX.fillStyle=n.col;
+    rrPath(x-r,y-r*0.45,r*2,r*1.1,4); CX.fill();
+    // Shine
+    CX.fillStyle='rgba(255,255,255,0.18)';
+    rrPath(x-r+2,y-r*0.45+2,r*2-4,r*0.38,3); CX.fill();
+    // Handle
+    CX.strokeStyle=n.col; CX.lineWidth=2; CX.lineCap='round';
+    CX.beginPath();
+    CX.moveTo(x-r*0.38,y-r*0.45); CX.lineTo(x-r*0.38,y-r*0.9);
+    CX.lineTo(x+r*0.38,y-r*0.9);  CX.lineTo(x+r*0.38,y-r*0.45);
+    CX.stroke();
+    // Wheels
+    for(const wx of [x-r*0.44,x+r*0.44]){
+      CX.fillStyle='#1e293b'; CX.beginPath(); CX.arc(wx,y+r*0.65,r*0.2,0,Math.PI*2); CX.fill();
+      CX.fillStyle='#64748b'; CX.beginPath(); CX.arc(wx,y+r*0.65,r*0.09,0,Math.PI*2); CX.fill();
+    }
+    // Shopper emoji
+    CX.font=`${Math.round(T*0.3)}px serif`;
+    CX.textAlign='center'; CX.textBaseline='middle';
+    CX.fillText(n.em,x,y+1);
+    // Danger ring pulse
+    const pulse=0.55+Math.sin(Date.now()/350)*0.2;
+    CX.save(); CX.globalAlpha=pulse*0.6;
+    CX.strokeStyle=n.col; CX.lineWidth=2;
+    CX.beginPath(); CX.arc(x,y,T*0.52,0,Math.PI*2); CX.stroke();
+    CX.restore();
+  });
+}
+
+// ─── Tutorial ─────────────────────────────────────────────────────────────────
+function advanceTutorial(){
+  tutorialStep++;
+  if(tutorialStep >= TUTORIAL_STEPS.length){
+    tutorialStep = -1;
+    startLevelTimer(); // Timer begins NOW — after player reads all instructions
+  }
+}
+
+const TUTORIAL_STEPS = [
+  { title: 'WELCOME TO GROCERY DASH!', body: 'Dinner guests are coming — you need to buy the right ingredients!\nCheck the RECIPE CARD on the right →', icon: '📋' },
+  { title: 'HOW MUCH TO BUY?', body: 'Multiply: recipe amount × number of guests\nExample: 2 eggs × 4 guests = 8 eggs needed\nThen figure out how many PACKS to grab!', icon: '🧮' },
+  { title: 'GRAB & CHECKOUT', body: 'Walk to a shelf item → press SPACE to grab a pack\nPress BACKSPACE to return the last grabbed pack\nGo to the green CHECKOUT tiles when ready!', icon: '🛒' },
+  { title: 'WATCH OUT!', body: 'The store manager 😤 is suspicious of anyone rushing\nIf caught, something FALLS OUT of your cart!\nRun into a shopper: frozen 5 seconds!', icon: '😤' },
+];
+function drawTutorial(){
+  if(tutorialStep < 0 || tutorialStep >= TUTORIAL_STEPS.length) return;
+  const step = TUTORIAL_STEPS[tutorialStep];
+  const CW=NC*T, CH=NR*T;
+  // Full-screen dark overlay — timer hasn't started yet
+  CX.fillStyle='rgba(5,10,25,0.93)';
+  CX.fillRect(0,0,CW,CH);
+  // Card centered on screen
+  const bw=420, bh=220;
+  const bx=(CW-bw)/2, by=(CH-bh)/2;
+  CX.fillStyle='#1e293b'; rrPath(bx,by,bw,bh,16); CX.fill();
+  CX.strokeStyle='#fbbf24'; CX.lineWidth=2.5; rrPath(bx,by,bw,bh,16); CX.stroke();
+  // Step counter badge
+  CX.fillStyle='#fbbf24';
+  CX.font=`bold 9px 'Courier New',monospace`;
+  CX.textAlign='right'; CX.textBaseline='top';
+  CX.fillText(`${tutorialStep+1} / ${TUTORIAL_STEPS.length}`, bx+bw-16, by+14);
+  // Icon (large, centered top)
+  CX.font='44px serif'; CX.textAlign='center'; CX.textBaseline='top';
+  CX.fillText(step.icon, CW/2, by+18);
+  // Title
+  CX.fillStyle='#fbbf24';
+  CX.font=`bold ${Math.round(T*0.24)}px 'Courier New',monospace`;
+  CX.textAlign='center'; CX.textBaseline='top';
+  CX.fillText(step.title, CW/2, by+72);
+  // Body (multi-line, generous line height)
+  CX.fillStyle='#e2e8f0';
+  CX.font='13px system-ui,sans-serif';
+  step.body.split('\n').forEach((line,i)=>{
+    CX.fillText(line, CW/2, by+100+i*20);
+  });
+  // Progress dots
+  const dotStr = TUTORIAL_STEPS.map((_,i)=>i===tutorialStep?'●':'○').join('  ');
+  CX.fillStyle='#64748b'; CX.font='11px system-ui,sans-serif';
+  CX.fillText(dotStr, CW/2, by+bh-34);
+  // CTA button look
+  const isLast = tutorialStep === TUTORIAL_STEPS.length-1;
+  CX.fillStyle=isLast?'#fbbf24':'#334155';
+  rrPath(CW/2-80, by+bh-26, 160, 22, 8); CX.fill();
+  CX.fillStyle=isLast?'#1e293b':'#94a3b8';
+  CX.font=`bold 9px 'Courier New',monospace`;
+  CX.fillText(isLast ? '▶  START SHOPPING!' : 'SPACE / CLICK TO CONTINUE', CW/2, by+bh-13);
+}
+
+function drawHUD(){
+  if(gs!=='playing' && gs!=='checkout') return;
+  const CW=NC*T;
+  const hearts='♥'.repeat(Math.max(0,lives))+'♡'.repeat(Math.max(0,3-lives));
+  const col=lives<=1?'#ef4444':lives<=2?'#fb923c':'#f87171';
+  CX.font="bold 14px 'Courier New',monospace";
+  const tw=CX.measureText(hearts).width;
+  CX.fillStyle='rgba(15,23,42,0.82)'; rrPath(CW-tw-22,8,tw+16,22,6); CX.fill();
+  CX.strokeStyle='rgba(51,65,85,0.8)'; CX.lineWidth=1; rrPath(CW-tw-22,8,tw+16,22,6); CX.stroke();
+  CX.fillStyle=col; CX.textAlign='center'; CX.textBaseline='middle';
+  CX.fillText(hearts, CW-tw/2-14, 19);
+}
+function drawFreezeOverlay(){
+  const now=Date.now(); if(now>=playerFrozenUntil) return;
+  const secsLeft=Math.ceil((playerFrozenUntil-now)/1000);
+  const frac=(playerFrozenUntil-now)/5000;
+  const px=player.px+T/2, py=player.py+T/2;
+  const bw=170,bh=42,bx=px-bw/2,by=py-T*1.1-bh;
+  CX.fillStyle='rgba(255,255,255,0.95)'; rrPath(bx,by,bw,bh,8); CX.fill();
+  CX.strokeStyle='#a78bfa'; CX.lineWidth=2; rrPath(bx,by,bw,bh,8); CX.stroke();
+  CX.fillStyle='rgba(255,255,255,0.95)';
+  CX.beginPath(); CX.moveTo(px-6,by+bh); CX.lineTo(px+6,by+bh); CX.lineTo(px,by+bh+8); CX.closePath(); CX.fill();
+  CX.strokeStyle='#a78bfa'; CX.lineWidth=2;
+  CX.beginPath(); CX.moveTo(px-6,by+bh); CX.lineTo(px,by+bh+8); CX.lineTo(px+6,by+bh); CX.stroke();
+  const quip=player.chatQuip||"Oh hey!";
+  CX.fillStyle='#1e293b'; CX.font='bold 10px system-ui,sans-serif';
+  CX.textAlign='center'; CX.textBaseline='middle';
+  CX.fillText(quip, px, by+bh/2);
+  const r=T*0.55;
+  CX.strokeStyle='rgba(167,139,250,0.3)'; CX.lineWidth=3;
+  CX.beginPath(); CX.arc(px,py,r,0,Math.PI*2); CX.stroke();
+  CX.strokeStyle='#a78bfa'; CX.lineWidth=3;
+  CX.beginPath(); CX.arc(px,py,r,-Math.PI/2,-Math.PI/2+Math.PI*2*frac); CX.stroke();
+  CX.fillStyle='#a78bfa'; CX.font="bold 11px 'Courier New',monospace";
+  CX.textAlign='center'; CX.textBaseline='middle';
+  CX.fillText(secsLeft+'s', px, py+T*0.9);
+}
+function draw(){
+  CX.clearRect(0, 0, NC*T, NR*T);
+  drawMap(); drawItems(); drawNPCs(); drawPlayer(); drawParts(); drawToasts(); drawFreezeOverlay(); drawHUD();
+  if(screen) screen.draw();
+  drawTutorial();
+}
+
+// ─── Screens ──────────────────────────────────────────────────────────────────
+function makeBox(title, lines, btnTxt, btnFn){
+  const lh=26, bh=Math.max(180,90+lines.length*lh+54);
+  const bw=360, bx=(NC*T-bw)/2, by=(NR*T-bh)/2;
+  const bBx=bx+bw/2-66, bBy=by+bh-50, bBw=132, bBh=38;
+  scBtns=[{x:bBx*getCVScale(),y:bBy*getCVScale(),w:bBw*getCVScale(),h:bBh*getCVScale(),fn:btnFn}];
+  return{draw(){
+    CX.fillStyle='rgba(0,0,0,0.78)'; CX.fillRect(0,0,NC*T,NR*T);
+    CX.fillStyle='#1e293b'; rrPath(bx,by,bw,bh,14); CX.fill();
+    CX.strokeStyle='#fbbf24'; CX.lineWidth=2.5; rrPath(bx,by,bw,bh,14); CX.stroke();
+    CX.fillStyle='#fcd34d';
+    CX.font=`bold ${Math.round(T*0.3)}px 'Courier New',monospace`;
+    CX.textAlign='center'; CX.textBaseline='middle';
+    CX.fillText(title, NC*T/2, by+24);
+    lines.forEach((l,i)=>{
+      if(!l) return;
+      const isObj = typeof l==='object';
+      CX.fillStyle = isObj ? (l.col||'#e2e8f0') : '#e2e8f0';
+      CX.font = isObj ? (l.font||'14px system-ui,sans-serif') : '14px system-ui,sans-serif';
+      CX.fillText(isObj?l.txt:l, NC*T/2, by+52+i*lh);
+    });
+    CX.fillStyle='#fbbf24'; rrPath(bBx,bBy,bBw,bBh,9); CX.fill();
+    CX.fillStyle='#1e293b';
+    CX.font=`bold ${Math.round(T*0.25)}px 'Courier New',monospace`;
+    CX.textAlign='center'; CX.textBaseline='middle';
+    CX.fillText(btnTxt, bBx+bBw/2, bBy+bBh/2);
+  }};
+}
+
+// ─── Checkout Screen (the big reveal) ─────────────────────────────────────────
+function makeCheckoutSc(){
+  const l=getLevel();
+
+  // Evaluate each ingredient using combined units across variants
+  const scale = getScale();
+  const results = l.ingredients.map(ing=>{
+    const gotUnits = totalUnitsForIng(ing.id);
+    const needUnits = ing.recipeAmt * scale;
+    const ok = gotUnits >= needUnits;
+    // Minimum unavoidable overshoot: best any single pack size could do
+    const variantItems = items.filter(i=>i.type==='recipe' && (i.id===ing.id || i.variantOf===ing.id));
+    const minShoot = Math.min(...variantItems.map(v=>{
+      const p = Math.ceil(needUnits / v.packSize);
+      return p * v.packSize - needUnits;
+    }));
+    // Avoidable extra = anything beyond the best possible (unavoidable) overshoot
+    const avoidableExtra = ok ? Math.max(0, gotUnits - needUnits - minShoot) : 0;
+    return { ing, gotUnits, needUnits, ok, avoidableExtra };
+  });
+
+  const allOk = results.every(r=>r.ok);
+  const lScore = allOk ? timeLeft*10 : Math.floor(timeLeft*3);
+  totalScore += lScore;
+
+  // Star rating (3 stars = no waste + >35s left, 2 = no waste or >20s, 1 = just completed)
+  let starsEarned = 0;
+  if(allOk){
+    const hasWaste = results.some(r=>r.avoidableExtra>0);
+    if(!hasWaste && timeLeft >= 35) starsEarned = 3;
+    else if(!hasWaste || timeLeft >= 20) starsEarned = 2;
+    else starsEarned = 1;
+    // Save if better
+    if(starsEarned > levelStars[levelIdx]){
+      levelStars[levelIdx] = starsEarned;
+    }
+    if(timeLeft > levelBestTime[levelIdx]){
+      levelBestTime[levelIdx] = timeLeft;
+    }
+    if(lScore > levelBestScore[levelIdx]){
+      levelBestScore[levelIdx] = lScore;
+    }
+    saveScores();
+  }
+
+  const btnTxt = allOk ? (levelsCleared>=LEVELS.length-1&&levelIdx===LEVELS.length-1 ? 'FINISH! ⭐' : 'NEXT ▶') : 'RETRY LEVEL';
+  const btnFn = allOk
+    ? ()=>{
+        if(levelIdx >= levelsCleared) levelsCleared = levelIdx + 1;
+        if(levelsCleared >= LEVELS.length){ gs='win'; screen=makeWinSc(); }
+        else enterMenu();
+      }
+    : ()=>{ resetForLevel(); gs='levelintro'; screen=makeLevelIntroSc(); syncLayout(); };
+
+  const lines = [];
+  if(allOk){
+    const starStr = '★'.repeat(starsEarned) + '☆'.repeat(3-starsEarned);
+    lines.push({txt: `${starStr}  PERFECT SHOP!  ${starStr}`, col: starsEarned===3?'#fbbf24':starsEarned===2?'#a78bfa':'#4ade80', font:'bold 16px system-ui,sans-serif'});
+    if(starsEarned===3) lines.push({txt:'⚡ PERFECT — No waste, great time!', col:'#fbbf24', font:'12px system-ui,sans-serif'});
+    else if(starsEarned===2) lines.push({txt:'Well done! Aim for no waste + 35s+ for 3 stars', col:'#94a3b8', font:'11px system-ui,sans-serif'});
+    else lines.push({txt:'Completed! Try again with no wasted ingredients for more stars', col:'#94a3b8', font:'11px system-ui,sans-serif'});
+  } else {
+    lines.push({txt:'✗ Not quite — check your cart quantities', col:'#f87171', font:'bold 14px system-ui,sans-serif'});
+  }
+  lines.push(null);
+  results.forEach(({ing,gotUnits,needUnits,ok,avoidableExtra})=>{
+    const scaleStr = Number.isInteger(scale) ? scale : scale.toFixed(1);
+    const eq = `${ing.recipeAmt} × ${scaleStr} = ${needUnits} ${ing.unit} needed`;
+    let status, col;
+    if(!ok){
+      status = `got ${gotUnits} ✗`; col='#f87171';
+    } else if(avoidableExtra>0){
+      status = `got ${gotUnits} ✓ (${avoidableExtra} ${ing.unit} over)`; col='#fbbf24';
+    } else {
+      status = `got ${gotUnits} ✓ perfect!`; col='#4ade80';
+    }
+    lines.push({txt:`${ing.em} ${ing.name}: ${eq} — ${status}`, col, font:'12px system-ui,sans-serif'});
+  });
+  lines.push(null);
+  const m=Math.floor(timeLeft/60),s=timeLeft%60;
+  lines.push({txt:`Time left: ${m}:${s.toString().padStart(2,'0')}  ·  Score: +${lScore} pts (total: ${totalScore})`,col:'#94a3b8',font:'12px system-ui,sans-serif'});
+
+  return makeBox(allOk?'CHECKOUT RECEIPT ✓':'CHECKOUT RECEIPT ✗', lines, btnTxt, btnFn);
+}
+
+// ─── Level intro screen ───────────────────────────────────────────────────────────────────────────────
+function makeLevelIntroSc(){
+  const l=getLevel(), ings=l.ingredients, bw=460;
+  const ingRows=ings.length>4?2:1;
+  const ingH=ingRows*64+(ingRows-1)*4;
+  const warnH=(l.distractors.length>0?60:0)+(l.npcCount>0?60:0)+(l.npcCount>0&&l.distractors.length>0?8:0);
+  const bh=104+ingH+30+20+warnH+52;
+  const bx=(NC*T-bw)/2,by=(NR*T-bh)/2;
+  const btnX=bx+bw/2-76,btnY=by+bh-46,btnW=152,btnH=38;
+  scBtns=[{x:btnX*getCVScale(),y:btnY*getCVScale(),w:btnW*getCVScale(),h:btnH*getCVScale(),fn:startLevel}];
+  return{draw(){
+    CX.fillStyle='rgba(0,0,0,0.88)';CX.fillRect(0,0,NC*T,NR*T);
+    CX.fillStyle='#0f172a';rrPath(bx,by,bw,bh,16);CX.fill();
+    CX.strokeStyle='#fbbf24';CX.lineWidth=2.5;rrPath(bx,by,bw,bh,16);CX.stroke();
+    CX.fillStyle='#fbbf24';CX.font=`bold ${Math.round(T*0.28)}px 'Courier New',monospace`;
+    CX.textAlign='center';CX.textBaseline='middle';
+    CX.fillText(`LEVEL ${levelIdx+1} OF ${LEVELS.length}`,NC*T/2,by+18);
+    CX.fillStyle='#f8fafc';CX.font='bold 19px system-ui,sans-serif';
+    CX.fillText(l.name,NC*T/2,by+40);
+    CX.fillStyle='#94a3b8';CX.font='12px system-ui,sans-serif';
+    CX.fillText(l.desc,NC*T/2,by+60);
+    CX.fillStyle='#93c5fd';CX.font='13px system-ui,sans-serif';
+    CX.fillText(`Recipe for ${l.servings}  —  Feeding ${diners} guests`,NC*T/2,by+80);
+    CX.strokeStyle='#1e293b';CX.lineWidth=1;
+    CX.beginPath();CX.moveTo(bx+20,by+94);CX.lineTo(bx+bw-20,by+94);CX.stroke();
+    const row1=ingRows>1?ings.slice(0,4):ings,row2=ingRows>1?ings.slice(4):[];
+    const maxCols=Math.max(row1.length,row2.length),spc=Math.min(80,(bw-24)/maxCols);
+    function drawIngRow(rowIngs,centerY){
+      const rowStartX=NC*T/2-(rowIngs.length-1)*spc/2;
+      rowIngs.forEach((ing,i)=>{
+        const ix=rowStartX+i*spc;
+        CX.font='22px serif';CX.textAlign='center';CX.textBaseline='middle';CX.fillText(ing.em,ix,centerY);
+        CX.fillStyle='#fbbf24';CX.font=`bold ${Math.round(T*0.28)}px 'Courier New',monospace`;
+        CX.fillText('×'+ing.recipeAmt,ix,centerY+21);
+        CX.fillStyle='#94a3b8';CX.font='9px system-ui,sans-serif';
+        CX.fillText(ing.name.length>10?ing.name.slice(0,9)+'…':ing.name,ix,centerY+34);
+        CX.fillStyle='#475569';CX.font='8px system-ui,sans-serif';CX.fillText('per serving',ix,centerY+46);
+      });
+    }
+    const row1Y=by+104+32;
+    drawIngRow(row1,row1Y);if(row2.length)drawIngRow(row2,row1Y+68);
+    const timeY=row1Y+(row2.length?68:0)+62;
+    CX.fillStyle='#64748b';CX.font='11px system-ui,sans-serif';CX.textAlign='center';CX.textBaseline='middle';
+    CX.fillText(`Time: ${Math.floor(l.time/60)}:${(l.time%60).toString().padStart(2,'0')}`,NC*T/2,timeY);
+    let wy=timeY+14;
+    if(l.distractors.length>0){
+      CX.fillStyle='rgba(239,68,68,0.12)';rrPath(bx+14,wy,bw-28,52,6);CX.fill();
+      CX.strokeStyle='rgba(239,68,68,0.3)';CX.lineWidth=1;rrPath(bx+14,wy,bw-28,52,6);CX.stroke();
+      CX.fillStyle='#f87171';CX.font=`bold ${Math.round(T*0.22)}px 'Courier New',monospace`;
+      CX.textAlign='center';CX.textBaseline='middle';
+      CX.fillText(`⚠ ${l.distractors.length} DISTRACTOR${l.distractors.length>1?'S':''} ON THE SHELVES`,NC*T/2,wy+18);
+      CX.fillStyle='#fca5a5';CX.font='11px system-ui,sans-serif';
+      CX.fillText("Don't grab items that aren't on the recipe!",NC*T/2,wy+36);
+      wy+=60;
+    }
+    if(l.npcCount>0){
+      if(l.distractors.length>0)wy+=8;
+      CX.fillStyle='rgba(249,115,22,0.12)';rrPath(bx+14,wy,bw-28,52,6);CX.fill();
+      CX.strokeStyle='rgba(249,115,22,0.3)';CX.lineWidth=1;rrPath(bx+14,wy,bw-28,52,6);CX.stroke();
+      CX.fillStyle='#fb923c';CX.font=`bold ${Math.round(T*0.22)}px 'Courier New',monospace`;
+      CX.textAlign='center';CX.textBaseline='middle';
+      CX.fillText(`🛒 ${l.npcCount} SHOPPER${l.npcCount>1?'S':''} + 😤 STORE MANAGER IN THE AISLES`,NC*T/2,wy+18);
+      CX.fillStyle='#fed7aa';CX.font='11px system-ui,sans-serif';
+      CX.fillText('Run into a shopper: frozen 5s · Manager catches you: drops a cart item!',NC*T/2,wy+36);
+    }
+    CX.fillStyle='#fbbf24';rrPath(btnX,btnY,btnW,btnH,10);CX.fill();
+    CX.fillStyle='#1e293b';CX.font=`bold ${Math.round(T*0.25)}px 'Courier New',monospace`;
+    CX.textAlign='center';CX.textBaseline='middle';CX.fillText('START SHOPPING!',btnX+btnW/2,btnY+btnH/2);
+  }};
+}
+function makeGoSc(){
+  lives--;
+  updateLivesDisplay();
+  if(lives<=0){
+    return makeBox('GAME OVER 💀',[
+      'The dinner guests went home hungry! 😢',
+      `Levels cleared: ${levelsCleared} / ${LEVELS.length}`,
+      `Final score: ${totalScore} pts`,
+      null,
+      'Tip: solve the math fast and head to checkout!',
+    ],'PLAY AGAIN',()=>{ lives=3; levelsCleared=0; totalScore=0; enterMenu(); });
+  }
+  return makeBox("TIME'S UP!",[
+    `${lives} ${lives===1?'life':'lives'} remaining`,
+    "Move faster — dinner won't cook itself!",
+  ],'RETRY LEVEL',()=>{ resetForLevel(); gs='levelintro'; screen=makeLevelIntroSc(); syncLayout(); });
+}
+
+function makeWinSc(){
+  const totalStarsEarned = levelStars.reduce((a,b)=>a+b,0);
+  const maxStars = LEVELS.length * 3;
+  return makeBox('DINNER IS SAVED! 🎉',[
+    `All ${LEVELS.length} recipes complete!`,
+    `Final score: ${totalScore} pts`,
+    {txt: `Stars: ${totalStarsEarned} / ${maxStars} ★`, col: totalStarsEarned===maxStars?'#fbbf24':'#a78bfa', font:'bold 14px system-ui,sans-serif'},
+    `Lives remaining: ${'♥'.repeat(Math.max(0,lives))}`,
+    null,
+    "You outsmarted the manager — master shopper! 🏆",
+  ],'PLAY AGAIN',()=>{ lives=3; levelsCleared=0; totalScore=0; enterMenu(); });
+}
+
+// ─── Recipe Selection Menu ────────────────────────────────────────────────────
+function makeMenuSc(){
+  const CW=NC*T, CH=NR*T;
+  const cols=4;
+  const cW=155, cH=148, gX=9, gY=9;
+  const totW=cols*cW+(cols-1)*gX;
+  const startX=Math.floor((CW-totW)/2);
+  const startY=76;
+  const sc=getCVScale();
+
+  scBtns=[];
+  LEVELS.forEach((lv,i)=>{
+    const col=i%cols, row=Math.floor(i/cols);
+    const cx=startX+col*(cW+gX);
+    const cy=startY+row*(cH+gY);
+    if(i<=levelsCleared){  // only add clickable btn for unlocked levels
+      scBtns.push({
+        x:cx*sc, y:cy*sc, w:cW*sc, h:cH*sc,
+        fn:()=>{ levelIdx=i; resetForLevel(); gs='levelintro'; screen=makeLevelIntroSc(); syncLayout(); }
+      });
+    }
+  });
+
+  const ACCENTS=['#f87171','#60a5fa','#4ade80','#fbbf24','#fb923c','#a78bfa','#34d399','#f472b6'];
+
+  return{draw(){
+    CX.fillStyle='rgba(10,15,30,0.98)'; CX.fillRect(0,0,CW,CH);
+
+    // Title
+    CX.fillStyle='#fbbf24';
+    CX.font=`bold ${Math.round(T*0.38)}px 'Courier New',monospace`;
+    CX.textAlign='center'; CX.textBaseline='middle';
+    CX.fillText('★  PICK YOUR RECIPE  ★', CW/2, 26);
+
+    CX.fillStyle='#94a3b8';
+    CX.font='12px system-ui,sans-serif';
+    CX.fillText('Dinner guests are on their way — grab the right ingredients!', CW/2, 44);
+    CX.fillStyle='#475569';
+    CX.font='10px system-ui,sans-serif';
+    CX.fillText('The store manager is suspicious of anyone rushing around...', CW/2, 57);
+    if(totalScore>0){
+      CX.fillStyle='#a78bfa';
+      CX.font='bold 11px system-ui,sans-serif';
+      CX.fillText(`Total Score: ${totalScore} pts`, CW/2, 70);
+    }
+
+    LEVELS.forEach((lv,i)=>{
+      const col=i%cols, row=Math.floor(i/cols);
+      const cx=startX+col*(cW+gX);
+      const cy=startY+row*(cH+gY);
+      const isLocked = i > levelsCleared;
+      const isBeaten = i < levelsCleared;
+      const isNext = i === levelsCleared;  // the one to play next
+      const isHov=(menuSel===i && !isLocked);
+      const accent=ACCENTS[i%ACCENTS.length];
+
+      // Pulsing glow for the "next" level
+      if(isNext){
+        const pulse=0.4+Math.sin(Date.now()/400)*0.25;
+        CX.save(); CX.globalAlpha=pulse;
+        CX.shadowColor=accent; CX.shadowBlur=20;
+        CX.strokeStyle=accent; CX.lineWidth=3;
+        rrPath(cx-2,cy-2,cW+4,cH+4,12); CX.stroke();
+        CX.restore();
+      }
+
+      // Card bg
+      CX.fillStyle=isHov?'#1e2d4a':isNext?'#1a2744':'#131e30';
+      rrPath(cx,cy,cW,cH,10); CX.fill();
+      CX.strokeStyle=isHov||isNext?accent:'rgba(51,65,85,0.7)';
+      CX.lineWidth=isHov||isNext?2.5:1.5;
+      rrPath(cx,cy,cW,cH,10); CX.stroke();
+
+      // Top accent stripe
+      CX.fillStyle=accent+'cc';
+      CX.fillRect(cx+10,cy,cW-20,4);
+      // round the corners of stripe manually
+      CX.fillStyle=accent+'cc';
+      CX.fillRect(cx+10,cy,cW-20,4);
+
+      const ems3=lv.ingredients.slice(0,3).map(g=>g.em);
+      const emSpc=36,emSX=cx+cW/2-(ems3.length-1)*emSpc/2;
+      CX.save();if(isLocked)CX.globalAlpha=0.2;
+      CX.font='22px serif';CX.textAlign='center';CX.textBaseline='middle';
+      ems3.forEach((em,ei)=>CX.fillText(em,emSX+ei*emSpc,cy+34));CX.restore();
+      if(isLocked){
+        CX.font='18px serif';CX.textAlign='center';CX.textBaseline='middle';CX.fillText('🔒',cx+cW/2,cy+63);
+        CX.fillStyle='#2d3f55';CX.font='bold 11px system-ui,sans-serif';CX.fillText(lv.name,cx+cW/2,cy+85);
+        if(lv.npcCount>0){CX.fillStyle='#1e2d40';CX.font='10px system-ui,sans-serif';CX.fillText('🛒×'+lv.npcCount,cx+cW/2,cy+102);}
+      } else {
+        CX.fillStyle=isHov?'#f8fafc':'#e2e8f0';CX.font='bold 13px system-ui,sans-serif';CX.textAlign='center';CX.textBaseline='middle';
+        CX.fillText(lv.name,cx+cW/2,cy+60);
+        const bestScore=levelBestScore[i]||0,hasNPC=lv.npcCount>0,badgeY=cy+82;CX.textBaseline='middle';
+        if(bestScore>0&&hasNPC){CX.fillStyle='#fbbf24';CX.font='bold 10px system-ui,sans-serif';CX.textAlign='left';CX.fillText(bestScore+' pts',cx+10,badgeY);CX.fillStyle='#fb923c';CX.font='10px system-ui,sans-serif';CX.textAlign='right';CX.fillText('🛒×'+lv.npcCount,cx+cW-10,badgeY);}
+        else if(bestScore>0){CX.fillStyle='#fbbf24';CX.font='bold 10px system-ui,sans-serif';CX.textAlign='center';CX.fillText(bestScore+' pts',cx+cW/2,badgeY);}
+        else if(hasNPC){CX.fillStyle='#fb923c';CX.font='10px system-ui,sans-serif';CX.textAlign='center';CX.fillText('🛒×'+lv.npcCount,cx+cW/2,badgeY);}
+        if(bestScore>0&&levelBestTime[i]>0){const m=Math.floor(levelBestTime[i]/60),s=levelBestTime[i]%60;CX.fillStyle='#475569';CX.font='8px system-ui,sans-serif';CX.textAlign='center';CX.textBaseline='middle';CX.fillText('best '+m+':'+s.toString().padStart(2,'0'),cx+cW/2,cy+96);}
+        CX.fillStyle=isHov?accent:'rgba(30,41,59,0.9)';rrPath(cx+cW/2-30,cy+cH-14,60,13,4);CX.fill();
+        CX.fillStyle=isHov?'#0f172a':'#64748b';CX.font=`bold 8px 'Courier New',monospace`;CX.textAlign='center';CX.textBaseline='middle';
+        CX.fillText('▶  PLAY',cx+cW/2,cy+cH-8);
+      }
+    });
+  }};
+}
+
+// ─── Input ────────────────────────────────────────────────────────────────────
+CV.addEventListener('click', e=>{
+  const rc=CV.getBoundingClientRect();
+  const x=(e.clientX-rc.left)*(CV.width/rc.width);
+  const y=(e.clientY-rc.top)*(CV.height/rc.height);
+  if(tutorialStep >= 0){ advanceTutorial(); return; }
+  scBtns.forEach(b=>{ if(x>=b.x&&x<=b.x+b.w&&y>=b.y&&y<=b.y+b.h) b.fn(); });
+});
+
+document.addEventListener('keydown', e=>{
+  keys[e.code]=true;
+  if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' ','Backspace'].includes(e.key)) e.preventDefault();
+  if(tutorialStep >= 0 && (e.code==='Space'||e.code==='Enter'||e.code==='ArrowUp'||e.code==='ArrowDown'||e.code==='ArrowLeft'||e.code==='ArrowRight')){
+    advanceTutorial();
+    return; // consume the keypress while tutorial is active
+  }
+  if(e.code==='Space') tryInteract();
+  if(e.code==='Backspace') tryReturn();
+});
+document.addEventListener('keyup', e=>{ keys[e.code]=false; });
+
+// Dev cheat: type "UNLOCK" anywhere to unlock all levels
+let _devBuf='';
+document.addEventListener('keydown', e=>{
+  _devBuf=(_devBuf+e.key.toUpperCase()).slice(-6);
+  if(_devBuf==='UNLOCK'){
+    levelsCleared=LEVELS.length; lives=3;
+    enterMenu();
+    addToast('🔓 All levels unlocked!','#4ade80');
+    _devBuf='';
+  }
+});
+
+let touchInt=null;
+function startDp(dc,dr){ if(touchInt)clearInterval(touchInt); if(gs==='playing')tryMove(dc,dr); touchInt=setInterval(()=>{ if(gs==='playing')tryMove(dc,dr); },MDELAY); }
+function stopDp(){ clearInterval(touchInt); touchInt=null; }
+[['dbu',0,-1],['dbd',0,1],['dbl',-1,0],['dbr',1,0]].forEach(([id,dc,dr])=>{
+  const el=document.getElementById(id); if(!el)return;
+  el.addEventListener('touchstart',e=>{e.preventDefault();startDp(dc,dr);},{passive:false});
+  el.addEventListener('touchend',e=>{e.preventDefault();stopDp();},{passive:false});
+  el.addEventListener('mousedown',()=>startDp(dc,dr));
+  el.addEventListener('mouseup',stopDp);
+  el.addEventListener('mouseleave',stopDp);
+});
+
+// ─── Game Loop ────────────────────────────────────────────────────────────────
+const PPS=(T/MDELAY)*1000;
+const NPC_DELAY=420; // ms between NPC moves
+let lastTs=0;
+function loop(ts){
+  const dt=Math.min(ts-lastTs,50); lastTs=ts;
+
+  if(gs==='playing'){
+    // Player movement
+    if(ts-lastMv>MDELAY){
+      let dc=0,dr=0;
+      if(keys.ArrowUp||keys.KeyW) dr=-1;
+      else if(keys.ArrowDown||keys.KeyS) dr=1;
+      else if(keys.ArrowLeft||keys.KeyA) dc=-1;
+      else if(keys.ArrowRight||keys.KeyD) dc=1;
+      if(dc||dr){ tryMove(dc,dr); lastMv=ts; }
+    }
+
+    // NPC movement — random walk, prefer current direction
+    const allDirs=[{dc:1,dr:0},{dc:-1,dr:0},{dc:0,dr:1},{dc:0,dr:-1}];
+    const isFrozen = Date.now() < playerFrozenUntil;
+    npcs.forEach(n=>{
+      if(isFrozen && n === player.chattingWith) return;
+      if(ts<n.moveAt) return;
+      n.moveAt=ts+NPC_DELAY+Math.random()*200;
+      const tryDir=(dc,dr)=>{
+        const nc=n.c+dc, nr=n.r+dr;
+        if(nc<1||nc>=NC-1||nr<1||nr>=NR-1) return false;
+        if(MAP[nr][nc]!==0) return false;
+        if(nc===player.c&&nr===player.r){
+          if(!isFrozen){
+            const QUIPS=["Oh hey!","Wait, is that you?","Did you catch the game?","Love your cart!","Small world!","We should catch up!"];
+            player.chatQuip=QUIPS[Math.floor(Math.random()*QUIPS.length)];
+            player.chattingWith=n; playerFrozenUntil=Date.now()+5000;
+            spawnParts(player.px+T/2,player.py+T/2,'#a78bfa'); triggerShake(4,200); updateUI();
+          }
+          return false;
+        }
+        if(npcs.some(o=>o!==n&&o.c===nc&&o.r===nr)) return false;
+        n.c=nc; n.r=nr; n.dc=dc; n.dr=dr; return true;
+      };
+      // 30% chance to continue straight, 70% pick fully random order
+      const shuffled=[...allDirs].sort(()=>Math.random()-0.5);
+      if(Math.random()<0.3 && tryDir(n.dc,n.dr)) return;
+      shuffled.some(d=>tryDir(d.dc,d.dr));
+    });
+
+    // Chaser — greedy pathfinding toward player
+    if(chaser && ts>=chaser.moveAt && ts>=chaser.cooldown){
+      chaser.moveAt = ts+520+Math.random()*120;
+      const pdx=player.c-chaser.c, pdy=player.r-chaser.r;
+      // Sort dirs by which reduces distance most
+      const chaseDirs=[...allDirs].sort((a,b)=>{
+        const da=Math.abs(pdx-a.dc)+Math.abs(pdy-a.dr);
+        const db=Math.abs(pdx-b.dc)+Math.abs(pdy-b.dr);
+        return da-db;
+      });
+      for(const d of chaseDirs){
+        const nc2=chaser.c+d.dc, nr2=chaser.r+d.dr;
+        if(nc2<1||nc2>=NC-1||nr2<1||nr2>=NR-1) continue;
+        if(MAP[nr2][nc2]!==0) continue;
+        if(npcs.some(n=>n.c===nc2&&n.r===nr2)) continue;
+        chaser.c=nc2; chaser.r=nr2;
+        if(chaser.c===player.c&&chaser.r===player.r){ managerCatch(ts); }
+        break;
+      }
+    }
+  }
+
+  if(player.chattingWith && Date.now() >= playerFrozenUntil) player.chattingWith = null;
+  const spd=PPS*dt/1000;
+  player.px=toward(player.px,player.c*T,spd);
+  player.py=toward(player.py,player.r*T,spd);
+  npcs.forEach(n=>{ n.px=toward(n.px,n.c*T,spd); n.py=toward(n.py,n.r*T,spd); });
+  if(chaser){ chaser.px=toward(chaser.px,chaser.c*T,spd); chaser.py=toward(chaser.py,chaser.r*T,spd); }
+  parts=parts.filter(p=>{p.x+=p.vx*dt/1000;p.y+=p.vy*dt/1000;p.vy+=240*dt/1000;p.life-=dt/1000;return p.life>0;});
+  toasts=toasts.filter(t=>{t.y-=38*dt/1000;t.life-=dt/1000;return t.life>0;});
+  if(Date.now() < shakeUntil){
+    shakeX = (Math.random()-0.5)*4;
+    shakeY = (Math.random()-0.5)*4;
+  } else { shakeX=0; shakeY=0; }
+  CX.save();
+  CX.translate(shakeX, shakeY);
+  draw();
+  CX.restore();
+  requestAnimationFrame(loop);
+}
+
+function makeTitleSc(){
+  const CW=NC*T,CH=NR*T,btnW=160,btnH=44,btnX=CW/2-80,btnY=CH-80,sc=getCVScale();
+  scBtns=[{x:btnX*sc,y:btnY*sc,w:btnW*sc,h:btnH*sc,fn:()=>{gs='instructions';screen=makeInstructionsSc();syncLayout();}}];
+  return{draw(){
+    CX.fillStyle='#070f22';CX.fillRect(0,0,CW,CH);
+    CX.fillStyle='rgba(37,99,235,0.07)';
+    for(let x=20;x<CW;x+=24)for(let y=20;y<CH;y+=24){CX.beginPath();CX.arc(x,y,1,0,Math.PI*2);CX.fill();}
+    CX.strokeStyle='rgba(251,191,36,0.18)';CX.lineWidth=2;rrPath(6,6,CW-12,CH-12,14);CX.stroke();
+    CX.font='18px serif';CX.textAlign='center';CX.textBaseline='middle';
+    CX.fillText('⭐',38,CH/2);CX.fillText('⭐',CW-38,CH/2);
+    CX.fillStyle='#78350f';CX.font="bold 74px 'Courier New',monospace";
+    CX.textAlign='center';CX.textBaseline='middle';
+    CX.fillText('GROCERY',CW/2+3,143);CX.fillText('DASH',CW/2+3,223);
+    CX.save();CX.shadowColor='#fbbf24';CX.shadowBlur=24;CX.fillStyle='#fbbf24';
+    CX.fillText('GROCERY',CW/2,140);CX.fillText('DASH',CW/2,220);CX.restore();
+    CX.strokeStyle='rgba(251,191,36,0.22)';CX.lineWidth=1;
+    CX.beginPath();CX.moveTo(70,270);CX.lineTo(CW-70,270);CX.stroke();
+    ['🛒','🧀','🥚','🍞','🥦','🍅','🥕'].forEach((em,i,a)=>{
+      CX.font='36px serif';CX.textAlign='center';CX.textBaseline='middle';
+      CX.fillText(em,(CW/a.length)*(i+0.5),330);
+    });
+    CX.fillStyle='#64748b';CX.font="12px 'Courier New',monospace";CX.textAlign='center';CX.textBaseline='middle';
+    CX.fillText('Scale the recipe · Grab the packs · Beat the clock',CW/2,390);
+    CX.fillStyle='rgba(167,139,250,0.6)';CX.font="bold 9px 'Courier New',monospace";
+    CX.fillText('12 LEVELS OF GROCERY MATH',CW/2,412);
+    const pulse=0.85+Math.sin(Date.now()/500)*0.15;
+    CX.save();CX.globalAlpha=pulse;CX.fillStyle='#fbbf24';rrPath(btnX,btnY,btnW,btnH,10);CX.fill();CX.restore();
+    CX.fillStyle='#1e293b';CX.font="bold 18px 'Courier New',monospace";CX.textAlign='center';CX.textBaseline='middle';
+    CX.fillText('▶  PLAY',CW/2,btnY+btnH/2);
+  }};
+}
+
+function makeInstructionsSc(){
+  const CW=NC*T,CH=NR*T;
+  let slide=0;
+  const slides=[
+    {title:'HOW TO SHOP',steps:[
+      {em:'🎮',t:'Arrow Keys or WASD — move around the store'},
+      {em:'📦',t:'SPACE — grab a pack from the shelf you are standing on'},
+      {em:'↩️',t:'BACKSPACE — return the last grabbed pack'},
+      {em:'🛒',t:'Walk to the green CHECKOUT zone when your cart is ready'},
+    ]},
+    {title:'KNOW BEFORE YOU GO',steps:[
+      {em:'🧲',t:'The recipe serves X people — scale it up for your guests'},
+      {em:'💡',t:'Figure out how many packs to grab — pack sizes vary!'},
+      {em:'🧑',t:'Bump into someone you know: frozen for 5 seconds'},
+      {em:'😤',t:'Store manager catches you: an item drops from your cart'},
+    ]},
+  ];
+  function buildBtns(){
+    scBtns=[];
+    const sc=getCVScale(),bw=160,bh=40,by=CH-62;
+    const fn=slide<slides.length-1?()=>{slide++;buildBtns();}:()=>enterMenu();
+    scBtns.push({x:(CW/2-bw/2)*sc,y:by*sc,w:bw*sc,h:bh*sc,fn});
+  }
+  buildBtns();
+  return{draw(){
+    const s=slides[slide];
+    CX.fillStyle='rgba(10,15,30,0.97)';CX.fillRect(0,0,CW,CH);
+    const cw=500,ch=370,cx2=(CW-cw)/2,cy2=(CH-ch)/2-10;
+    CX.fillStyle='#0f172a';rrPath(cx2,cy2,cw,ch,16);CX.fill();
+    CX.strokeStyle='#fbbf24';CX.lineWidth=2;rrPath(cx2,cy2,cw,ch,16);CX.stroke();
+    slides.forEach((_,i)=>{
+      CX.fillStyle=i===slide?'#fbbf24':'rgba(251,191,36,0.25)';
+      CX.beginPath();CX.arc(CW/2+(i-0.5)*18,cy2+20,5,0,Math.PI*2);CX.fill();
+    });
+    CX.fillStyle='#fbbf24';CX.font="bold 10px 'Courier New',monospace";CX.textAlign='center';CX.textBaseline='middle';
+    CX.fillText(s.title,CW/2,cy2+50);
+    CX.strokeStyle='rgba(251,191,36,0.2)';CX.lineWidth=1;
+    CX.beginPath();CX.moveTo(cx2+20,cy2+70);CX.lineTo(cx2+cw-20,cy2+70);CX.stroke();
+    s.steps.forEach((st,i)=>{
+      const sy=cy2+96+i*62;
+      CX.fillStyle='rgba(30,41,59,0.5)';rrPath(cx2+18,sy-16,cw-36,48,8);CX.fill();
+      CX.font='22px serif';CX.textAlign='center';CX.textBaseline='middle';CX.fillText(st.em,cx2+50,sy+8);
+      CX.fillStyle='#e2e8f0';CX.font='13px system-ui,sans-serif';CX.textAlign='left';CX.textBaseline='middle';
+      CX.fillText(st.t,cx2+76,sy+8);
+    });
+    const isLast=slide===slides.length-1,btnY2=CH-62,btnX2=CW/2-80;
+    CX.fillStyle='#fbbf24';rrPath(btnX2,btnY2,160,40,10);CX.fill();
+    CX.fillStyle='#1e293b';CX.font="bold 13px 'Courier New',monospace";CX.textAlign='center';CX.textBaseline='middle';
+    CX.fillText(isLast?"LET'S SHOP!":'NEXT →',CW/2,btnY2+20);
+  }};
+}
+
+function enterMenu(){
+  gs='menu'; screen=makeMenuSc(); syncLayout();
+  updateLivesDisplay();
+}
+
+// ─── Menu hover tracking ──────────────────────────────────────────────────────
+CV.addEventListener('mousemove', e=>{
+  if(gs!=='menu'){ menuSel=null; return; }
+  const rc=CV.getBoundingClientRect();
+  const mx=(e.clientX-rc.left)*(CV.width/rc.width);
+  const my=(e.clientY-rc.top)*(CV.height/rc.height);
+  menuSel=null;
+  scBtns.forEach((b,i)=>{ if(mx>=b.x&&mx<=b.x+b.w&&my>=b.y&&my<=b.y+b.h) menuSel=i; });
+});
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+levelIdx=0; totalScore=0; menuSel=null; lives=3; levelsCleared=0;
+loadScores();
+resetForLevel(); gs='title'; screen=makeTitleSc(); syncLayout();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
+<script defer src="https://static.itch.io/htmlgame.js" type="text/javascript"></script>

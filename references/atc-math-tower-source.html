@@ -1,0 +1,2558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ATC Math Tower</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --g:#00ff88;--dg:#00aa55;--am:#ffaa00;--rd:#ff4444;
+  --sm:#ff3333;--lg:#ffcc00;--panel:rgba(3,10,6,0.92);
+  --mono:'Share Tech Mono',monospace;--ui:'Rajdhani',sans-serif;
+}
+body{background:#04080f;font-family:var(--mono);color:var(--g);overflow:hidden;height:100vh;width:100vw;user-select:none;}
+canvas{display:block;position:absolute;top:0;left:0;cursor:crosshair;}
+#topBar{position:absolute;top:0;left:0;right:0;background:rgba(2,8,5,0.97);border-bottom:2px solid var(--dg);display:flex;align-items:center;justify-content:space-between;padding:8px 20px;z-index:20;pointer-events:none;box-shadow:0 2px 20px rgba(0,255,136,.08);}
+.tb-title{font-family:var(--ui);font-size:15px;font-weight:700;letter-spacing:5px;color:var(--dg);text-shadow:0 0 8px var(--dg);}
+#windDownBanner{display:none;font-family:var(--ui);font-size:15px;font-weight:700;letter-spacing:4px;color:var(--g);text-shadow:0 0 14px var(--g);animation:up .8s ease-in-out infinite alternate;}
+#shiftTimer{font-family:var(--mono);font-size:32px;font-weight:700;letter-spacing:4px;color:var(--am);text-shadow:0 0 16px var(--am);}
+#shiftTimer.urgent{color:var(--rd);text-shadow:0 0 24px var(--rd);animation:up .45s infinite alternate;}
+#tenSecFlash{position:absolute;inset:0;background:#ff0000;pointer-events:none;opacity:0;z-index:19;transition:opacity .1s;}
+@keyframes up{from{opacity:1}to{opacity:.4}}
+@keyframes flashYellow{0%,100%{filter:none}50%{filter:sepia(1) saturate(5) hue-rotate(10deg);}}
+.tb-stats{display:flex;gap:20px;align-items:center;}
+.tb-stat{font-family:var(--ui);font-size:12px;font-weight:600;letter-spacing:2px;color:var(--dg);}
+.tb-stat span{color:var(--g);font-size:18px;font-weight:700;}
+
+/* Queue panels — positioned in the lower portion, below the taxiway road */
+.qPanel{position:absolute;top:27%;background:var(--panel);border:1px solid;border-radius:4px;padding:7px 10px;width:195px;z-index:20;pointer-events:none;}
+#qSmall{left:8px;border-color:#ff333344;}
+#qLarge{right:8px;border-color:#ffcc0044;}
+#qMedium{left:calc(50% + 28px);top:11%;border-color:#00ee7744;display:none;}
+#qHeavy{right:calc(50% + 28px);top:83%;border-color:#00bbcc44;display:none;}
+.qp-hdr{font-family:var(--ui);font-size:11px;font-weight:700;letter-spacing:2px;border-bottom:1px solid #222;padding-bottom:3px;margin-bottom:4px;}
+.qp-hdr.sm{color:var(--sm)} .qp-hdr.lg{color:var(--lg)}
+.qp-section{font-size:8px;letter-spacing:1px;color:#444;margin:4px 0 2px;text-transform:uppercase;}
+.q-row{display:flex;align-items:center;gap:5px;margin:2px 0;}
+.q-badge{width:18px;height:18px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:10px;flex-shrink:0;}
+.r1{background:#ff5555;color:#fff}.r2{background:#ff9900;color:#fff}.r3{background:#ffee00;color:#000}.r4{background:#88dd00;color:#000}.r5{background:#44aaff;color:#fff}.rX{background:#333;color:#888}
+.q-cs{color:var(--g);flex:1;font-size:10px;}
+.q-st{font-size:9px;color:var(--dg);}
+.q-st.next{color:var(--am);font-weight:700}.q-st.taxi{color:#aaffcc}.q-st.roll{color:var(--rd)}
+.q-math{font-size:9px;color:#88eeff;min-width:50px;text-align:right;}
+.q-pbar{width:100%;height:3px;background:#192019;border-radius:2px;margin-top:2px;}
+.q-pfill{height:3px;border-radius:2px;}
+
+#commsLog{position:absolute;bottom:38px;left:10px;width:290px;z-index:20;pointer-events:none;}
+.cl{font-size:10px;padding:1px 0;animation:fo 7s forwards;line-height:1.5;}
+.cl.atc{color:var(--dg)} .cl.pln{color:var(--am)} .cl.alrt{color:var(--rd)}
+@keyframes fo{0%,75%{opacity:1}100%{opacity:0}}
+
+#botBar{position:absolute;bottom:0;left:0;right:0;background:var(--panel);border-top:1px solid var(--dg);display:flex;align-items:center;gap:18px;padding:4px 16px;z-index:20;pointer-events:none;}
+.bh{font-size:10px;color:var(--dg)} .bh b{color:var(--g)}
+
+#toast{position:absolute;top:68%;left:50%;transform:translate(-50%,-50%);background:var(--panel);border:1px solid var(--am);border-radius:4px;padding:7px 18px;font-size:11px;color:var(--am);letter-spacing:1px;z-index:30;pointer-events:none;opacity:0;transition:opacity .25s;white-space:nowrap;}
+#wrongRwyToast{position:absolute;top:64%;left:50%;transform:translate(-50%,-50%);background:rgba(20,4,4,0.95);border:1px solid var(--rd);border-radius:4px;padding:8px 20px;font-size:12px;font-family:var(--mono);color:var(--rd);letter-spacing:2px;z-index:30;pointer-events:none;opacity:0;transition:opacity .2s;white-space:nowrap;text-shadow:0 0 8px var(--rd);}
+#streakToast{position:absolute;top:72%;left:50%;transform:translate(-50%,-50%);background:rgba(12,9,2,0.95);border:1px solid var(--am);border-radius:4px;padding:8px 22px;font-size:13px;font-family:var(--mono);color:var(--am);letter-spacing:2px;z-index:30;pointer-events:none;opacity:0;transition:opacity .2s;white-space:nowrap;text-shadow:0 0 8px var(--am);}
+
+/* Intro tutorial overlay */
+#intro{position:absolute;inset:0;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:200;font-family:var(--ui);overflow:hidden;}
+#introSlide{position:relative;width:100%;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px 60px;}
+.slide{display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;animation:slideIn .4s ease-out;width:100%;max-width:760px;}
+.slide.active{display:flex;}
+@keyframes slideIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+.slide h2{font-family:var(--ui);font-size:58px;font-weight:700;letter-spacing:6px;color:var(--g);text-shadow:0 0 24px var(--g);margin-bottom:22px;}
+.demo-pill.orange{border-color:#ffcc0066;} .demo-pill.blue{border-color:#00bbcc66;}
+#introNav{display:flex;align-items:center;gap:28px;padding:22px 0 34px;}
+.intro-dot{width:12px;height:12px;border-radius:50%;background:#222;transition:background .2s;cursor:pointer;}
+.intro-dot.active{background:var(--g);box-shadow:0 0 12px var(--g);}
+#introPrev,#introNext{background:transparent;border:2px solid #333;color:#777;font-family:var(--ui);font-size:20px;font-weight:700;letter-spacing:3px;padding:18px 40px;border-radius:8px;cursor:pointer;transition:all .2s;pointer-events:all;}
+#introPrev:hover,#introNext:hover{border-color:var(--g);color:var(--g);box-shadow:0 0 20px rgba(0,255,136,.25);}
+#introSkip{position:absolute;top:20px;right:28px;background:transparent;border:1px solid #2a2a2a;border-radius:4px;color:#555;font-family:var(--mono);font-size:14px;letter-spacing:1px;padding:7px 16px;cursor:pointer;pointer-events:all;transition:all .2s;z-index:10;}
+#introSkip:hover{color:#999;border-color:#555;}
+#introProgress{position:absolute;bottom:0;left:0;height:4px;background:var(--g);transition:width .4s ease;box-shadow:0 0 10px var(--g);}
+
+/* Celebration overlay */
+#celebration{position:absolute;inset:0;display:none;z-index:150;pointer-events:none;overflow:hidden;}
+#celebCanvas{display:block;width:100%;height:100%;}
+#celebContent{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:all;text-align:center;padding:20px;}
+#celebContent h1{font-family:var(--ui);font-size:72px;font-weight:700;letter-spacing:8px;color:var(--g);text-shadow:0 0 40px var(--g),0 0 80px var(--g);animation:celebPulse 1.5s ease-in-out infinite alternate;margin-bottom:6px;}
+@keyframes celebPulse{from{text-shadow:0 0 40px var(--g),0 0 80px var(--g);}to{text-shadow:0 0 60px #fff,0 0 100px var(--g);}}
+#celebContent .csub{font-family:var(--mono);font-size:16px;letter-spacing:4px;color:var(--am);margin-bottom:30px;animation:fadeInUp .8s .3s both ease-out;}
+#celebContent .cstars{font-size:40px;margin-bottom:20px;animation:fadeInUp .8s .6s both ease-out;letter-spacing:8px;}
+#celebContent .cscore{font-family:var(--mono);font-size:28px;color:#fff;margin-bottom:24px;animation:fadeInUp .8s .9s both ease-out;}
+#celebContent .cbtn{background:var(--g);border:none;color:#000;font-family:var(--ui);font-size:16px;font-weight:700;letter-spacing:4px;padding:14px 40px;border-radius:4px;cursor:pointer;animation:fadeInUp .8s 1.2s both ease-out;box-shadow:0 0 30px var(--g);}
+#celebContent .cbtn:hover{background:#fff;box-shadow:0 0 50px #fff;}
+@keyframes fadeInUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+
+/* Dispatch hint banner — sits over the apron where the action is */
+#dispatchHint{
+  position:absolute;top:42%;left:50%;transform:translate(-50%,-50%);
+  background:rgba(0,0,0,.90);border:2px solid #fff;border-radius:8px;
+  padding:14px 40px;z-index:25;pointer-events:none;display:none;
+  white-space:nowrap;text-align:center;
+}
+#dispatchHintText{
+  font-family:var(--ui);font-size:30px;font-weight:700;letter-spacing:3px;
+}
+
+#overlay{position:absolute;inset:0;background:rgba(0,0,0,.91);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100;font-family:var(--ui);overflow-y:auto;}
+#overlay h1{font-size:52px;font-weight:700;letter-spacing:7px;color:var(--g);text-shadow:0 0 28px var(--g);margin-bottom:6px;}
+#overlay .sub{font-size:14px;letter-spacing:3px;color:#ccc;margin-bottom:18px;}
+.instr{max-width:640px;text-align:center;font-size:13px;line-height:2.2;margin-bottom:18px;font-family:var(--mono);color:var(--dg);}
+.instr b{color:var(--am)} .instr .sc{color:var(--sm)} .instr .lc{color:var(--lg)}
+.ov-btn{background:transparent;border:2px solid var(--g);color:var(--g);font-family:var(--ui);font-size:16px;font-weight:700;letter-spacing:4px;padding:13px 36px;cursor:pointer;transition:all .2s;pointer-events:all;}
+.ov-btn:hover{background:var(--g);color:#000;box-shadow:0 0 28px var(--g);}
+#endScore{font-size:40px;color:var(--am);font-family:var(--mono);margin-bottom:6px;}
+.end-bd{font-size:11px;color:var(--dg);line-height:2;font-family:var(--mono);margin-bottom:22px;}
+.end-bd span{color:var(--g);}
+
+/* Operation selector chips — symbol only, circular — bigger */
+#opSelector{display:flex;gap:14px;margin:12px 0 6px;justify-content:center;}
+.op-chip{
+  width:56px;height:56px;border-radius:50%;font-size:26px;font-weight:700;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;transition:all .15s;border:2px solid #2a2a2a;
+  color:#333;background:transparent;user-select:none;pointer-events:all;
+}
+.op-chip{border-color:#333;color:#444;animation:chipPulse 2s ease-in-out infinite;}
+.op-chip:hover{border-color:#555;color:#666;transform:scale(1.12);animation:none;}
+.op-chip.on{color:#000;animation:none;}
+.op-chip[data-op="ADDITION"]       { --opc:#aaffcc; }
+.op-chip[data-op="SUBTRACTION"]    { --opc:#ffaa66; }
+.op-chip[data-op="MULTIPLICATION"] { --opc:#88eeff; }
+.op-chip[data-op="DIVISION"]       { --opc:#ffdd88; }
+.op-chip.on{ background:var(--opc);border-color:var(--opc);box-shadow:0 0 14px var(--opc); }
+#opNote{font-size:11px;color:#ddd;font-family:var(--mono);letter-spacing:2px;margin-bottom:4px;}
+@keyframes chipPulse{0%,100%{border-color:#333;color:#444;box-shadow:none;}50%{border-color:#666;color:#888;box-shadow:0 0 8px #44444488;}}
+
+/* Op dots on level cells */
+.lv-op-dots{display:flex;gap:3px;justify-content:center;margin-top:3px;}
+
+/* Level picker grid — bigger cells */
+#levelGrid{
+  display:grid;grid-template-columns:repeat(5,72px);gap:10px;
+  margin:0 auto;
+}
+.lv-cell{
+  width:72px;height:72px;border-radius:8px;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;font-family:var(--ui);font-weight:700;
+  font-size:18px;cursor:pointer;transition:all .15s;border:2px solid transparent;
+  position:relative;
+}
+.lv-cell.unlocked{
+  background:rgba(0,255,136,.08);border-color:var(--dg);color:var(--g);
+}
+.lv-cell.unlocked:hover{
+  background:rgba(0,255,136,.18);border-color:var(--g);
+  box-shadow:0 0 16px rgba(0,255,136,.3);transform:scale(1.07);
+}
+.lv-cell.unlocked.current{
+  background:rgba(0,255,136,.2);border-color:var(--g);
+  box-shadow:0 0 20px rgba(0,255,136,.4);
+}
+.lv-cell.beaten{
+  background:rgba(0,255,136,.05);border-color:#005522;color:#2a7a4a;cursor:pointer;
+}
+.lv-cell.beaten:hover{
+  background:rgba(0,255,136,.12);border-color:var(--dg);color:var(--g);
+  transform:scale(1.04);
+}
+.lv-cell.locked{
+  background:rgba(255,255,255,.04);border-color:#2a2a2a;color:#555;cursor:default;
+}
+.lv-cell .lv-num{font-size:16px;font-weight:700;line-height:1;}
+.lv-cell .lv-pat{font-size:12px;letter-spacing:.5px;margin-top:2px;color:#aaa;}
+.lv-cell .lv-lock{font-size:18px;opacity:.7;}
+.lv-cell .lv-check{
+  position:absolute;top:3px;right:5px;font-size:9px;color:#00ff88;
+}
+
+#scanline{position:absolute;inset:0;pointer-events:none;z-index:50;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.04) 2px,rgba(0,0,0,.04) 4px);}
+
+/* Pause overlay */
+#pauseOverlay{
+  position:absolute;inset:0;z-index:75;display:none;
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  background:rgba(0,0,0,.6);
+  align-items:center;justify-content:center;flex-direction:column;gap:12px;
+  pointer-events:all;
+}
+#pauseOverlay h2{
+  font-family:var(--ui);font-size:72px;font-weight:700;letter-spacing:10px;
+  color:#fff;text-shadow:0 0 40px rgba(255,255,255,.35);margin-bottom:4px;
+}
+#pauseOverlay p{font-family:var(--mono);font-size:16px;letter-spacing:3px;color:#666;}
+
+/* Countdown splash */
+#countdown{
+  position:absolute;left:0;right:0;top:0;height:68%;display:none;align-items:center;justify-content:center;
+  z-index:60;pointer-events:none;flex-direction:column;gap:8px;
+}
+#countdownNum{
+  font-family:var(--ui);font-size:140px;font-weight:700;line-height:1;
+  color:var(--g);text-shadow:0 0 60px var(--g);
+  animation:cPulse .9s ease-out forwards;
+}
+#countdownLabel{
+  font-family:var(--mono);font-size:14px;letter-spacing:4px;color:var(--dg);
+}
+@keyframes cPulse{
+  0%  {transform:scale(1.4);opacity:1;}
+  100%{transform:scale(0.85);opacity:0.3;}
+}
+
+/* Math clearance panel */
+#mathPanel{
+  position:absolute;left:50%;top:57%;transform:translate(-50%,-50%);
+  width:340px;background:rgba(2,8,12,.97);border:1px solid var(--mp-col,#3bb8ff);
+  border-radius:8px;padding:20px;z-index:40;display:none;
+  box-shadow:0 0 40px var(--mp-glow,rgba(85,170,255,.2));
+}
+#mathPanel h3{font-family:var(--ui);font-size:20px;letter-spacing:3px;color:var(--mp-bright,#88eeff);margin-bottom:6px;text-align:center;}
+#mathOpType{font-size:10px;letter-spacing:2px;color:var(--mp-dim,#006677);text-align:center;margin-bottom:10px;}
+#mathPrompt{font-size:34px;color:#fff;text-align:center;margin:8px 0 12px;font-family:var(--mono);letter-spacing:2px;}
+#mathMeta{font-size:10px;color:var(--mp-dim,#5a8a9a);text-align:center;margin-bottom:10px;line-height:1.7;}
+#mathInput{width:100%;padding:12px 14px;font-size:26px;background:#071117;border:1px solid var(--mp-mid,#005566);color:#fff;border-radius:6px;text-align:center;font-family:var(--mono);outline:none;}
+#mathInput:focus{border-color:var(--mp-col,#00bbcc);box-shadow:0 0 0 2px var(--mp-glow,rgba(85,170,255,.15));}
+#mathBtns{display:flex;gap:10px;margin-top:12px;}
+.mp-btn{flex:1;padding:10px 14px;background:#0a1610;border:1px solid #1c6a45;color:var(--g);border-radius:6px;cursor:pointer;font-family:var(--ui);font-weight:700;letter-spacing:2px;pointer-events:all;}
+.mp-btn.alt{border-color:#444;color:#bbb;}
+.mp-btn:hover{background:#0e2018;}
+#mathFeedback{height:18px;text-align:center;font-size:11px;color:var(--am);margin-top:10px;}
+</style>
+</head>
+<body>
+<canvas id="gc"></canvas>
+<div id="tenSecFlash"></div>
+<div id="scanline"></div>
+
+<!-- Reset confirmation modal -->
+<div id="resetModal" style="display:none;position:absolute;inset:0;background:rgba(0,0,0,.85);z-index:300;align-items:center;justify-content:center;font-family:var(--ui);">
+  <div style="background:#060e08;border:1px solid var(--rd);border-radius:8px;padding:36px 48px;text-align:center;max-width:480px;">
+    <div style="font-family:var(--mono);font-size:11px;letter-spacing:4px;color:var(--rd);margin-bottom:14px;">⚠ WARNING</div>
+    <div style="font-family:var(--ui);font-size:26px;font-weight:700;letter-spacing:3px;color:#fff;margin-bottom:12px;">RESET ALL PROGRESS?</div>
+    <div style="font-family:var(--mono);font-size:13px;color:var(--dg);line-height:2;margin-bottom:28px;">Lives, unlocks, and best scores<br>will be permanently wiped.</div>
+    <div style="display:flex;gap:14px;justify-content:center;">
+      <button id="resetConfirmBtn" style="background:transparent;border:2px solid var(--rd);color:var(--rd);font-family:var(--ui);font-size:15px;font-weight:700;letter-spacing:3px;padding:12px 28px;border-radius:6px;cursor:pointer;">RESET</button>
+      <button id="resetCancelBtn" style="background:transparent;border:2px solid #333;color:#777;font-family:var(--ui);font-size:15px;font-weight:700;letter-spacing:3px;padding:12px 28px;border-radius:6px;cursor:pointer;">CANCEL</button>
+    </div>
+  </div>
+</div>
+<div id="pauseOverlay">
+  <h2>PAUSED</h2>
+  <p>SPACE  to resume</p>
+</div>
+<div id="countdown">
+  <div id="countdownNum">3</div>
+  <div id="countdownLabel">STUDY YOUR PLANES</div>
+</div>
+
+<!-- Intro Tutorial -->
+<div id="intro">
+  <div id="introSlide">
+    <!-- Slide 1: Welcome -->
+    <div class="slide active" id="s0">
+      <div style="font-family:var(--mono);font-size:13px;letter-spacing:8px;color:var(--g);margin-bottom:18px;opacity:0.9;">✦ &nbsp; CLEARANCE GRANTED &nbsp; ✦</div>
+      <div style="position:relative;margin-bottom:10px;">
+        <div style="font-family:var(--ui);font-size:100px;font-weight:700;letter-spacing:10px;color:var(--g);text-shadow:0 0 40px var(--g),0 0 80px rgba(0,255,136,.3);line-height:1;">ATC</div>
+        <div style="font-family:var(--ui);font-size:52px;font-weight:700;letter-spacing:16px;color:#fff;text-shadow:0 0 20px rgba(255,255,255,.25);margin-top:-6px;">MATH TOWER</div>
+      </div>
+      <div style="width:360px;height:1px;background:linear-gradient(to right,transparent,var(--g),transparent);margin:16px auto;box-shadow:0 0 10px var(--g);"></div>
+
+      <!-- Airport SVG scene -->
+      <svg viewBox="0 0 700 200" style="width:100%;max-width:900px;margin:4px 0 14px;" xmlns="http://www.w3.org/2000/svg">
+        <!-- Sky -->
+        <rect x="0" y="0" width="700" height="200" fill="#04080f"/>
+        <!-- Ground -->
+        <rect x="0" y="138" width="700" height="62" fill="#080c10"/>
+        <rect x="0" y="136" width="700" height="4" fill="#0a1208"/>
+        <!-- Grid -->
+        <line x1="0" y1="155" x2="700" y2="155" stroke="#ffffff06" stroke-width="1"/>
+        <line x1="0" y1="175" x2="700" y2="175" stroke="#ffffff06" stroke-width="1"/>
+        <line x1="100" y1="138" x2="100" y2="200" stroke="#ffffff06" stroke-width="1"/>
+        <line x1="233" y1="138" x2="233" y2="200" stroke="#ffffff06" stroke-width="1"/>
+        <line x1="467" y1="138" x2="467" y2="200" stroke="#ffffff06" stroke-width="1"/>
+        <line x1="600" y1="138" x2="600" y2="200" stroke="#ffffff06" stroke-width="1"/>
+        <!-- Stars -->
+        <rect x="30" y="14" width="2" height="2" fill="#ffffff44"/>
+        <rect x="95" y="32" width="1.5" height="1.5" fill="#ffffff33"/>
+        <rect x="180" y="10" width="2" height="2" fill="#ffffff44"/>
+        <rect x="260" y="26" width="1.5" height="1.5" fill="#ffffff33"/>
+        <rect x="480" y="18" width="2" height="2" fill="#ffffff44"/>
+        <rect x="570" y="7" width="1.5" height="1.5" fill="#ffffff33"/>
+        <rect x="640" y="36" width="2" height="2" fill="#ffffff44"/>
+        <rect x="420" y="44" width="1.5" height="1.5" fill="#ffffff22"/>
+        <rect x="130" y="48" width="1.5" height="1.5" fill="#ffffff22"/>
+
+        <!-- LEFT RUNWAY 09L — Red -->
+        <rect x="18" y="76" width="150" height="28" rx="2" fill="#141e2c" stroke="#ff333344" stroke-width="1"/>
+        <rect x="18" y="76" width="150" height="28" rx="2" fill="#ff333806"/>
+        <line x1="55" y1="90" x2="140" y2="90" stroke="#ff333322" stroke-width="1.5" stroke-dasharray="14 8"/>
+        <rect x="148" y="79" width="3" height="22" fill="#ff333555"/>
+        <rect x="154" y="79" width="3" height="22" fill="#ff333555"/>
+        <rect x="160" y="79" width="3" height="22" fill="#ff333555"/>
+        <text x="88" y="94" fill="#ff333388" font-size="10" text-anchor="middle" font-family="Share Tech Mono">09L</text>
+        <text x="88" y="70" fill="#ff3333aa" font-size="10" text-anchor="middle" font-family="Share Tech Mono" letter-spacing="1">← RED</text>
+        <!-- threshold light -->
+        <circle cx="166" cy="90" r="4" fill="#ff3333" opacity="0.8"/>
+
+        <!-- RIGHT RUNWAY 27R — Yellow -->
+        <rect x="532" y="76" width="150" height="28" rx="2" fill="#141e2c" stroke="#ffcc0044" stroke-width="1"/>
+        <rect x="532" y="76" width="150" height="28" rx="2" fill="#ffcc0006"/>
+        <line x1="560" y1="90" x2="645" y2="90" stroke="#ffcc0022" stroke-width="1.5" stroke-dasharray="14 8"/>
+        <rect x="532" y="79" width="3" height="22" fill="#ffcc0055"/>
+        <rect x="538" y="79" width="3" height="22" fill="#ffcc0055"/>
+        <rect x="544" y="79" width="3" height="22" fill="#ffcc0055"/>
+        <text x="612" y="94" fill="#ffcc0088" font-size="10" text-anchor="middle" font-family="Share Tech Mono">27R</text>
+        <text x="612" y="70" fill="#ffcc00aa" font-size="10" text-anchor="middle" font-family="Share Tech Mono" letter-spacing="1">YELLOW →</text>
+        <circle cx="534" cy="90" r="4" fill="#ffcc00" opacity="0.8"/>
+
+        <!-- CONTROL TOWER — centre -->
+        <rect x="330" y="110" width="40" height="28" fill="#0d1a14" stroke="#00ff8822" stroke-width="1"/>
+        <rect x="338" y="54" width="24" height="58" fill="#0a1610" stroke="#00ff8822" stroke-width="1"/>
+        <rect x="322" y="36" width="56" height="22" rx="2" fill="#0d2018" stroke="#00ff8855" stroke-width="1.5"/>
+        <rect x="327" y="40" width="12" height="14" rx="1" fill="#00ff8820" stroke="#00ff8844" stroke-width="0.5"/>
+        <rect x="344" y="40" width="12" height="14" rx="1" fill="#00ff8820" stroke="#00ff8844" stroke-width="0.5"/>
+        <rect x="361" y="40" width="12" height="14" rx="1" fill="#00ff8820" stroke="#00ff8844" stroke-width="0.5"/>
+        <line x1="350" y1="36" x2="350" y2="18" stroke="#00ff8877" stroke-width="2"/>
+        <circle cx="350" cy="16" r="3.5" fill="#00ff88" opacity="0.9"/>
+        <text x="350" y="130" fill="#00ff8855" font-size="8" text-anchor="middle" font-family="Share Tech Mono" letter-spacing="1">TOWER</text>
+
+        <!-- Taxiway / apron -->
+        <rect x="180" y="120" width="340" height="18" fill="#0d1720" stroke="#ffffff08" stroke-width="1"/>
+        <line x1="200" y1="129" x2="500" y2="129" stroke="#ffffff08" stroke-width="1" stroke-dasharray="20 14"/>
+
+        <!-- Connector lines -->
+        <line x1="166" y1="90" x2="186" y2="126" stroke="#ff333322" stroke-width="1.5" stroke-dasharray="6 4"/>
+        <line x1="534" y1="90" x2="514" y2="126" stroke="#ffcc0022" stroke-width="1.5" stroke-dasharray="6 4"/>
+
+        <!-- RED PLANE on apron — facing LEFT (heading 180°) -->
+        <!-- fuselage nose points left -->
+        <g transform="translate(255,129) rotate(180)">
+          <polygon points="18,0 -9,-7 -18,0 -9,7" fill="#ff3333"/>
+          <polygon points="3,0 -5,13 -14,2 -12,0" fill="#cc2222" opacity="0.9"/>
+          <polygon points="3,0 -5,-13 -14,-2 -12,0" fill="#cc2222" opacity="0.9"/>
+          <circle cx="-13" cy="-5" r="2.5" fill="#ff4444"/>
+          <circle cx="-13" cy="5" r="2.5" fill="#44ff88"/>
+        </g>
+
+        <!-- YELLOW PLANE on apron — facing RIGHT (heading 0°) -->
+        <g transform="translate(445,129) rotate(0)">
+          <polygon points="18,0 -9,-7 -18,0 -9,7" fill="#ffcc00"/>
+          <polygon points="3,0 -5,13 -14,2 -12,0" fill="#ccaa00" opacity="0.9"/>
+          <polygon points="3,0 -5,-13 -14,-2 -12,0" fill="#ccaa00" opacity="0.9"/>
+          <circle cx="-13" cy="-5" r="2.5" fill="#ff4444"/>
+          <circle cx="-13" cy="5" r="2.5" fill="#44ff88"/>
+        </g>
+
+        <!-- AIRBORNE red plane — top left, flying left-ish -->
+        <g transform="translate(72,52) rotate(200)">
+          <polygon points="14,0 -7,-5.5 -14,0 -7,5.5" fill="#ff333377"/>
+          <polygon points="2,0 -4,10 -11,1.5 -9,0" fill="#ff333355"/>
+          <polygon points="2,0 -4,-10 -11,-1.5 -9,0" fill="#ff333355"/>
+        </g>
+        <line x1="80" y1="58" x2="108" y2="72" stroke="#ff333320" stroke-width="1.5" stroke-dasharray="4 4"/>
+
+        <!-- AIRBORNE yellow plane — top right, flying right-ish -->
+        <g transform="translate(626,48) rotate(20)">
+          <polygon points="14,0 -7,-5.5 -14,0 -7,5.5" fill="#ffcc0077"/>
+          <polygon points="2,0 -4,10 -11,1.5 -9,0" fill="#ffcc0055"/>
+          <polygon points="2,0 -4,-10 -11,-1.5 -9,0" fill="#ffcc0055"/>
+        </g>
+        <line x1="618" y1="56" x2="590" y2="70" stroke="#ffcc0020" stroke-width="1.5" stroke-dasharray="4 4"/>
+      </svg>
+
+      <div style="font-family:var(--mono);font-size:15px;color:var(--dg);letter-spacing:3px;">SOLVE THE MATH · CLEAR THE PLANES · BEAT THE CLOCK</div>
+    </div>
+    <!-- Slide 2: Runways -->
+    <div class="slide" id="s1">
+      <div style="font-family:var(--mono);font-size:14px;letter-spacing:6px;color:var(--dg);margin-bottom:22px;">STEP 1</div>
+      <h2 style="font-size:62px;margin-bottom:32px;">KNOW YOUR RUNWAYS</h2>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;width:100%;max-width:820px;">
+        <div style="border:1px solid #ff333355;border-radius:6px;padding:28px;background:#ff333308;">
+          <div style="font-family:var(--ui);font-size:40px;font-weight:700;color:#ff3333;letter-spacing:2px;margin-bottom:10px;">← LEFT</div>
+          <div style="font-family:var(--mono);font-size:16px;color:#ff333399;letter-spacing:2px;">RWY 09L · RED PLANES</div>
+        </div>
+        <div style="border:1px solid #ffcc0055;border-radius:6px;padding:28px;background:#ffcc0008;">
+          <div style="font-family:var(--ui);font-size:40px;font-weight:700;color:#ffcc00;letter-spacing:2px;margin-bottom:10px;">RIGHT →</div>
+          <div style="font-family:var(--mono);font-size:16px;color:#ffcc0099;letter-spacing:2px;">RWY 27R · YELLOW PLANES</div>
+        </div>
+      </div>
+    </div>
+    <!-- Slide 3: Controls -->
+    <div class="slide" id="s2">
+      <div style="font-family:var(--mono);font-size:14px;letter-spacing:6px;color:var(--dg);margin-bottom:22px;">STEP 2</div>
+      <h2 style="font-size:62px;margin-bottom:32px;">HOW TO PLAY</h2>
+      <div style="display:flex;flex-direction:column;gap:16px;width:100%;max-width:780px;">
+        <div style="display:flex;align-items:center;gap:24px;border:1px solid #1a3a2a;border-radius:6px;padding:18px 24px;">
+          <div style="font-family:var(--ui);font-size:28px;font-weight:700;color:var(--am);min-width:80px;letter-spacing:2px;">CLICK</div>
+          <div style="font-family:var(--mono);font-size:16px;color:var(--dg);">Select a plane on the apron to open its math fact</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:24px;border:1px solid #1a3a2a;border-radius:6px;padding:18px 24px;">
+          <div style="font-family:var(--ui);font-size:28px;font-weight:700;color:var(--am);min-width:80px;letter-spacing:2px;">SOLVE</div>
+          <div style="font-family:var(--mono);font-size:16px;color:var(--dg);">Type the answer and press <span style="color:var(--g);">Enter</span> to clear the plane</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:24px;border:1px solid #1a3a2a;border-radius:6px;padding:18px 24px;">
+          <div style="font-family:var(--ui);font-size:28px;font-weight:700;color:var(--am);min-width:80px;letter-spacing:2px;">← →</div>
+          <div style="font-family:var(--mono);font-size:16px;color:var(--dg);">Press the arrow key to send it to the correct runway</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:20px;border:1px solid #1a3a2a;border-radius:6px;padding:14px 20px;background:#ff440008;border-color:#ff444422;">
+          <div style="font-family:var(--ui);font-size:22px;font-weight:700;color:var(--rd);min-width:80px;letter-spacing:2px;">HURRY</div>
+          <div style="font-family:var(--mono);font-size:16px;color:var(--dg);">Patience bars shrink — ignored planes <span style="color:var(--rd);">leave without clearance</span></div>
+        </div>
+      </div>
+    </div>
+    <!-- Slide 4: Scoring -->
+    <div class="slide" id="s3">
+      <div style="font-family:var(--mono);font-size:14px;letter-spacing:6px;color:var(--dg);margin-bottom:22px;">SCORING</div>
+      <h2 style="font-size:62px;margin-bottom:32px;">POINTS</h2>
+      <div style="display:flex;flex-direction:column;gap:10px;width:100%;max-width:720px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 24px;border-radius:6px;background:#00ff8808;border:1px solid #00ff8822;">
+          <span style="font-family:var(--mono);font-size:16px;color:#ccc;">Correct math answer</span>
+          <span style="font-family:var(--ui);font-size:28px;font-weight:700;color:var(--g);">+100</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 24px;border-radius:6px;background:#00ff8806;border:1px solid #00ff8818;">
+          <span style="font-family:var(--mono);font-size:16px;color:#ccc;">Plane takes off</span>
+          <span style="font-family:var(--ui);font-size:28px;font-weight:700;color:var(--g);">+40</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 24px;border-radius:6px;background:#ffaa0008;border:1px solid #ffaa0022;">
+          <span style="font-family:var(--mono);font-size:16px;color:#ccc;">Streak bonus — get many right in a row!</span>
+          <span style="font-family:var(--ui);font-size:28px;font-weight:700;color:var(--am);">+25</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 24px;border-radius:6px;background:#ffaa0008;border:1px solid #ffaa0022;">
+          <span style="font-family:var(--mono);font-size:16px;color:#ccc;">Time bonus — per second left</span>
+          <span style="font-family:var(--ui);font-size:28px;font-weight:700;color:var(--am);">+50</span>
+        </div>
+        <div style="height:1px;background:#1a3a2a;margin:4px 0;"></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 20px;border-radius:6px;background:#ff444408;border:1px solid #ff444422;">
+          <span style="font-family:var(--mono);font-size:16px;color:#ccc;">Wrong answer or wrong runway</span>
+          <span style="font-family:var(--ui);font-size:28px;font-weight:700;color:var(--rd);">−20</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 20px;border-radius:6px;background:#ff444408;border:1px solid #ff444422;">
+          <span style="font-family:var(--mono);font-size:16px;color:#ccc;">Plane leaves without clearance</span>
+          <span style="font-family:var(--ui);font-size:28px;font-weight:700;color:var(--rd);">−200</span>
+        </div>
+      </div>
+    </div>
+    <!-- Slide 5: Ready -->
+    <div class="slide" id="s4">
+      <div style="font-family:var(--mono);font-size:14px;letter-spacing:6px;color:var(--dg);margin-bottom:22px;">YOU'RE READY</div>
+      <h2 style="font-size:72px;margin-bottom:12px;">CLEARED FOR<br>TAKEOFF</h2>
+      <div style="font-family:var(--mono);font-size:16px;letter-spacing:2px;color:var(--dg);margin:28px 0 36px;line-height:2;">
+        Hit the <span style="color:var(--g);">score target</span> to finish early and earn time bonuses<br>
+        3-second countdown before each shift — study the planes<br>
+        First plane is auto-selected — just press <span style="color:var(--g);">Enter</span>
+      </div>
+    </div>
+  </div>
+  <div id="introNav">
+    <button id="introPrev">← PREV</button>
+    <div id="introDots" style="display:flex;gap:8px;"></div>
+    <button id="introNext">NEXT →</button>
+  </div>
+  <button id="introSkip">SKIP ✕</button>
+  <div id="introProgress"></div>
+</div>
+
+<!-- Celebration (Level 25 complete) -->
+<div id="celebration">
+  <canvas id="celebCanvas"></canvas>
+  <div id="celebContent">
+    <h1>TOWER MASTER</h1>
+    <div class="csub">ALL 25 LEVELS COMPLETE</div>
+    <div class="cstars">★ ★ ★ ★ ★</div>
+    <div class="cscore" id="celebScore"></div>
+    <div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap;">
+      <button class="cbtn" id="celebBtn">PLAY AGAIN</button>
+      <button class="cbtn" id="celebPickerBtn" style="background:transparent;border:2px solid var(--g);color:var(--g);box-shadow:none;">VIEW SCORES</button>
+    </div>
+  </div>
+</div>
+
+<div id="topBar">
+  <div class="tb-title">⬡ ATC MATH TOWER</div>
+  <div id="windDownBanner">⭐ THRESHOLD CLEARED — CLEARING TRAFFIC</div>
+  <button id="muteBtn" onclick="toggleMute()" style="background:transparent;border:1px solid #1a3a2a;color:var(--dg);font-family:var(--mono);font-size:11px;padding:3px 9px;border-radius:4px;cursor:pointer;pointer-events:all;margin-right:auto;">🔊</button>
+  <div style="display:flex;align-items:center;gap:18px;">
+    <div style="font-family:var(--ui);font-size:13px;font-weight:700;letter-spacing:3px;color:var(--dg);">LVL <span id="lv" style="color:var(--g);font-size:28px;text-shadow:0 0 14px var(--g);">1</span></div>
+    <div id="shiftTimer">1:00</div>
+  </div>
+  <div class="tb-stats">
+    <div class="tb-stat">SCORE <span id="sv">0</span></div>
+    <div class="tb-stat">NEED <span id="nv" style="color:var(--am);">1000</span></div>
+    <div class="tb-stat">CLEARED <span id="dv">0</span></div>
+    <div class="tb-stat">MISSED <span id="av">0</span></div>
+    <div class="tb-stat">WRONG <span id="wv">0</span></div>
+    <div class="tb-stat" id="trainingBadge" style="display:none;background:rgba(255,170,0,.15);border:1px solid var(--am);border-radius:3px;padding:1px 7px;color:var(--am);font-size:10px;letter-spacing:2px;">TRAINING</div>
+    <div class="tb-stat" style="letter-spacing:3px;" id="livesDisplay">❤️❤️❤️</div>
+  </div>
+</div>
+<div id="bonusLifeFlash" style="
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  background:rgba(3,10,6,.96);border:2px solid var(--g);border-radius:8px;
+  padding:16px 32px;text-align:center;z-index:35;pointer-events:none;
+  display:none;box-shadow:0 0 40px rgba(0,255,136,.4);">
+  <div style="font-size:40px;margin-bottom:4px;">❤️</div>
+  <div style="font-family:var(--ui);font-size:18px;font-weight:700;letter-spacing:3px;color:var(--g);text-shadow:0 0 12px var(--g);">BONUS LIFE!</div>
+  <div id="bonusLifeMsg" style="font-family:var(--mono);font-size:11px;color:var(--dg);margin-top:4px;"></div>
+</div>
+
+<!-- Panels sit mid-screen, flanking the road — clear of the runways -->
+<div class="qPanel" id="qSmall">
+  <div class="qp-hdr" style="color:#ff3333">◀ RWY 09L · RED</div>
+  <div class="qp-section">ON APRON</div>
+  <div id="qSmallApron"></div>
+  <div class="qp-section">RUNWAY QUEUE</div>
+  <div id="qSmallRwy"></div>
+</div>
+<div class="qPanel" id="qMedium">
+  <div class="qp-hdr" style="color:#00ee77">↑ RWY 36C · GREEN</div>
+  <div class="qp-section">ON APRON</div>
+  <div id="qMediumApron"></div>
+  <div class="qp-section">RUNWAY QUEUE</div>
+  <div id="qMediumRwy"></div>
+</div>
+<div class="qPanel" id="qHeavy">
+  <div class="qp-hdr" style="color:#ff3333">↓ RWY 36S · BLUE</div>
+  <div class="qp-section">ON APRON</div>
+  <div id="qHeavyApron"></div>
+  <div class="qp-section">RUNWAY QUEUE</div>
+  <div id="qHeavyRwy"></div>
+</div>
+<div class="qPanel" id="qLarge">
+  <div class="qp-hdr lg">RWY 27R · YELLOW ▶</div>
+  <div class="qp-section">ON APRON</div>
+  <div id="qLargeApron"></div>
+  <div class="qp-section">RUNWAY QUEUE</div>
+  <div id="qLargeRwy"></div>
+</div>
+
+<div id="commsLog"></div>
+<div id="toast"></div>
+<div id="wrongRwyToast"></div>
+<div id="streakToast"></div>
+<div id="dispatchHint">
+  <div id="dispatchHintText"></div>
+</div>
+
+<div id="mathPanel">
+  <h3>FLIGHT CLEARANCE</h3>
+  <div id="mathOpType">—</div>
+  <div id="mathPrompt">? ○ ? = ?</div>
+  <div id="mathMeta"></div>
+  <input id="mathInput" type="number" inputmode="numeric" autocomplete="off" />
+  <div id="mathBtns">
+    <button class="mp-btn" id="submitMath">SUBMIT</button>
+    <button class="mp-btn alt" id="cancelMath" tabindex="-1">ESC to close</button>
+  </div>
+  <div id="mathFeedback"></div>
+</div>
+
+<div id="botBar">
+  <div class="bh"><b>Tab</b> / <b>Shift+Tab</b> cycle planes · <b>Enter</b> solve</div>
+  <div class="bh">then <b>click ✈</b> or press <b style="color:var(--sm)">←</b> / <b style="color:var(--lg)">→</b> to dispatch</div>
+  <div class="bh"><b>Space</b> pause</div>
+  <div style="margin-left:auto;display:flex;gap:14px;">
+    <div class="bh" style="color:var(--sm);">◀ RED → 09L</div>
+    <div class="bh" style="color:var(--lg);">YELLOW → 27R ▶</div>
+  </div>
+</div>
+
+<div id="overlay" style="display:none;"></div>
+
+<script>
+const canvas=document.getElementById('gc'), ctx=canvas.getContext('2d');
+
+// ── Sound Engine ─────────────────────────────────────────────────────────────
+let _audioCtx=null;
+function _ac(){ if(!_audioCtx) _audioCtx=new(window.AudioContext||window.webkitAudioContext)(); return _audioCtx; }
+let _muted=localStorage.getItem('atcMuted')==='1';
+function _tone(freq,type,dur,vol,delay){
+  if(_muted) return;
+  try{
+    const ac=_ac(), o=ac.createOscillator(), g=ac.createGain();
+    o.connect(g); g.connect(ac.destination);
+    o.type=type; o.frequency.value=freq;
+    const t=ac.currentTime+(delay||0);
+    g.gain.setValueAtTime(0,t);
+    g.gain.linearRampToValueAtTime(vol||0.15,t+0.01);
+    g.gain.exponentialRampToValueAtTime(0.001,t+(dur||0.12));
+    o.start(t); o.stop(t+(dur||0.12)+0.02);
+  }catch(e){}
+}
+const SFX={
+  correct: ()=>{ _tone(523,'sine',0.10,0.18); _tone(659,'sine',0.10,0.16,0.08); _tone(784,'sine',0.14,0.14,0.16); },
+  wrong:   ()=>{ _tone(220,'sawtooth',0.15,0.14); _tone(165,'sawtooth',0.18,0.11,0.10); },
+  depart:  ()=>{ _tone(392,'sine',0.07,0.12); _tone(523,'sine',0.10,0.09,0.07); },
+  abort:   ()=>{ _tone(180,'sawtooth',0.22,0.16); },
+  streak:  ()=>{ [523,659,784,1046].forEach((f,i)=>_tone(f,'sine',0.09,0.16,i*0.07)); },
+  warn:    ()=>{ _tone(440,'square',0.05,0.10); _tone(440,'square',0.05,0.10,0.18); },
+  levelUp: ()=>{ [523,659,784,1046,1318].forEach((f,i)=>_tone(f,'sine',0.13,0.14,i*0.08)); },
+  fail:    ()=>{ _tone(330,'sawtooth',0.22,0.18); _tone(247,'sawtooth',0.22,0.16,0.18); _tone(185,'sawtooth',0.35,0.20,0.36); },
+  celebrate: ()=>{
+    // Big ascending fanfare — chord bursts with harmonics
+    [[523,659,784],[659,784,1046],[784,1046,1318],[1046,1318,1568]].forEach(([a,b,c],i)=>{
+      const t=i*0.22;
+      _tone(a,'sine',0.25,0.18,t); _tone(b,'sine',0.25,0.15,t); _tone(c,'sine',0.25,0.12,t);
+    });
+    // Final high shimmer
+    [1318,1568,2093].forEach((f,i)=>_tone(f,'sine',0.40,0.10,0.90+i*0.08));
+  },
+};
+function toggleMute(){
+  _muted=!_muted;
+  localStorage.setItem('atcMuted',_muted?'1':'0');
+  const icon=_muted?'🔇':'🔊';
+  ['muteBtn','pickerMuteBtn'].forEach(id=>{ const b=document.getElementById(id); if(b) b.textContent=icon; });
+}
+let W,H;
+function resize(){W=canvas.width=window.innerWidth;H=canvas.height=window.innerHeight;}
+resize(); window.addEventListener('resize',resize);
+
+// ── Constants ──────────────────────────────────────────────────────────────
+const SHIFT_MS        = 60000;   // 60 seconds
+
+// Clear stale localStorage if game version changed
+const GAME_VERSION = '2';
+if(localStorage.getItem('atcVersion')!==GAME_VERSION){
+  ['atcUnlocked','atcLives','atcBonusAwarded','atcBestScores','atcLifeUsed'].forEach(k=>localStorage.removeItem(k));
+  localStorage.setItem('atcVersion', GAME_VERSION);
+}
+const PATIENCE_BASE   = 30000;   // L4+ base patience (ms)
+const PATIENCE_TRAINING = 45000; // generous patience for levels 1-3
+const PATIENCE_MIN    = 10000;   // floor — never below 10s
+const PATIENCE_STEP   = 4000;    // reduction per level (from L4)
+const TAXI_SPEED_BASE  = 1.8;    // slower default so early levels feel relaxed
+const TAXI_SPEED_MAX   = 5.5;
+const TAKEOFF_GAP_BASE = 2200;
+const TAKEOFF_GAP_MIN  = 800;
+const REPLENISH_MAX_MS = 10000;
+const REPLENISH_MIN_MS = 2000;
+const TRAINING_LEVELS  = 3;      // levels 1-3 are training
+
+// Adaptive difficulty — measured from dispatch speed in levels 1-3
+// adaptiveMult: 1.0 = standard, <1.0 = harder (fast player), >1.0 = easier (slow player)
+let adaptiveMult = 1.0;
+let dispatchPatienceSamples = []; // patience% left at dispatch time during training levels
+
+function recordDispatchSpeed(patiencePct){
+  if(currentLevel<=TRAINING_LEVELS) dispatchPatienceSamples.push(patiencePct);
+}
+
+function computeAdaptiveMult(){
+  if(dispatchPatienceSamples.length===0){ adaptiveMult=1.0; return; }
+  const avg=dispatchPatienceSamples.reduce((a,b)=>a+b,0)/dispatchPatienceSamples.length;
+  // avg > 0.6 (fast) → mult down toward 0.7 (tighter patience)
+  // avg 0.3-0.6 (medium) → mult ~1.0 (standard)
+  // avg < 0.3 (slow) → mult up toward 1.5 (more generous)
+  if(avg>0.6)      adaptiveMult=Math.max(0.7, 1.0-(avg-0.6)*1.5);
+  else if(avg<0.3) adaptiveMult=Math.min(1.5, 1.0+(0.3-avg)*1.67);
+  else             adaptiveMult=1.0;
+}
+
+function isTraining(){ return currentLevel<=TRAINING_LEVELS; }
+
+// Taxi speed — slower in training so kids can follow what's happening
+function levelTaxiSpeed(){
+  const base=isTraining() ? TAXI_SPEED_BASE : Math.min(TAXI_SPEED_MAX, TAXI_SPEED_BASE + (currentLevel-TRAINING_LEVELS-1)*0.18);
+  return windingDown ? base*3 : base;
+}
+// Takeoff gap
+function levelTakeoffGap(){
+  const base=isTraining() ? TAKEOFF_GAP_BASE + 400 : Math.max(TAKEOFF_GAP_MIN, TAKEOFF_GAP_BASE - (currentLevel-TRAINING_LEVELS-1)*70);
+  return windingDown ? Math.round(base/3) : base;
+}
+// Replenish delay
+function levelReplenishDelay(){
+  if(isTraining()) return 5000 + Math.random()*5000; // 5-10s in training
+  return Math.random() * Math.max(REPLENISH_MIN_MS, REPLENISH_MAX_MS - (currentLevel-TRAINING_LEVELS-1)*350);
+}
+const SCORE_DEPART    = 40;
+const SCORE_CORRECT   = 100;
+const SCORE_STREAK    = 25;
+
+// Streak bonus every N correct answers — gets harder at higher levels
+function streakEvery(){
+  if(currentLevel>=21) return 6;
+  if(currentLevel>=16) return 5;
+  if(currentLevel>=11) return 4;
+  return 3;
+}
+const SCORE_ABORT     = -200;
+
+// Patience for the current level
+function levelPatience(){
+  if(isTraining()) return PATIENCE_TRAINING;
+  const base = Math.max(PATIENCE_MIN, PATIENCE_BASE - (currentLevel-TRAINING_LEVELS-1)*PATIENCE_STEP);
+  return Math.max(PATIENCE_MIN, Math.round(base * adaptiveMult));
+}
+const SCORE_WRONG_RWY = -20; // same as wrong answer penalty
+const SCORE_WRONG_ANS = -20; // half of SCORE_CORRECT
+// Wrong answer costs 25% of patience (10% in training — very forgiving)
+function wrongPatHit(){ return levelPatience() * (isTraining() ? 0.10 : 0.25); }
+
+const P_COLORS=['','#ff5555','#ff9900','#ffee00','#88dd00','#44aaff'];
+const SM_AIRLINES=['SKW','JBU','SWA','EIN','ASA'];
+const LG_AIRLINES=['UAL','DAL','AAL','BAW','DLH'];
+const MD_AIRLINES=['GTI','NKS','VRD','SPX','ACY']; // green / medium planes
+const RD_AIRLINES=['RYR','WZZ','VLG','EZY','W6X']; // red / heavy planes
+const GREEN_LEVEL=16; // level at which green runway unlocks
+const RED_LEVEL=21;   // level at which red runway unlocks
+
+
+function shuffleArray(arr){
+  for(let i=arr.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [arr[i],arr[j]]=[arr[j],arr[i]];
+  }
+  return arr;
+}
+
+// Per-session shuffled pool — filtered by selectedOps
+let factPool=[], factIdx=0;
+let selectedOps=new Set(['ADDITION','SUBTRACTION']);
+
+function buildFactPool(){
+  const pool=[];
+  if(selectedOps.has('ADDITION'))
+    for(let a=1;a<=12;a++) for(let b=1;b<=12;b++){
+      if(a+b<=20) pool.push({display:`${a} + ${b}`,answer:a+b,op:'ADDITION'});
+    }
+  if(selectedOps.has('SUBTRACTION'))
+    for(let a=2;a<=20;a++) for(let b=1;b<a;b++){
+      pool.push({display:`${a} − ${b}`,answer:a-b,op:'SUBTRACTION'});
+    }
+  if(selectedOps.has('MULTIPLICATION'))
+    for(let a=2;a<=12;a++) for(let b=2;b<=12;b++){
+      pool.push({display:`${a} × ${b}`,answer:a*b,op:'MULTIPLICATION'});
+    }
+  if(selectedOps.has('DIVISION'))
+    for(let divisor=2;divisor<=12;divisor++) for(let quotient=2;quotient<=12;quotient++){
+      pool.push({display:`${divisor*quotient} ÷ ${divisor}`,answer:quotient,op:'DIVISION'});
+    }
+  // Fallback: if nothing selected, include everything
+  if(pool.length===0) return buildFactPoolAll();
+  return pool;
+}
+
+function buildFactPoolAll(){
+  const pool=[];
+  for(let a=1;a<=12;a++) for(let b=1;b<=12;b++) if(a+b<=20) pool.push({display:`${a} + ${b}`,answer:a+b,op:'ADDITION'});
+  for(let a=2;a<=20;a++) for(let b=1;b<a;b++) pool.push({display:`${a} − ${b}`,answer:a-b,op:'SUBTRACTION'});
+  for(let a=2;a<=12;a++) for(let b=2;b<=12;b++) pool.push({display:`${a} × ${b}`,answer:a*b,op:'MULTIPLICATION'});
+  for(let d=2;d<=12;d++) for(let q=2;q<=12;q++) pool.push({display:`${d*q} ÷ ${d}`,answer:q,op:'DIVISION'});
+  return pool;
+}
+
+function initPools(){
+  factPool=shuffleArray(buildFactPool());
+  factIdx=0;
+}
+
+function pickFact(){
+  if(factIdx>=factPool.length){ shuffleArray(factPool); factIdx=0; }
+  return factPool[factIdx++];
+}
+
+// ── State ──────────────────────────────────────────────────────────────────
+let active=false, score=0, departed=0, aborted=0, wrongAnswers=0, timeBonus=0, windingDown=false;
+let shiftLeft=SHIFT_MS, lastTs=0;
+let planes=[], selected=null, csCounter=100, streak=0, currentMathPlane=null;
+let currentLevel=1, totalScore=0, lives=3;
+const MAX_LIVES=3, BONUS_LIFE_LEVELS=[5,10,15,20];
+let bonusLivesAwarded=loadBonusAwarded();
+
+function loadBonusAwarded(){ try{ return new Set(JSON.parse(localStorage.getItem('atcBonusAwarded')||'[]')); }catch(e){ return new Set(); } }
+function saveBonusAwarded(){ try{ localStorage.setItem('atcBonusAwarded',JSON.stringify([...bonusLivesAwarded])); }catch(e){} }
+
+// Best score per level — sum of all gives career total, no double-dipping
+let levelBestScores=loadBestScores();
+function loadBestScores(){ try{ return new Map(Object.entries(JSON.parse(localStorage.getItem('atcBestScores')||'{}')).map(([k,v])=>[Number(k), typeof v==='object'?v:{score:v,ops:[]}])); }catch(e){ return new Map(); } }
+function saveBestScores(){ try{ localStorage.setItem('atcBestScores',JSON.stringify(Object.fromEntries(levelBestScores))); }catch(e){} }
+function updateBestScore(level, sc, ops){
+  const prev=levelBestScores.get(level);
+  if(!prev||sc>prev.score){ levelBestScores.set(level,{score:sc, ops:[...ops]}); saveBestScores(); }
+}
+function careerTotal(){ let t=0; levelBestScores.forEach(v=>t+=v.score); return t; }
+
+const OP_COLORS={'ADDITION':'#aaffcc','SUBTRACTION':'#ffaa66','MULTIPLICATION':'#88eeff','DIVISION':'#ffdd88'};
+const OP_SYMBOLS={'ADDITION':'+','SUBTRACTION':'−','MULTIPLICATION':'×','DIVISION':'÷'};
+let missedFacts=new Map();
+const PASS_THRESHOLDS=[0,1000,1050,1100,1300,1350,1450,1600,1650,1750,1800,1950,2000,2050,2100,2250,2400,2500,2650,2850,3000,3200,3350,3550,3750,4000];
+function passThreshold(){ return PASS_THRESHOLDS[currentLevel]||1000; }
+
+function saveLives(){ try{ localStorage.setItem('atcLives',lives); }catch(e){} }
+function loadLives(){ try{ const v=parseInt(localStorage.getItem('atcLives')); return isNaN(v)?3:Math.min(MAX_LIVES,Math.max(1,v)); }catch(e){ return 3; } }
+
+function heartsHTML(){
+  let html='';
+  for(let i=0;i<lives;i++){
+    const isBonus=lifeCodeUsed&&i===lives-1;
+    const col=isBonus?'#ffcc00':'#ff4466';
+    html+=`<span style="color:${col};font-size:18px;">♥</span>`;
+  }
+  for(let i=lives;i<MAX_LIVES;i++){
+    html+=`<span style="color:#333;font-size:18px;">♥</span>`;
+  }
+  return html;
+}
+
+function updateLivesDisplay(){
+  document.getElementById('livesDisplay').innerHTML=heartsHTML();
+}
+
+function showBonusLife(msg){
+  const el=document.getElementById('bonusLifeFlash');
+  document.getElementById('bonusLifeMsg').textContent=msg;
+  el.style.display='block';
+  el.style.animation='none'; el.offsetHeight;
+  setTimeout(()=>{ el.style.display='none'; },2200);
+}
+const rwyQueue={'09L':[],'27R':[],'36C':[],'36S':[]};
+const rwyLastTakeoff={'09L':0,'27R':0,'36C':0,'36S':0};
+
+// ── Layout ─────────────────────────────────────────────────────────────────
+function L(){
+  // Road height and lane count scales with how many plane types are active
+  const useGreen = currentLevel>=GREEN_LEVEL;
+  const useRed   = currentLevel>=RED_LEVEL;
+  const laneCount = useRed ? 4 : useGreen ? 3 : 2;
+  const laneH = 22; // fixed lane height per type
+  const roadH = laneH * laneCount;
+  const roadY = H*0.52; // centre of the road strip
+
+  // Lanes are evenly distributed around roadY centre
+  // laneCount=2: small top, large bottom
+  // laneCount=3: small, medium, large
+  // laneCount=4: small, medium, heavy, large
+  const topLane = roadY - (roadH/2) + laneH/2;
+  const smLaneY = topLane;
+  const mdLaneY = topLane + laneH;
+  const rdLaneY = topLane + laneH*2; // heavy — only when laneCount>=4
+  const lgLaneY = topLane + laneH*(laneCount-1);
+
+  const smRwyX=40,  smRwyY=H*0.18, smRwyW=W*0.18, smRwyH=28;
+  const lgRwyX=W-40-W*0.18, lgRwyY=H*0.18, lgRwyW=W*0.18, lgRwyH=36;
+  const smLP={x:smRwyX+smRwyW-24, y:smRwyY+smRwyH/2, rwy:'09L'};
+  const lgLP={x:lgRwyX+24,        y:lgRwyY+lgRwyH/2, rwy:'27R'};
+
+  // Third runway: vertical strip at centre-top, planes launch upward
+  const mdRwyW=28, mdRwyH=W*0.09;
+  const mdRwyX=W/2-mdRwyW/2, mdRwyY=H*0.03;
+  const mdLP={x:W/2, y:mdRwyY+mdRwyH, rwy:'36C'};
+
+  // Fourth runway: vertical strip at centre-bottom, launches downward
+  const rdRwyW=28, rdRwyH=H*0.09;
+  const rdRwyX=W/2-rdRwyW/2, rdRwyY=H*0.88;
+  const rdLP={x:W/2, y:rdRwyY, rwy:'36S'};
+
+  return {roadY,roadH,laneH,laneCount,smLaneY,lgLaneY,mdLaneY,rdLaneY,
+          smRwyX,smRwyY,smRwyW,smRwyH,smLP,
+          lgRwyX,lgRwyY,lgRwyW,lgRwyH,lgLP,
+          mdRwyX,mdRwyY,mdRwyW,mdRwyH,mdLP,
+          rdRwyX,rdRwyY,rdRwyW,rdRwyH,rdLP};
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+function comms(text,type='atc'){
+  const log=document.getElementById('commsLog');
+  const el=document.createElement('div');
+  el.className='cl '+type;
+  el.textContent=(type==='atc'?'◀ TWR: ':type==='pln'?'▶ PLN: ':'⚠ ')+text;
+  log.appendChild(el);
+  while(log.children.length>9)log.removeChild(log.firstChild);
+  setTimeout(()=>el.remove(),7000);
+}
+let _tt=null;
+function toast(text){
+  const el=document.getElementById('toast');
+  el.textContent=text; el.style.opacity='1';
+  if(_tt)clearTimeout(_tt);
+  _tt=setTimeout(()=>el.style.opacity='0',1800);
+}
+let _wrt=null;
+function wrongRwyToast(text){
+  SFX.wrong();
+  const el=document.getElementById('wrongRwyToast');
+  el.textContent=text; el.style.opacity='1';
+  if(_wrt)clearTimeout(_wrt);
+  _wrt=setTimeout(()=>el.style.opacity='0',2000);
+}
+let _st=null;
+function streakToast(text){
+  const el=document.getElementById('streakToast');
+  el.textContent=text; el.style.opacity='1';
+  if(_st)clearTimeout(_st);
+  _st=setTimeout(()=>el.style.opacity='0',1800);
+}
+
+function apronQueue(type){
+  return planes.filter(p=>p.type===type&&p.phase==='waiting'&&!p.departed).sort((a,b)=>a.priority-b.priority);
+}
+function assignPriority(p){
+  const q=apronQueue(p.type);
+  p.priority=q.length>0?q[q.length-1].priority+1:1;
+}
+function closeGaps(type){
+  apronQueue(type).forEach((p,i)=>p.priority=i+1);
+}
+function activeCount(type){
+  return planes.filter(p=>p.type===type&&!p.departed&&p.phase!=='airborne').length;
+}
+
+// ── Spawn ──────────────────────────────────────────────────────────────────
+function spawnPlane(type){
+  const l=L();
+  const isS=type==='small', isM=type==='medium', isR=type==='heavy';
+  const airlines=isS?SM_AIRLINES:isM?MD_AIRLINES:isR?RD_AIRLINES:LG_AIRLINES;
+  const cs=airlines[Math.floor(Math.random()*airlines.length)]+(csCounter++);
+  // Panels are 195px wide at left/right edges; plane labels are centred and ~110px wide total.
+  // Safe spawn zone is the centre strip between the two panels.
+  const spawnMin = l.smRwyX + l.smRwyW + 10; // right edge of blue runway
+  const spawnMax = l.lgRwyX - 10;             // left edge of yellow runway
+  const MIN_SPACING = 120; // minimum px between any two plane centres
+  const usedX = planes.filter(p => p.phase==='waiting' && !p.departed).map(p => p.x);
+  let sx, tries = 0;
+  do {
+    sx = spawnMin + Math.random() * Math.max(MIN_SPACING, spawnMax - spawnMin);
+    tries++;
+  } while(usedX.some(ux => Math.abs(ux - sx) < MIN_SPACING) && tries < 40);
+  // If still overlapping after many tries, find the largest gap and place in middle of it
+  if(usedX.some(ux => Math.abs(ux - sx) < MIN_SPACING) && usedX.length > 0){
+    const sorted = [...usedX, spawnMin, spawnMax].sort((a,b)=>a-b);
+    let bestGapMid = spawnMin + (spawnMax - spawnMin) / 2;
+    let bestGap = 0;
+    for(let i=0;i<sorted.length-1;i++){
+      const gap = sorted[i+1] - sorted[i];
+      if(gap > bestGap){ bestGap = gap; bestGapMid = (sorted[i] + sorted[i+1]) / 2; }
+    }
+    sx = bestGapMid;
+  }
+  const sy=isS?l.smLaneY+(Math.random()*4-2):isM?l.mdLaneY+(Math.random()*4-2):isR?l.rdLaneY+(Math.random()*4-2):l.lgLaneY+(Math.random()*4-2);
+  const fact=pickFact();
+  const pat=levelPatience();
+  return {
+    id:cs, type, x:sx, y:sy,
+    phase:'waiting',
+    priority:0,
+    patience:pat, patienceMax:pat,
+    color:isS?'#ff3333':isM?'#00ee77':isR?'#00bbcc':'#ffcc00',
+    w:isS?28:isM?34:isR?46:42, h:isS?13:isM?15:isR?22:20,
+    heading:isS?180:isM?-90:isR?90:0,
+    departed:false, aborted:false,
+    launchTimer:0, blink:Math.random(),
+    path:null, dispatchOrder:0,
+    cleared:false, attempts:0, fact
+  };
+}
+
+function initPlanes(){
+  planes=[]; rwyQueue['09L']=[]; rwyQueue['27R']=[]; rwyQueue['36C']=[]; rwyQueue['36S']=[];
+  const extraCount = currentLevel===1 ? 0 : currentLevel===2 ? 1 : 2;
+  const useGreen = currentLevel>=GREEN_LEVEL;
+  const useRed   = currentLevel>=RED_LEVEL;
+
+  for(let i=0;i<3;i++){
+    const type=useRed
+      ? (['small','medium','heavy','large'])[i%4]
+      : useGreen
+      ? (['small','medium','large'])[i%3]
+      : Math.random()<0.5?'small':'large';
+    const p=spawnPlane(type); planes.push(p); assignPriority(p);
+  }
+  if(extraCount>=1){
+    setTimeout(()=>{
+      if(!active)return;
+      const maxOnApron = currentLevel===1 ? 3 : currentLevel===2 ? 4 : 5;
+      if(planes.filter(q=>!q.departed&&!q.aborted).length>=maxOnApron) return;
+      const type=useRed?'heavy':useGreen?'medium':Math.random()<0.5?'small':'large';
+      const p=spawnPlane(type); planes.push(p); assignPriority(p);
+      comms(`${p.id} arriving on apron: ${p.fact.display}`,'pln'); updatePanels();
+    }, 5000);
+  }
+  if(extraCount>=2){
+    setTimeout(()=>{
+      if(!active)return;
+      const maxOnApron = currentLevel===1 ? 3 : currentLevel===2 ? 4 : 5;
+      if(planes.filter(q=>!q.departed&&!q.aborted).length>=maxOnApron) return;
+      const type=Math.random()<0.5?'small':'large';
+      const p=spawnPlane(type); planes.push(p); assignPriority(p);
+      comms(`${p.id} arriving on apron: ${p.fact.display}`,'pln'); updatePanels();
+    }, 10000);
+  }
+}
+
+function spawnOneAfterDelay(delayMs){
+  setTimeout(()=>{
+    if(!active||windingDown)return;
+    // Don't exceed the level's max concurrent planes
+    const maxOnApron = currentLevel===1 ? 3 : currentLevel===2 ? 4 : 5;
+    const liveCount = planes.filter(q=>!q.departed&&!q.aborted).length;
+    if(liveCount>=maxOnApron) return;
+    let type;
+    if(currentLevel>=RED_LEVEL){
+      type=['small','medium','large','heavy'][Math.floor(Math.random()*4)];
+    } else if(currentLevel>=GREEN_LEVEL){
+      type=['small','medium','large'][Math.floor(Math.random()*3)];
+    } else {
+      type=Math.random()<0.5?'small':'large';
+    }
+    const p=spawnPlane(type); planes.push(p); assignPriority(p);
+    comms(`${p.id} on apron: ${p.fact.display}`,'pln');
+    updatePanels();
+    // In L1, if hint was showing "wait", switch it to "click"
+    if(currentLevel===1&&!selected&&!isMathOpen()){
+      showHintBanner('Click a plane  or  Tab + Enter  to select the next one', '#ffffff');
+    }
+  }, delayMs);
+}
+
+// ── Math panel ─────────────────────────────────────────────────────────────
+function isMathOpen(){ return document.getElementById('mathPanel').style.display==='block'; }
+
+function showHintBanner(text, color){
+  const el=document.getElementById('dispatchHint');
+  const txt=document.getElementById('dispatchHintText');
+  txt.textContent=text;
+  txt.style.color=color;
+  txt.style.textShadow=`0 0 14px ${color}88`;
+  el.style.borderColor=color;
+  el.style.display='block';
+}
+function hideHintBanner(){
+  document.getElementById('dispatchHint').style.display='none';
+}
+
+let dispatchHintsShown = 0; // how many times we've shown the ← → reminder
+
+function shouldShowDispatchHint(){
+  // Show for every cleared plane in L1, and the first cleared plane in L2
+  if(currentLevel===1) return true;
+  if(currentLevel===2 && dispatchHintsShown===0) return true;
+  return false;
+}
+
+function typeColor(p){
+  return p.type==='small'?'RED':p.type==='large'?'YELLOW':p.type==='medium'?'GREEN':'BLUE';
+}
+function openMath(p){
+  currentMathPlane=p;
+  const panel=document.getElementById('mathPanel');
+
+  // Theme the panel to match the plane's color
+  const isLarge = p.type==='large';
+  const isMedium = p.type==='medium';
+  const isHeavy = p.type==='heavy';
+  const col     = isLarge?'#ffcc00':isMedium?'#00ee77':isHeavy?'#00bbcc':'#ff3333';
+  const bright  = isLarge?'#ffee88':isMedium?'#88ffcc':isHeavy?'#88eeff':'#ff9988';
+  const dim     = isLarge?'#776600':isMedium?'#006633':isHeavy?'#006677':'#660000';
+  const mid     = isLarge?'#665500':isMedium?'#005522':isHeavy?'#005566':'#550000';
+  const glow    = isLarge?'rgba(255,153,68,.2)':isMedium?'rgba(68,221,136,.2)':isHeavy?'rgba(85,170,255,.2)':'rgba(255,68,85,.2)';
+  panel.style.setProperty('--mp-col',   col);
+  panel.style.setProperty('--mp-bright',bright);
+  panel.style.setProperty('--mp-dim',   dim);
+  panel.style.setProperty('--mp-mid',   mid);
+  panel.style.setProperty('--mp-glow',  glow);
+
+  panel.style.display='block';
+  document.getElementById('mathOpType').textContent=p.fact.op;
+  document.getElementById('mathPrompt').textContent=`${p.fact.display} = ?`;
+  document.getElementById('mathMeta').textContent=`${p.id} · ${typeColor(p)} · ${p.cleared?'✓ already cleared':'solve to clear for taxi'}${p.attempts>0?' · attempts: '+p.attempts:''}`;
+  document.getElementById('mathInput').value='';
+  document.getElementById('mathFeedback').textContent='';
+  setTimeout(()=>document.getElementById('mathInput').focus(),0);
+}
+
+function closeMath(){
+  document.getElementById('mathPanel').style.display='none';
+  currentMathPlane=null;
+}
+
+function submitMath(){
+  const p=currentMathPlane;
+  if(!p||p.departed||p.phase!=='waiting'){closeMath();return;}
+  const val=Number(document.getElementById('mathInput').value);
+  if(isNaN(val)||document.getElementById('mathInput').value.trim()==='')return;
+
+  if(val===p.fact.answer){
+    if(!p.cleared){
+      p.cleared=true; streak++;
+      score+=SCORE_CORRECT; SFX.correct();
+      const se=streakEvery();
+      if(streak>0&&streak%se===0){ score+=SCORE_STREAK; SFX.streak(); streakToast('🔥 STREAK x'+streak+' +'+SCORE_STREAK); }
+      comms(`${p.id} cleared: ${p.fact.display}=${p.fact.answer}`,'atc');
+    } else {
+      comms(`${p.id} already cleared`,'atc');
+    }
+    document.getElementById('mathFeedback').style.color='#00ff88';
+    // Show dispatch key reminder for early levels — as persistent colored banner
+    if(shouldShowDispatchHint()){
+      const arrow=p.type==='small'?'←':p.type==='large'?'→':p.type==='medium'?'↑':'↓';
+      const rwy=p.type==='small'?'09L':p.type==='large'?'27R':p.type==='medium'?'36C':'36S';
+      const rwyColor=p.type==='small'?'#ff3333':p.type==='large'?'#ffcc00':p.type==='medium'?'#00ee77':'#00bbcc';
+      const hint=`Press  ${arrow}  to send ${p.id} to RWY ${rwy}`;
+      document.getElementById('mathFeedback').textContent=`✓ Correct! ${hint}`;
+      showHintBanner(hint, rwyColor);
+      dispatchHintsShown++;
+    } else {
+      document.getElementById('mathFeedback').textContent='✓ Correct! Press ← or → to dispatch.';
+    }
+    document.getElementById('sv').textContent=Math.max(0,score);
+    updatePanels();
+    selected=p; // ensure plane stays selected so arrow keys dispatch immediately
+    closeMath();
+  } else {
+    p.attempts++; wrongAnswers++; streak=0;
+    p.patience=Math.max(0,p.patience-wrongPatHit());
+    score+=SCORE_WRONG_ANS; SFX.wrong();
+    missedFacts.set(p.fact.display, p.fact);
+    // Keep selected=p so arrow keys work after correct answer — modal blocks dispatch while open
+    document.getElementById('wv').textContent=wrongAnswers;
+    document.getElementById('sv').textContent=Math.max(0,score);
+    document.getElementById('mathMeta').textContent=`${p.id} · ${typeColor(p)} · attempts: ${p.attempts}`;
+    document.getElementById('mathFeedback').textContent=`✗ Not ${val}. Try again.`;
+    document.getElementById('mathFeedback').style.color='#ffcc00';
+    toast('Wrong − patience penalty');
+    comms(`${p.id} incorrect answer`,'alrt');
+    updatePanels();
+    document.getElementById('mathInput').value='';
+    document.getElementById('mathInput').focus();
+  }
+}
+
+document.getElementById('submitMath').addEventListener('click',submitMath);
+document.getElementById('cancelMath').addEventListener('click',closeMath);
+document.getElementById('mathInput').addEventListener('keydown',e=>{
+  if(e.key==='Tab'){ e.preventDefault(); return; } // Tab does nothing inside the modal
+  if(e.key==='Enter')submitMath();
+  if(e.key==='Escape')closeMath();
+});
+
+// ── Arrow-key dispatch + Tab cycle ────────────────────────────────────────
+document.addEventListener('keydown',e=>{
+  // Always block Tab from reaching the browser — game handles it entirely
+  if(e.key==='Tab'){ e.preventDefault(); }
+
+  // Space bar pauses/resumes (only during active play, not during math modal or countdown)
+  if(e.key===' ' && active && !countingDown && !isMathOpen()){
+    e.preventDefault();
+    paused=!paused;
+    const po=document.getElementById('pauseOverlay');
+    po.style.display=paused?'flex':'none';
+    if(!paused) lastTs=performance.now(); // prevent time-jump on resume
+    return;
+  }
+
+  if(!active||isMathOpen()||paused)return;
+
+  // Tab / Shift+Tab — cycle through waiting planes sorted left→right
+  if(e.key==='Tab'){
+    e.preventDefault();
+    const waiting=planes
+      .filter(p=>p.phase==='waiting'&&!p.departed)
+      .sort((a,b)=>a.x-b.x);
+    if(!waiting.length)return;
+    const ci=waiting.findIndex(p=>p===selected);
+    if(e.shiftKey){
+      selected=waiting[ci<=0 ? waiting.length-1 : ci-1];
+    } else {
+      selected=waiting[ci<0||ci>=waiting.length-1 ? 0 : ci+1];
+    }
+    hideHintBanner(); // player found the next plane
+    return;
+  }
+
+  // Enter — open math modal (or skip if already cleared)
+  if(e.key==='Enter'){
+    if(selected&&selected.phase==='waiting'&&!selected.departed){
+      e.preventDefault();
+      if(!selected.cleared) openMath(selected);
+      // if already cleared, Enter does nothing — use ← → to dispatch
+    }
+    return;
+  }
+
+  if(e.key!=='ArrowLeft'&&e.key!=='ArrowRight'&&e.key!=='ArrowUp'&&e.key!=='ArrowDown')return;
+  if(!selected||selected.departed||selected.phase!=='waiting')return;
+  e.preventDefault();
+  if(!selected.cleared){toast('Solve the math fact first!');return;}
+  const l=L();
+  let chosenLP;
+  if(e.key==='ArrowLeft') chosenLP=l.smLP;
+  else if(e.key==='ArrowRight') chosenLP=l.lgLP;
+  else if(e.key==='ArrowUp') chosenLP=l.mdLP;
+  else chosenLP=l.rdLP; // Down arrow → red runway 36S
+  const correctRwy=selected.type==='small'?'09L':selected.type==='large'?'27R':selected.type==='medium'?'36C':'36S';
+  if(chosenLP.rwy!==correctRwy){
+    score+=SCORE_WRONG_RWY;
+    const hint=correctRwy==='09L'?'← LEFT':correctRwy==='27R'?'→ RIGHT':correctRwy==='36C'?'↑ UP':'↓ DOWN';
+    wrongRwyToast('⚠ WRONG RUNWAY — press '+hint+' for '+selected.id);
+    comms(selected.id+' needs RWY '+correctRwy,'alrt');
+    document.getElementById('sv').textContent=Math.max(0,score);
+    return;
+  }
+  doDispatch(selected,chosenLP,l);
+  selected=null;
+});
+
+// ── Click ──────────────────────────────────────────────────────────────────
+canvas.addEventListener('click',e=>{
+  if(!active||countingDown||paused)return;
+  if(isMathOpen())return;
+  const r=canvas.getBoundingClientRect();
+  const mx=e.clientX-r.left, my=e.clientY-r.top;
+  const l=L();
+
+  // Click a plane → if cleared, just select; if not cleared, open math
+  let hit=null, bestD=42;
+  planes.forEach(p=>{
+    if(p.phase==='airborne'||p.departed)return;
+    const d=Math.hypot(p.x-mx,p.y-my);
+    if(d<bestD){bestD=d;hit=p;}
+  });
+  if(hit){
+    if(hit.phase!=='waiting')return;
+    selected=hit;
+    hideHintBanner(); // player found the next plane
+    if(!hit.cleared) openMath(hit);
+    return;
+  }
+
+  // Click runway → dispatch cleared selected plane
+  if(selected&&selected.cleared&&!selected.departed&&selected.phase==='waiting'){
+    const smD=Math.hypot(mx-l.smLP.x,my-l.smLP.y);
+    const lgD=Math.hypot(mx-l.lgLP.x,my-l.lgLP.y);
+    const mdD=currentLevel>=GREEN_LEVEL?Math.hypot(mx-l.mdLP.x,my-l.mdLP.y):Infinity;
+    const rdD=currentLevel>=RED_LEVEL?Math.hypot(mx-l.rdLP.x,my-l.rdLP.y):Infinity;
+    const HIT=50;
+    let chosenLP=null;
+    if(smD<HIT)chosenLP=l.smLP;
+    else if(lgD<HIT)chosenLP=l.lgLP;
+    else if(mdD<HIT)chosenLP=l.mdLP;
+    else if(rdD<HIT)chosenLP=l.rdLP;
+    if(chosenLP){
+      const correctRwy=selected.type==='small'?'09L':selected.type==='large'?'27R':selected.type==='medium'?'36C':'36S';
+      if(chosenLP.rwy!==correctRwy){
+        score+=SCORE_WRONG_RWY;
+        const hint=correctRwy==='09L'?'← LEFT':correctRwy==='27R'?'→ RIGHT':correctRwy==='36C'?'↑ UP':'↓ DOWN';
+        wrongRwyToast('⚠ WRONG RUNWAY — press '+hint+' for '+selected.id);
+        comms(selected.id+' needs RWY '+correctRwy,'alrt');
+        document.getElementById('sv').textContent=Math.max(0,score);
+        return;
+      }
+      doDispatch(selected,chosenLP,l);
+      selected=null;
+    }
+  }
+});
+
+function doDispatch(p,lp,l){
+  if(!p.cleared){
+    toast('Solve the math fact first!');
+    comms(p.id+' not cleared — answer the math fact','alrt');
+    return;
+  }
+  // Hide dispatch hint, then show next-plane reminder in L1
+  hideHintBanner();
+  if(currentLevel===1){
+    setTimeout(()=>{
+      if(!active) return;
+      const waiting=planes.filter(q=>q.phase==='waiting'&&!q.departed);
+      if(waiting.length>0){
+        showHintBanner('Click a plane  or  Tab + Enter  to select the next one', '#ffffff');
+      } else {
+        showHintBanner('Wait for a new plane to appear on the runway…', '#00aa55');
+      }
+    }, 400);
+  }
+  p.phase='dispatched';
+  const dispOrder=rwyQueue[lp.rwy].length+1;
+  p.dispatchOrder=dispOrder;
+  rwyQueue[lp.rwy].push(p);
+  // Medium planes taxi up through the centre; small/large use their horizontal lane
+  let laneY, path;
+  if(p.type==='medium'||p.type==='heavy'){
+    path=[{x:p.x,y:p.y},{x:lp.x,y:p.y},{x:lp.x,y:lp.y}];
+  } else {
+    laneY=p.type==='large'?l.lgLaneY:l.smLaneY; // large→27R(lgLane), small→09L(smLane)
+    path=[{x:p.x,y:p.y},{x:p.x,y:laneY},{x:lp.x,y:laneY},{x:lp.x,y:lp.y}];
+  }
+  p.path=path;
+  comms(`${p.id} cleared taxi to RWY ${lp.rwy}`,'atc');
+  comms(`${p.id} taxiing — ${p.fact.display}=${p.fact.answer}`,'pln');
+  closeGaps(p.type);
+  updatePanels();
+}
+
+// ── Update ─────────────────────────────────────────────────────────────────
+function update(dt){
+  if(paused) return;
+  if(!windingDown) shiftLeft-=dt; // freeze clock once threshold is met
+  if(shiftLeft<=0&&!windingDown){shiftLeft=0;endGame();return;}
+
+  // Threshold reached — freeze clock, award time bonus, let in-flight planes finish
+  if(score>=passThreshold()&&active&&!windingDown){
+    windingDown=true;
+    document.getElementById('windDownBanner').style.display='block';
+    const bonusSeconds=Math.floor(shiftLeft/1000);
+    if(bonusSeconds>0){
+      const bonus=bonusSeconds*50;
+      score+=bonus;
+      timeBonus=bonus;
+      document.getElementById('sv').textContent=Math.max(0,score);
+      comms(`⭐ Threshold reached! +${bonus} time bonus (${bonusSeconds}s × 50pts)`,'atc');
+    }
+    comms('Threshold met — clearing remaining traffic…','atc');
+  }
+
+  // While winding down, end only once all in-flight planes have departed
+  if(windingDown){
+    const stillFlying=planes.some(p=>
+      !p.departed&&!p.aborted&&
+      (p.phase==='dispatched'||p.phase==='at-runway'||p.phase==='launching')
+    );
+    if(!stillFlying){ endGame(); return; }
+  }
+
+  const s=Math.ceil(shiftLeft/1000);
+  const tel=document.getElementById('shiftTimer');
+  tel.textContent=Math.floor(s/60)+':'+String(s%60).padStart(2,'0');
+  tel.className=shiftLeft<15000?'urgent':'';
+  // Extra visual pop at exactly 10 seconds — brief screen flash
+  if(shiftLeft<=10000&&shiftLeft>9800&&!windingDown&&active){
+    const flash=document.getElementById('tenSecFlash');
+    if(flash){ flash.style.opacity='0.18'; setTimeout(()=>{flash.style.opacity='0';},300); } SFX.warn();
+  }
+
+  // Live "NEED" display — how many points still needed to pass
+  const remaining=Math.max(0,passThreshold()-score);
+  const needEl=document.getElementById('nv');
+  needEl.textContent=remaining;
+  needEl.style.color=remaining===0?'var(--g)':shiftLeft<20000&&remaining>200?'var(--rd)':'var(--am)';  const l=L(), now=performance.now();
+
+  planes.forEach(p=>{
+    p.blink=(p.blink+dt*0.003)%1;
+
+    if(p.phase==='waiting'){
+      p.patience-=dt;
+      if(p.patience<=0&&!p.aborted){
+        p.aborted=true; p.departed=true;
+        aborted++; score+=SCORE_ABORT; SFX.abort();
+        comms(`${p.id} ran out of patience`,'alrt');
+        if(p===selected)selected=null;
+        if(p===currentMathPlane)closeMath();
+        document.getElementById('av').textContent=aborted;
+        document.getElementById('sv').textContent=Math.max(0,score);
+        closeGaps(p.type);
+        updatePanels();
+
+        // End immediately if player has hit the miss limit for this level
+        const missLimit = currentLevel===1 ? 3 : currentLevel===2 ? 4 : 5;
+        if(aborted>=missLimit){
+          comms('Too many planes missed — shift over!','alrt');
+          setTimeout(()=>{ if(active) endGame(); }, 800);
+        }
+      }
+    }
+
+    if(p.phase==='dispatched'&&p.path&&p.path.length>1){
+      const target=p.path[1], dx=target.x-p.x, dy=target.y-p.y;
+      const d=Math.hypot(dx,dy), spd=levelTaxiSpeed()*(dt/16.67);
+      if(d<=spd+0.5){
+        p.x=target.x; p.y=target.y; p.path.shift();
+        if(p.path.length<=1){
+          p.phase='at-runway'; p.path=null;
+          const rwy=p.type==='small'?'09L':p.type==='large'?'27R':p.type==='medium'?'36C':'36S';
+          const pos=rwyQueue[rwy].indexOf(p)+1;
+          comms(pos===1?`${p.id} at threshold, ready`:`${p.id} holding, position ${pos}`,'pln');
+          // Record patience% remaining for adaptive difficulty
+          recordDispatchSpeed(p.patience/p.patienceMax);
+        }
+      } else { p.x+=dx/d*spd; p.y+=dy/d*spd; p.heading=Math.atan2(dy,dx)*180/Math.PI; }
+    }
+
+    if(p.phase==='launching'){
+      p.launchTimer+=dt;
+      const spd=Math.min(1+p.launchTimer/400, 3), rad=p.heading*Math.PI/180;
+      p.x+=Math.cos(rad)*spd*(dt/16.67); p.y+=Math.sin(rad)*spd*(dt/16.67);
+      if(p.launchTimer>2000){p.phase='airborne';p.departed=true;}
+    }
+
+    if(p.phase==='airborne'){
+      p.launchTimer+=dt;
+      const spd=Math.min(4+p.launchTimer/300,9), rad=p.heading*Math.PI/180;
+      p.x+=Math.cos(rad)*spd*(dt/16.67); p.y+=Math.sin(rad)*spd*(dt/16.67);
+      // Climb away from runway in correct direction per type
+      if(p.launchTimer>1400){
+        if(p.type==='small'||p.type==='large') p.y-=2*(dt/16.67); // horizontal runways: climb up
+        // vertical runways: heading already carries them away, no extra Y push needed
+      }
+      // Heading drift only for horizontal runway planes
+      if(p.type==='heavy') p.heading=Math.max(p.heading-0.5,168); // 09L drifts left
+      else if(p.type==='large') p.heading=Math.min(p.heading+0.5,12); // 27R drifts right
+      // medium (36C up) and small (36S down) keep straight heading
+    }
+  });
+
+  // Runway sequencing — strictly by dispatch order (queue index)
+  ['09L','27R','36C','36S'].forEach(rwy=>{
+    const q=rwyQueue[rwy];
+    while(q.length>0&&(q[0].departed||q[0].phase==='airborne'))q.shift();
+    if(q.length>0&&q[0].phase==='at-runway'&&now-rwyLastTakeoff[rwy]>levelTakeoffGap()){
+      const p=q[0];
+      p.phase='launching'; p.launchTimer=0;
+      p.heading=rwy==='09L'?180:rwy==='27R'?0:rwy==='36C'?-90:90; // 36S launches downward
+      rwyLastTakeoff[rwy]=now;
+      score+=SCORE_DEPART; departed++;
+      comms(`${p.id} CLEARED TAKEOFF RWY ${rwy}`,'atc');
+      comms(`${p.id} rolling, rotate!`,'pln');
+      document.getElementById('dv').textContent=departed;
+      document.getElementById('sv').textContent=Math.max(0,score);
+      spawnOneAfterDelay(levelReplenishDelay());
+    }
+    q.forEach((p,i)=>{
+      if(p.phase!=='at-runway')return;
+      const l2=L();
+      const lp=rwy==='09L'?l2.smLP:rwy==='27R'?l2.lgLP:rwy==='36C'?l2.mdLP:l2.rdLP;
+      const spacing=40;
+      // Vertical runways stack along Y; horizontal runways stack along X
+      let tx, ty;
+      if(rwy==='36C'){
+        // Green: threshold at bottom of runway, queue below (increasing Y)
+        tx=lp.x; ty=lp.y + i*spacing;
+      } else if(rwy==='36S'){
+        // Blue: threshold at top of runway, queue above (decreasing Y)
+        tx=lp.x; ty=lp.y - i*spacing;
+      } else if(rwy==='09L'){
+        // Red: threshold at right end, queue to the right (increasing X)
+        tx=lp.x + i*spacing; ty=lp.y;
+      } else {
+        // Yellow 27R: threshold at left end, queue to the left (decreasing X)
+        tx=lp.x - i*spacing; ty=lp.y;
+      }
+      const dx=tx-p.x, dy=ty-p.y, d=Math.hypot(dx,dy);
+      if(d>3){ const n=Math.min(d,1.4*(dt/16.67)); p.x+=dx/d*n; p.y+=dy/d*n; p.heading=Math.atan2(dy,dx)*180/Math.PI; }
+    });
+  });
+
+  planes=planes.filter(p=>!(p.phase==='airborne'&&(p.x>W+300||p.x<-300||p.y<-300||p.y>H+300)));
+  planes=planes.filter(p=>!p.aborted);
+  updatePanels();
+}
+
+// ── Panel UI ───────────────────────────────────────────────────────────────
+function updatePanels(){
+  const types = currentLevel>=RED_LEVEL   ? ['small','medium','heavy','large']
+              : currentLevel>=GREEN_LEVEL ? ['small','medium','large']
+              : ['small','large'];
+  document.getElementById('qMedium').style.display = currentLevel>=GREEN_LEVEL ? 'block' : 'none';
+  document.getElementById('qHeavy').style.display  = currentLevel>=RED_LEVEL   ? 'block' : 'none';
+
+  types.forEach(type=>{
+    const rwy=type==='small'?'36S':type==='large'?'27R':type==='medium'?'36C':'09L';
+    const apronId=type==='small'?'qSmallApron':type==='medium'?'qMediumApron':type==='heavy'?'qHeavyApron':'qLargeApron';
+    const rwyId  =type==='small'?'qSmallRwy'  :type==='medium'?'qMediumRwy'  :type==='heavy'?'qHeavyRwy'  :'qLargeRwy';
+    const apronEl=document.getElementById(apronId);
+    const rwyEl=document.getElementById(rwyId);
+    apronEl.innerHTML=''; rwyEl.innerHTML='';
+    apronQueue(type).forEach(p=>apronEl.appendChild(makeQRow(p,'wait')));
+    rwyQueue[rwy].filter(p=>!p.departed&&p.phase!=='airborne').forEach((p,i)=>{
+      const status=p.phase==='launching'?'roll':p.phase==='at-runway'&&i===0?'next':'taxi';
+      rwyEl.appendChild(makeQRow(p,status,i+1));
+    });
+  });
+}
+
+function makeQRow(p,status,rwyPos){
+  const wrap=document.createElement('div');
+  const row=document.createElement('div'); row.className='q-row';
+  const b=document.createElement('div');
+  b.className='q-badge '+(p.priority>=1&&p.priority<=5?'r'+p.priority:'rX');
+  b.textContent=p.cleared?'✓':(p.priority>=1&&p.priority<=5?'P'+p.priority:'↑');
+  const cs=document.createElement('div'); cs.className='q-cs'; cs.textContent=p.id;
+  const math=document.createElement('div'); math.className='q-math';
+  // Abbreviate display for panel: just the numbers
+  math.textContent=p.fact.display.replace(' ','').replace(' ','');
+  const st=document.createElement('div'); st.className='q-st';
+  if(status==='roll'){st.textContent='ROLLING';st.classList.add('roll');}
+  else if(status==='next'){st.textContent='NEXT';st.classList.add('next');}
+  else if(status==='taxi'){st.textContent='#'+rwyPos;st.classList.add('taxi');}
+  else{st.textContent=p.cleared?'CLEARED':'SOLVE'; if(p.cleared)st.classList.add('next');}
+  row.append(b,cs,math,st);
+  if(status==='wait'){
+    const pbar=document.createElement('div'); pbar.className='q-pbar';
+    const pf=document.createElement('div'); pf.className='q-pfill';
+    const pct=Math.max(0,p.patience/p.patienceMax);
+    pf.style.width=(pct*100)+'%';
+    pf.style.background=pct>0.5?'#00ff88':pct>0.25?'#ffaa00':'#ff4444';
+    pbar.appendChild(pf); wrap.appendChild(row); wrap.appendChild(pbar);
+  } else wrap.appendChild(row);
+  return wrap;
+}
+
+// ── Draw ───────────────────────────────────────────────────────────────────
+function draw(){
+  const l=L();
+  ctx.clearRect(0,0,W,H);
+
+  // Sky
+  const sg=ctx.createLinearGradient(0,0,0,H*0.20);
+  sg.addColorStop(0,'#010508'); sg.addColorStop(1,'#061220');
+  ctx.fillStyle=sg; ctx.fillRect(0,0,W,H);
+  for(let s=0;s<100;s++){ctx.globalAlpha=0.1+0.4*((s*73)%1);ctx.fillStyle='#fff';ctx.fillRect(((s*137.5)%1)*W,((s*97.3)%1)*(H*0.19),1,1);}
+  ctx.globalAlpha=1;
+
+  // Ground
+  const gg=ctx.createLinearGradient(0,H*0.19,0,H);
+  gg.addColorStop(0,'#0d1720'); gg.addColorStop(1,'#080c10');
+  ctx.fillStyle=gg; ctx.fillRect(0,H*0.19,W,H);
+
+  // Grid
+  ctx.strokeStyle='rgba(255,255,255,0.013)'; ctx.lineWidth=1;
+  for(let gx=0;gx<W;gx+=55){ctx.beginPath();ctx.moveTo(gx,H*0.20);ctx.lineTo(gx,H);ctx.stroke();}
+  for(let gy=H*0.20;gy<H;gy+=55){ctx.beginPath();ctx.moveTo(0,gy);ctx.lineTo(W,gy);ctx.stroke();}
+
+  drawRunway(l.smRwyX,l.smRwyY,l.smRwyW,l.smRwyH,'09L','#ff3333',l.smLP,'left');
+  drawRunway(l.lgRwyX,l.lgRwyY,l.lgRwyW,l.lgRwyH,'27R','#ffcc00',l.lgLP,'right');
+  drawConnector(l.smLP.x,l.smRwyY+l.smRwyH,l.smLP.x,l.smLaneY,'#ff3333');
+  drawConnector(l.lgLP.x,l.lgRwyY+l.lgRwyH,l.lgLP.x,l.lgLaneY,'#ffcc00');
+
+  // Third runway: vertical strip at centre-top, visible from L16+
+  if(currentLevel>=GREEN_LEVEL){
+    drawRunwayVertical(l.mdRwyX,l.mdRwyY,l.mdRwyW,l.mdRwyH,'36C','#00ee77',l.mdLP);
+    drawConnector(l.mdLP.x,l.mdLP.y,l.mdLP.x,l.mdLaneY,'#00ee77');
+    drawLP(l.mdLP,'#00ee77');
+  }
+
+  // Fourth runway: vertical strip at centre-bottom, visible from L21+
+  if(currentLevel>=RED_LEVEL){
+    drawRunwayVertical(l.rdRwyX,l.rdRwyY,l.rdRwyW,l.rdRwyH,'36S','#00bbcc',l.rdLP);
+    drawConnector(l.rdLP.x,l.rdLP.y,l.rdLP.x,l.rdLaneY,'#00bbcc');
+    drawLP(l.rdLP,'#00bbcc');
+  }
+
+  drawRoad(l);
+  drawLP(l.smLP,'#ff3333');
+  drawLP(l.lgLP,'#ffcc00');
+
+  // Exhaust trails
+  planes.filter(p=>p.phase==='launching'||p.phase==='airborne').forEach(p=>{
+    const rad=p.heading*Math.PI/180, tl=p.phase==='airborne'?Math.min(p.launchTimer/7,130):55;
+    const gr=ctx.createLinearGradient(p.x,p.y,p.x-Math.cos(rad)*tl,p.y-Math.sin(rad)*tl);
+    gr.addColorStop(0,p.color+'cc'); gr.addColorStop(1,'transparent');
+    ctx.strokeStyle=gr; ctx.lineWidth=p.type==='large'?4:2.5;
+    ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x-Math.cos(rad)*tl,p.y-Math.sin(rad)*tl);ctx.stroke();
+  });
+
+  // Path preview for cleared+selected plane
+  if(selected&&selected.phase==='waiting'&&selected.cleared){
+    const lp=selected.type==='small'?l.smLP:selected.type==='large'?l.lgLP:selected.type==='medium'?l.mdLP:l.rdLP;
+    ctx.save();
+    ctx.strokeStyle=selected.color+'66'; ctx.lineWidth=1.8; ctx.setLineDash([8,6]);
+    ctx.beginPath();ctx.moveTo(selected.x,selected.y);
+    if(selected.type==='medium'||selected.type==='heavy'){
+      ctx.lineTo(lp.x,selected.y);ctx.lineTo(lp.x,lp.y);
+    } else {
+      const laneY=selected.type==='small'?l.smLaneY:l.lgLaneY;
+      ctx.lineTo(selected.x,laneY);ctx.lineTo(lp.x,laneY);ctx.lineTo(lp.x,lp.y);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle=selected.color; ctx.font='bold 9px Share Tech Mono'; ctx.textAlign='center';
+    const labelY=selected.type==='heavy'?lp.y-36:lp.y+(selected.type==='medium'?36:-32);
+    ctx.fillText('→ RWY '+lp.rwy,lp.x+(selected.type==='small'?-55:55),labelY);
+    ctx.restore();
+  }
+
+  planes.forEach(p=>{if(p.phase==='airborne'){drawAirborne(p);return;} drawPlane(p,p===selected,l);});
+
+  // Queue position numbers
+  ['09L','27R','36C','36S'].forEach(rwy=>{
+    rwyQueue[rwy].filter(p=>!p.departed&&p.phase==='at-runway').forEach((p,i)=>{
+      ctx.fillStyle='rgba(255,255,255,0.5)'; ctx.font='bold 10px Share Tech Mono'; ctx.textAlign='center';
+      ctx.fillText('#'+(i+1),p.x,p.y-p.h-18);
+    });
+  });
+
+  drawRadar(l);
+}
+
+function drawRunway(rx,ry,rw,rh,label,col,lp,side){
+  ctx.fillStyle='rgba(0,0,0,.35)'; ctx.fillRect(rx+2,ry+3,rw+4,rh+3);
+  ctx.fillStyle='#243045'; ctx.fillRect(rx,ry,rw,rh);
+  ctx.fillStyle='#2a3855'; ctx.fillRect(rx,ry,rw,3); ctx.fillRect(rx,ry+rh-3,rw,3);
+  ctx.setLineDash([18,12]); ctx.strokeStyle=col+'77'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(rx+40,ry+rh/2); ctx.lineTo(rx+rw-40,ry+rh/2); ctx.stroke(); ctx.setLineDash([]);
+  const bx=side==='left'?rx+rw-28:rx+8;
+  for(let t=0;t<6;t++){ctx.fillStyle=col+'99';ctx.fillRect(bx,ry+3+t*(rh/6.5),20,2);}
+  ctx.fillStyle=col; ctx.font='bold 11px Share Tech Mono'; ctx.textAlign='center';
+  ctx.fillText(label,rx+rw/2,ry+rh/2+4);
+  ctx.fillStyle=col+'44'; ctx.fillRect(rx,ry,rw,rh);
+  ctx.strokeStyle=col+'77'; ctx.lineWidth=1.5; ctx.strokeRect(rx,ry,rw,rh);
+}
+
+function drawRunwayVertical(rx,ry,rw,rh,label,col,lp){
+  ctx.fillStyle='rgba(0,0,0,.35)'; ctx.fillRect(rx+3,ry+2,rw+3,rh+3);
+  ctx.fillStyle='#243045'; ctx.fillRect(rx,ry,rw,rh);
+  ctx.fillStyle='#2a3855'; ctx.fillRect(rx,ry,3,rh); ctx.fillRect(rx+rw-3,ry,3,rh);
+  ctx.setLineDash([18,12]); ctx.strokeStyle=col+'77'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(rx+rw/2,ry+30); ctx.lineTo(rx+rw/2,ry+rh-30); ctx.stroke(); ctx.setLineDash([]);
+  for(let t=0;t<5;t++){ctx.fillStyle=col+'99';ctx.fillRect(rx+3+t*(rw/5.5),ry+rh-22,2,16);}
+  ctx.fillStyle=col; ctx.font='bold 11px Share Tech Mono'; ctx.textAlign='center';
+  ctx.fillText(label,rx+rw/2,ry+rh/2+4);
+  ctx.fillStyle=col+'44'; ctx.fillRect(rx,ry,rw,rh);
+  ctx.strokeStyle=col+'77'; ctx.lineWidth=1.5; ctx.strokeRect(rx,ry,rw,rh);
+}
+
+function drawConnector(x1,y1,x2,y2,col){
+  ctx.fillStyle='#141e2e'; ctx.fillRect(x1-11,y1,22,y2-y1+2);
+  ctx.setLineDash([12,8]); ctx.strokeStyle=col+'44'; ctx.lineWidth=1.5;
+  ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();ctx.setLineDash([]);
+}
+
+// Lighten a hex color by mixing with white for selected-state brightness boost
+function lighten(hex){
+  const r=parseInt(hex.slice(1,3),16), g=parseInt(hex.slice(3,5),16), b=parseInt(hex.slice(5,7),16);
+  const mix=(c)=>Math.min(255,Math.round(c+((255-c)*0.45)));
+  return `rgb(${mix(r)},${mix(g)},${mix(b)})`;
+}
+
+function drawRoad(l){
+  const y=l.roadY, h=l.roadH, lh=l.laneH;
+  const top=y-h/2;
+  // Shadow + fill
+  ctx.fillStyle='rgba(0,0,0,.28)'; ctx.fillRect(0,top+3,W,h+4);
+  ctx.fillStyle='#1e2d40'; ctx.fillRect(0,top,W,h);
+  // Top and bottom border
+  ctx.strokeStyle='#e8c84088'; ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(0,top);ctx.lineTo(W,top);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(0,top+h);ctx.lineTo(W,top+h);ctx.stroke();
+  // Inner lane dividers
+  ctx.setLineDash([20,14]); ctx.strokeStyle='#ffffff33'; ctx.lineWidth=1.5;
+  for(let i=1;i<l.laneCount;i++){
+    const ly=top+lh*i;
+    ctx.beginPath();ctx.moveTo(0,ly);ctx.lineTo(W,ly);ctx.stroke();
+  }
+  ctx.setLineDash([]);
+  // Lane labels
+  ctx.font='9px Share Tech Mono'; ctx.textAlign='center';
+  ctx.fillStyle='#ff333377';
+  ctx.fillText('◀  RED / 09L', W*0.5-160, l.smLaneY+4);
+  ctx.fillStyle='#ffcc0077';
+  ctx.fillText('YELLOW / 27R  ▶', W*0.5+160, l.lgLaneY+4);
+  if(l.laneCount>=3){
+    ctx.fillStyle='#00ee7777';
+    ctx.fillText('↑ GREEN / 36C', W*0.5, l.mdLaneY+4);
+  }
+  if(l.laneCount>=4){
+    ctx.fillStyle='#00bbcc77';
+    ctx.fillText('↓ BLUE / 36S', W*0.5, l.rdLaneY+4);
+  }
+}
+
+function drawLP(lp,col){
+  const pulse=0.5+0.5*Math.sin(Date.now()*.004);
+  ctx.strokeStyle=col; ctx.globalAlpha=0.3+pulse*.5; ctx.lineWidth=2.5;
+  ctx.beginPath();ctx.arc(lp.x,lp.y,22+pulse*6,0,Math.PI*2);ctx.stroke();ctx.globalAlpha=1;
+  ctx.fillStyle=col; ctx.globalAlpha=0.08+pulse*.1;
+  ctx.beginPath();ctx.arc(lp.x,lp.y,22,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;
+  ctx.font='18px serif'; ctx.textAlign='center'; ctx.fillStyle=col;
+  ctx.shadowColor=col; ctx.shadowBlur=10; ctx.fillText('✈',lp.x+1,lp.y+7);ctx.shadowBlur=0;
+  const depth=rwyQueue[lp.rwy].filter(p=>!p.departed&&p.phase!=='airborne').length;
+  if(depth>0){ctx.fillStyle=col;ctx.font='bold 9px Share Tech Mono';ctx.fillText(depth+' queued',lp.x,lp.y+32);}
+  if(selected&&selected.phase==='waiting'&&selected.cleared){
+    const correctLP=selected.type==='small'?'09L':selected.type==='large'?'27R':selected.type==='medium'?'36C':'36S';
+    if(lp.rwy===correctLP){
+      ctx.strokeStyle=col;ctx.lineWidth=2;ctx.globalAlpha=0.85;ctx.setLineDash([5,4]);
+      ctx.beginPath();ctx.arc(lp.x,lp.y,30,0,Math.PI*2);ctx.stroke();
+      ctx.setLineDash([]);ctx.globalAlpha=1;
+      ctx.fillStyle=col;ctx.font='bold 9px Share Tech Mono';
+      ctx.fillText('CLICK TO SEND',lp.x,lp.y+44);
+    }
+  }
+}
+
+function drawPlane(p,sel,l){
+  ctx.save();
+  ctx.translate(p.x,p.y); ctx.rotate(p.heading*Math.PI/180);
+  const col=p.color; // always use the plane's own color — selection shown via ring/glow
+  if(sel){
+    // Bright solid selection ring in the plane's own color with white outer glow
+    ctx.shadowColor='#ffffff'; ctx.shadowBlur=18;
+    ctx.strokeStyle='#ffffff'; ctx.lineWidth=2.5; ctx.setLineDash([]);
+    ctx.beginPath();ctx.arc(0,0,p.w*.95,0,Math.PI*2);ctx.stroke();
+    ctx.shadowBlur=0;
+    // Second inner ring in plane color
+    ctx.strokeStyle=col; ctx.lineWidth=1.2;
+    ctx.beginPath();ctx.arc(0,0,p.w*.75,0,Math.PI*2);ctx.stroke();
+  }
+  // Draw plane body — original design for all types
+  ctx.fillStyle=sel ? lighten(col) : col;
+  ctx.beginPath();ctx.moveTo(p.w/2,0);ctx.lineTo(-p.w*.25,-p.h*.44);ctx.lineTo(-p.w/2,0);ctx.lineTo(-p.w*.25,p.h*.44);ctx.closePath();ctx.fill();
+  ctx.globalAlpha=.88;
+  [[1,-1],[1,1]].forEach(([,s])=>{ctx.fillStyle=sel?lighten(col):col;ctx.beginPath();ctx.moveTo(p.w*.06,0);ctx.lineTo(-p.w*.08,s*p.w*.38);ctx.lineTo(-p.w*.38,s*p.w*.07);ctx.lineTo(-p.w*.33,0);ctx.closePath();ctx.fill();});
+  ctx.globalAlpha=1;ctx.fillStyle=sel?lighten(col):col;
+  ctx.beginPath();ctx.moveTo(-p.w*.36,0);ctx.lineTo(-p.w*.54,-p.w*.22);ctx.lineTo(-p.w*.49,0);ctx.closePath();ctx.fill();
+  if(p.type==='large'){ctx.fillStyle=col+'77';[[-p.w*.08,-p.w*.24],[-p.w*.08,p.w*.24]].forEach(([ex,ey])=>{ctx.beginPath();ctx.ellipse(ex,ey,p.w*.13,p.h*.22,0,0,Math.PI*2);ctx.fill();});}
+  const bl=p.blink>.5;
+  ctx.fillStyle=bl?'#ff4444':'#440000';ctx.beginPath();ctx.arc(-p.w*.36,-p.h*.28,2.5,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle=bl?'#44ff88':'#003311';ctx.beginPath();ctx.arc(-p.w*.36,p.h*.28,2.5,0,Math.PI*2);ctx.fill();
+  if(p.phase==='launching'){ctx.shadowColor=p.color;ctx.shadowBlur=18;ctx.globalAlpha=.75;ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(-p.w*.28,-p.h*.2,p.type==='large'?6:4,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.arc(-p.w*.28,p.h*.2,p.type==='large'?6:4,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;ctx.globalAlpha=1;}
+  ctx.restore();
+
+  // Callsign — above the plane, in plane's own color
+  ctx.save();
+  ctx.textAlign='center';
+  const labelCol=sel?lighten(p.color):p.color;
+  ctx.fillStyle=labelCol;
+  ctx.font=(sel?'bold ':'')+' 10px Share Tech Mono';
+  if(sel){ ctx.shadowColor=p.color; ctx.shadowBlur=8; }
+  ctx.fillText(p.id, p.x, p.y - p.h - 8);
+  ctx.shadowBlur=0;
+
+  // Patience bar — just above the plane
+  if(p.phase==='waiting'){
+    const bw=Math.max(p.w*2.4,70), bh=3, bx=p.x-bw/2, by=p.y-p.h-5;
+    ctx.fillStyle='#1a2a1a'; ctx.fillRect(bx,by,bw,bh);
+    const pct=Math.max(0,p.patience/p.patienceMax);
+    ctx.fillStyle=pct>0.5?'#00ff88':pct>0.25?'#ffaa00':'#ff4444';
+    ctx.fillRect(bx,by,bw*pct,bh);
+    if(pct<0.25&&Math.floor(Date.now()/350)%2){
+      ctx.strokeStyle='#ff444488';ctx.lineWidth=1.5;
+      ctx.beginPath();ctx.arc(p.x,p.y,p.w,0,Math.PI*2);ctx.stroke();
+    }
+  }
+
+  // Math fact — BELOW the plane so it doesn't overlap the body
+  const belowY = p.y + p.h + 18;
+  ctx.fillStyle='#ffffff'; ctx.font='bold 20px Share Tech Mono';
+  ctx.fillText(p.fact.display, p.x, belowY);
+
+  // Status line below the fact
+  if(p.phase==='waiting'){
+    ctx.fillStyle=p.cleared?'#00ff88':(P_COLORS[p.priority]||p.color);
+    ctx.font='bold 10px Share Tech Mono';
+    ctx.fillText(p.cleared?'✓ CLEARED':'SOLVE', p.x, belowY+16);
+  }
+  if(p.phase==='dispatched'){ctx.fillStyle='#aaffcc77';ctx.font='9px Share Tech Mono';ctx.fillText('TAXIING',p.x,belowY+16);}
+  if(p.phase==='launching'){ctx.fillStyle='#ff4444';ctx.font='bold 9px Share Tech Mono';ctx.fillText('ROLLING!',p.x,belowY+16);}
+  ctx.restore();
+}
+
+function drawAirborne(p){
+  if(p.x>W+120||p.x<-120||p.y<-250)return;
+  const rad=p.heading*Math.PI/180;
+  const fade=Math.min(1,Math.min(p.x>W*.65?(W+120-p.x)/(W*.35):1,p.x<W*.35?(p.x+120)/(W*.35):1,p.y>0?1:Math.max(0,(p.y+250)/250)));
+  ctx.save();ctx.translate(p.x,p.y);ctx.rotate(rad);ctx.globalAlpha=fade;ctx.fillStyle=p.color;
+  const sw=p.type==='large'?14:9,sh=p.type==='large'?7:5;
+  ctx.beginPath();ctx.moveTo(sw,0);ctx.lineTo(-sh,-sh*.7);ctx.lineTo(-sh,sh*.7);ctx.closePath();ctx.fill();
+  ctx.globalAlpha=1;ctx.restore();
+}
+
+function drawRadar(l){
+  const rx=78,ry=80,rr=60,elapsed=SHIFT_MS-shiftLeft;
+  ctx.save(); ctx.globalAlpha=.88;
+  ctx.fillStyle='#000b04'; ctx.beginPath();ctx.arc(rx,ry,rr,0,Math.PI*2);ctx.fill();
+  ctx.strokeStyle='#00ff8822'; ctx.lineWidth=1; ctx.stroke();
+  [.33,.66,1].forEach(f=>{ctx.strokeStyle='rgba(0,255,136,.07)';ctx.lineWidth=.7;ctx.beginPath();ctx.arc(rx,ry,rr*f,0,Math.PI*2);ctx.stroke();});
+  const sw=(elapsed*.00085)%(Math.PI*2);
+  ctx.strokeStyle='rgba(0,255,136,.55)'; ctx.lineWidth=1.5;
+  ctx.beginPath();ctx.moveTo(rx,ry);ctx.lineTo(rx+Math.cos(sw)*rr,ry+Math.sin(sw)*rr);ctx.stroke();
+  planes.filter(p=>p.phase!=='airborne').forEach(p=>{
+    const nx=rx+((p.x/W)*2-1)*rr, ny=ry+((p.y/H)*2-1)*rr;
+    ctx.fillStyle=p===selected?'#fff':p.color;
+    ctx.beginPath();ctx.arc(nx,ny,p===selected?3.5:2.5,0,Math.PI*2);ctx.fill();
+  });
+  ctx.fillStyle='#00ff88aa'; ctx.font='8px Share Tech Mono'; ctx.textAlign='left';
+  ctx.fillText('RADAR',rx-rr+3,ry-rr+11);
+  ctx.globalAlpha=1; ctx.restore();
+}
+
+// ── Level unlock state (persisted) ────────────────────────────────────────
+const MAX_LEVELS = 25;
+
+function loadUnlocked(){
+  try{ return JSON.parse(localStorage.getItem('atcUnlocked')||'[1]'); }
+  catch(e){ return [1]; }
+}
+function saveUnlocked(arr){
+  try{ localStorage.setItem('atcUnlocked', JSON.stringify(arr)); } catch(e){}
+}
+
+let unlockedLevels = loadUnlocked();
+let isGameOver = false;
+lives = loadLives();
+
+function unlockLevel(lvl){
+  if(!unlockedLevels.includes(lvl)){
+    unlockedLevels.push(lvl);
+    saveUnlocked(unlockedLevels);
+  }
+}
+
+const UNLOCK_CODE = 'LEVY';
+const LIFE_CODE = 'LIFE';
+let lifeCodeUsed = localStorage.getItem('atcLifeUsed')==='1';
+let devMode = false;
+
+function showLevelPicker(){
+  const ov=document.getElementById('overlay');
+  ov.innerHTML=`
+    <h1>ATC MATH TOWER</h1>
+    <div class="sub">SELECT YOUR SHIFT</div>
+    ${isGameOver?`<div style="background:rgba(180,0,0,0.15);border:1px solid var(--rd);border-radius:6px;padding:8px 20px;margin:6px 0 10px;font-family:var(--mono);font-size:11px;color:var(--rd);letter-spacing:2px;">⛔ GAME OVER — NO LIVES REMAINING · Reset to play again</div>`:''}
+    <div class="instr" style="margin-bottom:8px;font-size:10px;">
+      <span class="sc">Red ← 09L</span> &nbsp;·&nbsp; <span class="lc">Yellow → 27R</span> &nbsp;·&nbsp;
+      <b>Tab</b> cycle · <b>Enter</b> solve · <b>← →</b> dispatch · score <b>1000+</b> to advance
+    </div>
+    <div id="opNote">OPERATIONS TO PRACTICE</div>
+    <div id="opSelector">
+      <div class="op-chip${selectedOps.has('ADDITION')?' on':''}" data-op="ADDITION">+</div>
+      <div class="op-chip${selectedOps.has('SUBTRACTION')?' on':''}" data-op="SUBTRACTION">−</div>
+      <div class="op-chip${selectedOps.has('MULTIPLICATION')?' on':''}" data-op="MULTIPLICATION">×</div>
+      <div class="op-chip${selectedOps.has('DIVISION')?' on':''}" data-op="DIVISION">÷</div>
+    </div>
+    <div id="levelGrid" style="margin-top:12px;${isGameOver?'opacity:0.4;pointer-events:none;':''}"></div>
+    <div style="margin-top:14px;display:flex;align-items:center;gap:8px;">
+      <button id="howToPlayBtn"
+        style="background:transparent;border:1px solid #2a3a2a;color:#446644;font-family:var(--ui);
+               font-size:11px;font-weight:700;letter-spacing:2px;padding:5px 12px;border-radius:4px;
+               cursor:pointer;transition:all .2s;pointer-events:all;"
+        onmouseover="this.style.borderColor='var(--dg)';this.style.color='var(--g)'"
+        onmouseout="this.style.borderColor='#2a3a2a';this.style.color='#446644'">? HOW TO PLAY</button>
+      <input id="unlockInput" type="text" placeholder="unlock code"
+        style="background:#071117;border:1px solid #1a3a2a;color:var(--dg);font-family:var(--mono);
+               font-size:11px;padding:5px 10px;border-radius:4px;width:120px;outline:none;
+               text-transform:uppercase;letter-spacing:2px;"
+        autocomplete="off" spellcheck="false" />
+      <button id="unlockBtn"
+        style="background:transparent;border:1px solid #1a3a2a;color:var(--dg);font-family:var(--ui);
+               font-size:11px;font-weight:700;letter-spacing:2px;padding:5px 12px;border-radius:4px;
+               cursor:pointer;">APPLY</button>
+      <span id="unlockMsg" style="font-size:10px;font-family:var(--mono);color:#333;"></span>
+    </div>
+    ${devMode?'<div style="font-size:9px;color:var(--am);font-family:var(--mono);margin-top:6px;letter-spacing:1px;">⬡ DEV MODE — ALL LEVELS UNLOCKED</div>':''}
+    <div style="margin-top:10px;display:flex;align-items:center;gap:14px;">
+      <span style="font-family:var(--mono);font-size:11px;color:var(--dg);letter-spacing:1px;">LIVES</span>
+      <span id="livesPickerDisplay" style="letter-spacing:4px;"></span>
+      <span style="font-family:var(--mono);font-size:11px;color:#bbb;margin-left:8px;">TOTAL</span>
+      <span style="font-family:var(--mono);font-size:13px;color:var(--g);">${careerTotal().toLocaleString()}</span>
+      <button id="resetGameBtn"
+        style="margin-left:auto;background:transparent;border:1px solid #663333;color:#cc6666;font-family:var(--ui);
+               font-size:10px;font-weight:700;letter-spacing:2px;padding:4px 10px;border-radius:4px;
+               cursor:pointer;transition:all .2s;pointer-events:all;"
+        onmouseover="this.style.borderColor='var(--rd)';this.style.color='var(--rd)'"
+        onmouseout="this.style.borderColor='#663333';this.style.color='#cc6666'">↺ RESET GAME</button>
+      <button onclick="toggleMute()" id="pickerMuteBtn"
+        style="background:transparent;border:1px solid #1a3a2a;color:var(--dg);font-family:var(--mono);
+               font-size:13px;padding:4px 10px;border-radius:4px;cursor:pointer;pointer-events:all;">🔊</button>
+    </div>
+  `;
+  ov.style.display='flex';
+  updateLivesDisplay();
+  document.getElementById('livesPickerDisplay').innerHTML=heartsHTML();
+  document.getElementById('resetGameBtn').addEventListener('click',()=>showResetModal());
+  const pmb=document.getElementById('pickerMuteBtn');
+  if(pmb) pmb.textContent=_muted?'🔇':'🔊';
+
+  document.getElementById('howToPlayBtn').addEventListener('click',()=>{
+    ov.style.display='none';
+    showIntroForced();
+  });
+  document.querySelectorAll('.op-chip').forEach(chip=>{
+    chip.addEventListener('click',()=>{
+      if(isGameOver) return;
+      const op=chip.dataset.op;
+      if(selectedOps.has(op)){
+        // Don't allow deselecting the last one
+        if(selectedOps.size===1){ chip.style.animation='none'; chip.offsetHeight; return; }
+        selectedOps.delete(op);
+        chip.classList.remove('on');
+      } else {
+        selectedOps.add(op);
+        chip.classList.add('on');
+      }
+    });
+  });
+
+  // Wire unlock code
+  const applyUnlock = () => {
+    const val = document.getElementById('unlockInput').value.trim().toUpperCase();
+    const msg = document.getElementById('unlockMsg');
+    if(val === UNLOCK_CODE){
+      devMode = true;
+      msg.style.color = 'var(--g)';
+      msg.textContent = '✓ All levels unlocked';
+      setTimeout(()=>showLevelPicker(), 800);
+    } else if(val === LIFE_CODE){
+      if(lifeCodeUsed){
+        msg.style.color = 'var(--rd)';
+        msg.textContent = '✗ Already used';
+      } else if(lives>=MAX_LIVES){
+        msg.style.color = 'var(--am)';
+        msg.textContent = '✗ Already at max lives';
+      } else {
+        lifeCodeUsed=true;
+        localStorage.setItem('atcLifeUsed','1');
+        lives++;
+        saveLives();
+        updateLivesDisplay();
+        document.getElementById('livesPickerDisplay').innerHTML=heartsHTML();
+        msg.style.color = 'var(--am)';
+        msg.textContent = '⭐ Bonus life added!';
+      }
+      setTimeout(()=>{ if(msg) msg.textContent=''; }, 2500);
+    } else {
+      msg.style.color = 'var(--rd)';
+      msg.textContent = '✗ Invalid code';
+      setTimeout(()=>{ if(msg) msg.textContent=''; }, 2000);
+    }
+  };
+  document.getElementById('unlockBtn').addEventListener('click', applyUnlock);
+  document.getElementById('unlockInput').addEventListener('keydown', e=>{
+    if(e.key==='Enter') applyUnlock();
+  });
+
+  const grid=document.getElementById('levelGrid');
+  for(let lvl=1;lvl<=MAX_LEVELS;lvl++){
+    const pat=Math.max(PATIENCE_MIN, PATIENCE_BASE-(lvl-1)*PATIENCE_STEP);
+    const thresh=PASS_THRESHOLDS[lvl]||1000;
+    const isUnlocked=devMode||unlockedLevels.includes(lvl);
+    const beaten=!devMode&&(lvl<MAX_LEVELS?unlockedLevels.includes(lvl+1):unlockedLevels.includes(MAX_LEVELS+1));
+    const isCurrent=(lvl===currentLevel);
+
+    const cell=document.createElement('div');
+    if(!isUnlocked){
+      cell.className='lv-cell locked';
+      // Lock glows progressively hotter red as levels increase
+      const heat = lvl<=5  ? {col:'#555566', glow:'none'}
+                 : lvl<=10 ? {col:'#883333', glow:'0 0 4px #883333'}
+                 : lvl<=15 ? {col:'#cc4422', glow:'0 0 8px #cc4422'}
+                 : lvl<=20 ? {col:'#ff5500', glow:'0 0 12px #ff5500, 0 0 4px #ff8844'}
+                 :           {col:'#ff2200', glow:'0 0 16px #ff2200, 0 0 6px #ff6600, 0 0 2px #ffaa00'};
+      cell.innerHTML=`<div class="lv-lock" style="font-size:20px;color:${heat.col};text-shadow:${heat.glow};filter:none;">🔒</div><div class="lv-pat" style="color:${heat.col};">${thresh}</div>`;
+    } else {
+      cell.className='lv-cell '+(beaten?'beaten':'unlocked')+(isCurrent?' current':'');
+      const bestEntry=levelBestScores.get(lvl);
+      const bestScore=bestEntry?bestEntry.score:null;
+      const isTrainingLevel=(lvl<=TRAINING_LEVELS);
+      // Op dots row
+      let dotsHTML='';
+      if(bestEntry&&bestEntry.ops&&bestEntry.ops.length){
+        dotsHTML=`<div class="lv-op-dots">${bestEntry.ops.map(op=>`<div style="width:6px;height:6px;border-radius:50%;background:${OP_COLORS[op]||'#888'};flex-shrink:0;" title="${op}"></div>`).join('')}</div>`;
+      }
+      cell.innerHTML=`
+        ${beaten?'<div class="lv-check">✓</div>':''}
+        ${devMode&&!unlockedLevels.includes(lvl)?'<div class="lv-check" style="color:var(--am)">⬡</div>':''}
+        <div class="lv-num">${lvl}</div>
+        <div class="lv-pat">${bestScore?bestScore.toLocaleString()+'pts':isTrainingLevel?'<span style="color:var(--am);font-size:8px;">TRAINING</span>':thresh+'pts'}</div>
+        ${dotsHTML}
+      `;
+      cell.addEventListener('click',()=>{
+        if(isGameOver) return;
+        currentLevel=lvl;
+        totalScore=0;
+        startLevel();
+      });
+    }
+    grid.appendChild(cell);
+  }
+  removeFromTabCycle();
+}
+
+let countingDown = false;
+let paused = false;
+
+function runCountdown(cb){
+  countingDown = true;
+  const el    = document.getElementById('countdown');
+  const numEl = document.getElementById('countdownNum');
+  el.style.display = 'flex';
+  let n = 3;
+  function tick(){
+    // Restart CSS animation each tick
+    numEl.style.animation = 'none';
+    numEl.offsetHeight;  // reflow
+    numEl.style.animation = '';
+    if(n === 0){
+      numEl.textContent = 'GO!';
+      document.getElementById('countdownLabel').textContent = 'SHIFT STARTED';
+      setTimeout(()=>{
+        el.style.display = 'none';
+        countingDown = false;
+        cb();
+      }, 700);
+    } else {
+      numEl.textContent = n;
+      document.getElementById('countdownLabel').textContent = n === 3 ? 'STUDY YOUR PLANES' : n === 2 ? 'MEMORISE THE FACTS' : 'GET READY…';
+      n--;
+      setTimeout(tick, 1000);
+    }
+  }
+  tick();
+}
+function loop(ts){
+  if(!active)return;
+  const dt=Math.min(ts-lastTs,50); lastTs=ts;
+  update(dt); draw();
+  requestAnimationFrame(loop);
+}
+
+function startLevel(){
+  // Show runway intro before starting levels 16 and 21
+  if(currentLevel===GREEN_LEVEL){ showRunwayIntro('green'); return; }
+  if(currentLevel===RED_LEVEL)  { showRunwayIntro('red');   return; }
+
+  document.getElementById('overlay').style.display='none';
+  closeMath();
+  // Reset all state but don't start clock yet
+  active=false; score=0; departed=0; aborted=0; wrongAnswers=0; streak=0; timeBonus=0; windingDown=false; document.getElementById('windDownBanner').style.display='none';
+  paused=false; document.getElementById('pauseOverlay').style.display='none';
+  missedFacts=new Map(); dispatchHintsShown=0;
+  hideHintBanner();
+  shiftLeft=SHIFT_MS; lastTs=0;
+  selected=null; currentMathPlane=null;
+  rwyQueue['09L']=[]; rwyQueue['27R']=[]; rwyQueue['36C']=[]; rwyQueue['36S']=[];
+  rwyLastTakeoff['09L']=0; rwyLastTakeoff['27R']=0; rwyLastTakeoff['36C']=0; rwyLastTakeoff['36S']=0;
+  document.getElementById('lv').textContent=currentLevel;
+  document.getElementById('nv').textContent=passThreshold();
+  document.getElementById('sv').textContent='0';
+  document.getElementById('dv').textContent='0';
+  document.getElementById('av').textContent='0';
+  document.getElementById('wv').textContent='0';
+  updateLivesDisplay();
+  document.getElementById('commsLog').innerHTML='';
+  document.getElementById('shiftTimer').textContent='1:00';
+  document.getElementById('shiftTimer').className='';
+  initPools();
+  initPlanes();
+  updatePanels();
+
+  // Draw planes during countdown but freeze patience and clock
+  function drawLoop(ts){
+    if(countingDown){ draw(); requestAnimationFrame(drawLoop); }
+  }
+  requestAnimationFrame(drawLoop);
+
+  // 3-2-1-GO countdown, then start real game loop
+  runCountdown(()=>{
+    active=true;
+    lastTs=performance.now();
+    // Auto-select the leftmost waiting plane
+    const waiting=planes.filter(p=>p.phase==='waiting'&&!p.departed).sort((a,b)=>a.x-b.x);
+    if(waiting.length){
+      selected=waiting[0];
+      // Auto-open the math modal for the first plane so the player can start immediately
+      openMath(selected);
+    }
+    const pat=levelPatience();
+    document.getElementById('trainingBadge').style.display=isTraining()?'flex':'none';
+    if(isTraining()){
+      comms(`LEVEL ${currentLevel} — TRAINING (${TRAINING_LEVELS-currentLevel+1} left). Take your time!`,'atc');
+    } else {
+      const hint=adaptiveMult<0.85?' · EXPERT':adaptiveMult>1.15?' · RELAXED':'';
+      comms(`LEVEL ${currentLevel} — ${(pat/1000).toFixed(0)}s patience. Need ${passThreshold()} pts${hint}.`,'atc');
+    }
+    planes.forEach(p=>comms(`${p.id}: ${p.fact.display}`,'pln'));
+    requestAnimationFrame(loop);
+  });
+}
+
+function showResetModal(){
+  const modal=document.getElementById('resetModal');
+  modal.style.display='flex';
+  document.getElementById('resetConfirmBtn').onclick=()=>{
+    modal.style.display='none';
+    resetGame();
+  };
+  document.getElementById('resetCancelBtn').onclick=()=>{
+    modal.style.display='none';
+  };
+}
+
+function resetGame(){
+  isGameOver = false;
+  lives=3; saveLives();
+  lifeCodeUsed=false;
+  localStorage.removeItem('atcLifeUsed');
+  bonusLivesAwarded=new Set(); saveBonusAwarded();
+  levelBestScores=new Map(); saveBestScores();
+  unlockedLevels=[1]; saveUnlocked(unlockedLevels);
+  adaptiveMult=1.0; dispatchPatienceSamples=[];
+  currentLevel=1; totalScore=0;
+  updateLivesDisplay();
+  showLevelPicker();
+}
+
+function startGame(){
+  currentLevel=1; totalScore=0;
+  showLevelPicker();
+}
+
+function missedFactsHTML(){
+  if(missedFacts.size===0) return '';
+  // Group by operation
+  const groups={};
+  missedFacts.forEach(f=>{
+    if(!groups[f.op]) groups[f.op]=[];
+    groups[f.op].push(f);
+  });
+  const opColor=OP_COLORS;
+  let html=`<div style="margin:14px 0 0;max-width:480px;width:100%;text-align:left;">
+    <div style="font-family:var(--ui);font-size:12px;font-weight:700;letter-spacing:2px;color:var(--am);border-bottom:1px solid #2a2a1a;padding-bottom:5px;margin-bottom:10px;">
+      📋 REVIEW — FACTS TO PRACTICE
+    </div>`;
+  Object.entries(groups).forEach(([op, facts])=>{
+    const col=opColor[op]||'#aaa';
+    html+=`<div style="margin-bottom:10px;">
+      <div style="font-size:9px;letter-spacing:2px;color:${col};margin-bottom:5px;font-family:var(--mono);">${op}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;">`;
+    facts.forEach(f=>{
+      html+=`<div style="background:rgba(255,255,255,.05);border:1px solid #2a2a2a;border-radius:4px;
+              padding:4px 10px;font-family:var(--mono);font-size:13px;color:#fff;white-space:nowrap;">
+        ${f.display} <span style="color:${col};font-weight:700;">= ${f.answer}</span>
+      </div>`;
+    });
+    html+=`</div></div>`;
+  });
+  html+=`</div>`;
+  return html;
+}
+
+function endGame(){
+  active=false;
+  totalScore+=score;
+  const passed=score>=passThreshold();
+  const ov=document.getElementById('overlay');
+  const review=missedFactsHTML();
+
+  if(passed){
+    const nextLevel=Math.min(currentLevel+1, MAX_LEVELS);
+    unlockLevel(nextLevel);
+    const nextPat=Math.max(PATIENCE_MIN, PATIENCE_BASE-(nextLevel-1)*PATIENCE_STEP);
+    const isLast=currentLevel===MAX_LEVELS;
+
+    // Bonus life on milestone levels — only awarded once ever
+    // After training levels, compute adaptive difficulty for the rest of the game
+    if(currentLevel===TRAINING_LEVELS){
+      computeAdaptiveMult();
+      const multDesc=adaptiveMult<0.85?'EXPERT pace — planes will be impatient!':adaptiveMult>1.15?'RELAXED pace — planes will be patient.':'STANDARD pace.';
+      comms(`Training complete — adaptive difficulty set: ${multDesc}`,'atc');
+    }
+
+    // Record best score for this level (no double-dipping — only updates if better)
+    const prevBest = levelBestScores.get(currentLevel);
+    const isNewBest = !prevBest || score > prevBest.score;
+    updateBestScore(currentLevel, score, [...selectedOps]);
+
+    let bonusLifeMsg='';
+    if(BONUS_LIFE_LEVELS.includes(currentLevel) && !bonusLivesAwarded.has(currentLevel)){
+      bonusLivesAwarded.add(currentLevel);
+      saveBonusAwarded();
+      if(lives<MAX_LIVES){
+        lives++;
+        saveLives();
+        bonusLifeMsg=`Level ${currentLevel} milestone — extra life earned!`;
+      } else {
+        bonusLifeMsg=`Level ${currentLevel} milestone (already at max lives)`;
+      }
+    }
+
+    // Level 25 complete → full celebration
+    if(isLast){
+      ov.style.display='none';
+      if(bonusLifeMsg) showBonusLife(bonusLifeMsg);
+      showCelebration(careerTotal());
+      return;
+    }
+
+    // Runway unlock announcements — now shown at start of levels 16/21 via startLevel
+    // (removed from here so players see their summary first)
+
+    const livesLine=bonusLifeMsg
+      ? `<div style="font-size:12px;color:var(--g);font-family:var(--mono);margin:8px 0;padding:6px 14px;border:1px solid var(--dg);border-radius:4px;display:inline-block;">❤️ BONUS LIFE — Level ${currentLevel} milestone!</div>`
+      : '';
+    const timeBonusLine=timeBonus>0
+      ? `<div style="font-size:12px;color:var(--am);font-family:var(--mono);margin:4px 0 8px;">⭐ TIME BONUS: +${timeBonus} pts</div>`
+      : '';
+
+    SFX.levelUp();
+    const opDotsLine=`<div style="display:flex;gap:6px;justify-content:center;margin:6px 0;">${[...selectedOps].map(op=>`<div style="width:10px;height:10px;border-radius:50%;background:${OP_COLORS[op]||'#888'};" title="${op}"></div>`).join('')}</div>`;
+
+    ov.innerHTML=`
+      <h1>LEVEL ${currentLevel} COMPLETE</h1>
+      <div class="sub" style="color:var(--g);text-shadow:0 0 12px var(--g);">CLEARED FOR NEXT SHIFT</div>
+      ${opDotsLine}
+      <div id="endScore" style="margin-top:10px;">${score} <span style="font-size:18px;color:var(--g)">/ ${passThreshold()} needed</span>${isNewBest?' <span style="font-size:14px;color:var(--am)">★ NEW BEST</span>':''}</div>
+      ${timeBonusLine}
+      ${livesLine}
+      <div class="end-bd">
+        Planes departed: <span>${departed}</span> &nbsp;·&nbsp;
+        Planes missed: <span>${aborted}</span> &nbsp;·&nbsp;
+        Wrong answers: <span>${wrongAnswers}</span> &nbsp;·&nbsp;
+        Lives: <span>${'❤️'.repeat(lives)}</span>
+      </div>
+      <div style="font-size:12px;font-family:var(--mono);color:var(--dg);margin:2px 0 10px;">
+        CAREER TOTAL: <span style="color:var(--g);font-size:15px;">${careerTotal().toLocaleString()}</span> pts across ${levelBestScores.size} level${levelBestScores.size!==1?'s':''}
+      </div>
+      ${review}
+      <div style="font-size:11px;color:var(--dg);font-family:var(--mono);margin:10px 0 10px;">
+        Level ${nextLevel}: patience <span style="color:var(--am)">${(nextPat/1000).toFixed(0)}s</span> per plane
+      </div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;">
+        <button class="ov-btn" id="nextBtn">LEVEL ${nextLevel} →</button>
+        <button class="ov-btn" style="font-size:13px;padding:9px 24px;border-color:var(--dg);color:var(--dg);" id="pickerBtn">LEVEL SELECT</button>
+      </div>
+    `;
+    ov.style.display='flex'; removeFromTabCycle();
+    updateLivesDisplay();
+    document.getElementById('nextBtn').addEventListener('click',()=>{
+      currentLevel=nextLevel; totalScore=0; startLevel();
+    });
+    document.getElementById('pickerBtn').addEventListener('click',()=>showLevelPicker());
+
+  } else {
+    // Failed — lose a life
+    lives=Math.max(0,lives-1);
+    saveLives();
+    updateLivesDisplay();
+    SFX.fail();
+
+    if(lives===0){
+      isGameOver = true;
+      // Game Over — show briefly then go to level picker
+      ov.innerHTML=`
+        <h1 style="color:var(--rd);text-shadow:0 0 28px var(--rd);">GAME OVER</h1>
+        <div class="sub" style="color:var(--rd);">NO LIVES REMAINING</div>
+        <div id="endScore" style="color:var(--rd);">${score} <span style="font-size:18px;color:#ff888888">/ ${passThreshold()} needed</span></div>
+        <div class="end-bd">
+          Failed on: <span>Level ${currentLevel}</span><br>
+          Total score: <span>${totalScore}</span>
+        </div>
+        ${review}
+        <div style="font-size:11px;color:var(--dg);font-family:var(--mono);margin:14px 0 6px;">Taking you to level select…</div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:8px;">
+          <button class="ov-btn" style="border-color:var(--rd);color:var(--rd);" id="resetBtn">START OVER</button>
+          <button class="ov-btn" style="font-size:13px;padding:9px 24px;border-color:var(--dg);color:var(--dg);" id="pickerBtn">LEVEL SELECT</button>
+        </div>
+      `;
+      ov.style.display='flex'; removeFromTabCycle();
+      document.getElementById('resetBtn').addEventListener('click',()=>showResetModal());
+      document.getElementById('pickerBtn').addEventListener('click',()=>showLevelPicker());
+      setTimeout(()=>showLevelPicker(), 3000);
+    } else {
+      ov.innerHTML=`
+        <h1 style="color:var(--rd);text-shadow:0 0 28px var(--rd);">LEVEL FAILED</h1>
+        <div class="sub">${'❤️'.repeat(lives)}${'🖤'.repeat(MAX_LIVES-lives)} — ${lives} ${lives===1?'life':'lives'} remaining</div>
+        <div id="endScore" style="color:var(--rd);">${score} <span style="font-size:18px;color:#ff888888">/ ${passThreshold()} needed</span></div>
+        <div class="end-bd">
+          Planes departed: <span>${departed}</span> &nbsp;·&nbsp;
+          Planes missed: <span>${aborted}</span> &nbsp;·&nbsp;
+          Wrong answers: <span>${wrongAnswers}</span>
+        </div>
+        ${review}
+        <div style="font-size:11px;color:var(--dg);font-family:var(--mono);margin:14px 0 6px;">Taking you to level select…</div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:8px;">
+          <button class="ov-btn" style="border-color:var(--rd);color:var(--rd);" id="retryBtn">RETRY LEVEL ${currentLevel}</button>
+          <button class="ov-btn" style="font-size:13px;padding:9px 24px;border-color:var(--dg);color:var(--dg);" id="pickerBtn">LEVEL SELECT</button>
+        </div>
+      `;
+      ov.style.display='flex'; removeFromTabCycle();
+      document.getElementById('retryBtn').addEventListener('click',()=>{ totalScore=0; startLevel(); });
+      document.getElementById('pickerBtn').addEventListener('click',()=>showLevelPicker());
+      setTimeout(()=>showLevelPicker(), 3000);
+    }
+  }
+}
+
+// ── Intro Tutorial ────────────────────────────────────────────────────────
+const TOTAL_SLIDES = 5;
+let introSlide = 0;
+
+function showIntro(){
+  const seen = sessionStorage.getItem('atcIntroSeen');
+  if(seen){ showLevelPicker(); return; }
+  showIntroForced();
+}
+
+function showIntroForced(){
+  introSlide=0;
+  const introEl=document.getElementById('intro');
+  introEl.style.opacity='';
+  introEl.style.display='flex';
+  renderIntroSlide();
+
+  // Build dots
+  const dots = document.getElementById('introDots');
+  dots.innerHTML='';
+  for(let i=0;i<TOTAL_SLIDES;i++){
+    const d=document.createElement('div');
+    d.className='intro-dot'+(i===0?' active':'');
+    d.addEventListener('click',()=>{ introSlide=i; renderIntroSlide(); });
+    dots.appendChild(d);
+  }
+
+  // Clone PREV/NEXT to strip stacked listeners; wire SKIP directly (simpler, single action)
+  function freshBtn(id){
+    const old=document.getElementById(id);
+    const clone=old.cloneNode(true);
+    old.parentNode.replaceChild(clone,old);
+    return clone;
+  }
+  freshBtn('introPrev').addEventListener('click',()=>{
+    if(introSlide>0){ introSlide--; renderIntroSlide(); }
+  });
+  freshBtn('introNext').addEventListener('click',()=>{
+    if(introSlide<TOTAL_SLIDES-1){ introSlide++; renderIntroSlide(); }
+    else finishIntro();
+  });
+
+  // Skip — re-query after potential prior clone, then replace cleanly
+  const skipOld=document.getElementById('introSkip');
+  const skipClone=skipOld.cloneNode(true);
+  skipOld.parentNode.replaceChild(skipClone, skipOld);
+  skipClone.onclick=()=>finishIntro();
+  removeFromTabCycle();
+}
+
+function renderIntroSlide(){
+  for(let i=0;i<TOTAL_SLIDES;i++){
+    const el=document.getElementById('s'+i);
+    if(el) el.classList.toggle('active', i===introSlide);
+  }
+  // Dots
+  document.querySelectorAll('.intro-dot').forEach((d,i)=>d.classList.toggle('active',i===introSlide));
+  // Progress bar
+  document.getElementById('introProgress').style.width=((introSlide+1)/TOTAL_SLIDES*100)+'%';
+  // Button labels
+  document.getElementById('introPrev').style.opacity=introSlide===0?'0.3':'1';
+  document.getElementById('introNext').textContent=introSlide===TOTAL_SLIDES-1?"LET'S GO →":"NEXT →";
+}
+
+function finishIntro(){
+  sessionStorage.setItem('atcIntroSeen','1');
+  // Build and show the level picker underneath BEFORE fading intro out
+  showLevelPicker();
+  const el=document.getElementById('intro');
+  el.style.transition='opacity .4s';
+  el.style.opacity='0';
+  setTimeout(()=>{
+    el.style.display='none';
+    el.style.opacity='';
+    el.style.transition='';
+  },400);
+}
+
+// ── Celebration Fireworks ─────────────────────────────────────────────────
+let celebActive=false, celebParticles=[], celebRAF=null;
+
+// ── Runway Unlock Announcement ────────────────────────────────────────────
+function showRunwayIntro(color){
+  const isGreen = color==='green';
+  const col     = isGreen ? '#00ee77' : '#00bbcc';  // green=green, "red"=blue planes on 36S
+  const rwy     = isGreen ? '36C' : '36S';
+  const arrow   = isGreen ? '↑' : '↓';
+  const key     = isGreen ? 'UP ARROW' : 'DOWN ARROW';
+  const dir     = isGreen ? 'upward off the top' : 'downward off the bottom';
+  const icon    = isGreen ? '🟢' : '🔵';
+  const label   = isGreen ? 'GREEN' : 'BLUE';
+  const planeName = isGreen ? 'green' : 'blue';
+  const nextLvl = isGreen ? GREEN_LEVEL : RED_LEVEL;
+
+  const ov=document.getElementById('overlay');
+  ov.innerHTML=`
+    <div style="text-align:center;max-width:680px;padding:20px;">
+      <div style="font-size:90px;margin-bottom:18px;line-height:1;">${icon}</div>
+      <h1 style="color:${col};text-shadow:0 0 30px ${col};letter-spacing:6px;margin-bottom:8px;font-size:44px;">
+        NEW RUNWAY UNLOCKED
+      </h1>
+      <div style="font-family:var(--mono);font-size:22px;color:${col};letter-spacing:4px;margin-bottom:22px;">
+        RWY ${rwy} — ${label} PLANES
+      </div>
+      <div style="font-family:var(--mono);font-size:16px;color:var(--dg);line-height:2.4;margin-bottom:26px;">
+        Starting Level ${nextLvl}, <span style="color:${col};">${planeName} planes</span> will appear on the apron.<br>
+        Solve their math fact, then press
+        <span style="color:#fff;font-size:28px;font-weight:700;"> ${arrow} ${key}</span>
+        to dispatch them.<br>
+        They launch <strong style="color:#fff;">${dir}</strong> of the screen.
+      </div>
+      <div style="display:inline-flex;align-items:center;gap:14px;background:rgba(255,255,255,.05);border:2px solid ${col};border-radius:10px;padding:16px 32px;margin-bottom:30px;">
+        <span style="font-size:36px;">${icon}</span>
+        <span style="font-family:var(--mono);font-size:18px;color:${col};">
+          ${label} plane → press <b style="font-size:28px;color:#fff;">${arrow}</b>
+        </span>
+      </div>
+      <br>
+      <div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap;">
+        <button class="ov-btn" id="rwIntroBtn" style="border-color:${col};color:${col};font-size:18px;padding:14px 44px;">
+          GOT IT — LEVEL ${nextLvl} →
+        </button>
+        <button class="ov-btn" id="rwPickerBtn" style="border-color:var(--dg);color:var(--dg);font-size:14px;padding:14px 28px;">
+          LEVEL SELECT
+        </button>
+      </div>
+    </div>
+  `;
+  ov.style.display='flex';
+  removeFromTabCycle();
+  document.getElementById('rwIntroBtn').addEventListener('click',()=>{
+    // Skip the intro check — user just saw it, go straight to countdown
+    document.getElementById('overlay').style.display='none';
+    closeMath();
+    active=false; score=0; departed=0; aborted=0; wrongAnswers=0; streak=0; timeBonus=0; windingDown=false; document.getElementById('windDownBanner').style.display='none';
+    paused=false; document.getElementById('pauseOverlay').style.display='none';
+    missedFacts=new Map(); dispatchHintsShown=0;
+    hideHintBanner();
+    shiftLeft=SHIFT_MS; lastTs=0;
+    selected=null; currentMathPlane=null;
+    rwyQueue['09L']=[]; rwyQueue['27R']=[]; rwyQueue['36C']=[]; rwyQueue['36S']=[];
+    rwyLastTakeoff['09L']=0; rwyLastTakeoff['27R']=0; rwyLastTakeoff['36C']=0; rwyLastTakeoff['36S']=0;
+    document.getElementById('lv').textContent=currentLevel;
+    document.getElementById('nv').textContent=passThreshold();
+    document.getElementById('sv').textContent='0';
+    document.getElementById('dv').textContent='0';
+    document.getElementById('av').textContent='0';
+    document.getElementById('wv').textContent='0';
+    updateLivesDisplay();
+    initPools(); initPlanes(); updatePanels();
+    function drawLoop(ts){ if(countingDown){ draw(); requestAnimationFrame(drawLoop); } }
+    requestAnimationFrame(drawLoop);
+    runCountdown(()=>{
+      active=true; lastTs=performance.now();
+      const waiting=planes.filter(p=>p.phase==='waiting'&&!p.departed).sort((a,b)=>a.x-b.x);
+      if(waiting.length){ selected=waiting[0]; openMath(selected); }
+      document.getElementById('trainingBadge').style.display=isTraining()?'flex':'none';
+      const pat=levelPatience();
+      comms(`LEVEL ${currentLevel} — ${(pat/1000).toFixed(0)}s patience. Need ${passThreshold()} pts.`,'atc');
+      planes.forEach(p=>comms(`${p.id}: ${p.fact.display}`,'pln'));
+      requestAnimationFrame(loop);
+    });
+  });
+  document.getElementById('rwPickerBtn').addEventListener('click',()=>showLevelPicker());
+}
+
+function showCelebration(finalScore){
+  SFX.celebrate();
+  document.getElementById('celebScore').textContent='TOTAL SCORE: '+finalScore.toLocaleString()+' PTS';
+
+  // Build per-level summary and inject before buttons
+  const content=document.getElementById('celebContent');
+  // Always rebuild summary fresh so all level scores are current
+  const existing=document.getElementById('celebSummary');
+  if(existing) existing.remove();
+  const div=document.createElement('div');
+  div.id='celebSummary';
+  div.style.cssText='font-family:var(--mono);margin:0 0 18px;animation:fadeInUp .8s 1.0s both ease-out;';
+  const label=document.createElement('div');
+  label.style.cssText='font-size:10px;letter-spacing:3px;color:var(--dg);margin-bottom:8px;';
+  label.textContent='YOUR RUN — ALL 25 LEVELS';
+  const grid=document.createElement('div');
+  grid.style.cssText='display:grid;grid-template-columns:repeat(5,1fr);gap:4px;max-width:480px;margin:0 auto;';
+  for(let lvl=1;lvl<=25;lvl++){
+    const entry=levelBestScores.get(lvl);
+    const sc=entry?entry.score:null;
+    const cell=document.createElement('div');
+    cell.style.cssText='background:#061208;border:1px solid '+(sc?'#1a4a2a':'#111')+';border-radius:4px;padding:5px 3px;text-align:center;';
+    cell.innerHTML='<div style="font-size:8px;color:#444;letter-spacing:1px;">L'+lvl+'</div>'
+      +'<div style="font-size:10px;font-weight:700;color:'+(sc?'var(--g)':'#222')+';">'+(sc?sc.toLocaleString():'—')+'</div>';
+    grid.appendChild(cell);
+  }
+  div.appendChild(label);
+  div.appendChild(grid);
+  const btnRow=content.querySelector('div[style*="display:flex"]');
+  content.insertBefore(div, btnRow);
+  const cel=document.getElementById('celebration');
+  cel.style.display='block';
+  celebActive=true;
+  celebParticles=[];
+
+  const cc=document.getElementById('celebCanvas');
+  cc.width=W; cc.height=H;
+
+  // Launch a burst every 600ms
+  const burstInterval=setInterval(()=>{
+    if(!celebActive){ clearInterval(burstInterval); return; }
+    launchFireworkBurst(cc);
+  }, 500);
+  // Initial burst immediately
+  for(let i=0;i<3;i++) setTimeout(()=>launchFireworkBurst(cc), i*180);
+
+  function celebLoop(){
+    if(!celebActive) return;
+    const cctx=cc.getContext('2d');
+    cctx.fillStyle='rgba(0,0,0,0.18)';
+    cctx.fillRect(0,0,cc.width,cc.height);
+    celebParticles=celebParticles.filter(p=>{
+      p.x+=p.vx; p.y+=p.vy; p.vy+=0.06; p.life-=1; p.vx*=0.98;
+      if(p.life<=0) return false;
+      cctx.globalAlpha=p.life/p.maxLife;
+      cctx.fillStyle=p.col;
+      cctx.beginPath(); cctx.arc(p.x,p.y,p.r,0,Math.PI*2); cctx.fill();
+      return true;
+    });
+    cctx.globalAlpha=1;
+    celebRAF=requestAnimationFrame(celebLoop);
+  }
+  celebLoop();
+
+  document.getElementById('celebBtn').addEventListener('click',()=>{
+    celebActive=false;
+    if(celebRAF) cancelAnimationFrame(celebRAF);
+    cel.style.display='none';
+    unlockedLevels=[1]; saveUnlocked(unlockedLevels);
+    currentLevel=1; totalScore=0;
+    showLevelPicker();
+  },{once:true});
+
+  document.getElementById('celebPickerBtn').addEventListener('click',()=>{
+    celebActive=false;
+    if(celebRAF) cancelAnimationFrame(celebRAF);
+    cel.style.display='none';
+    showLevelPicker();
+  },{once:true});
+}
+
+function launchFireworkBurst(cc){
+  const COLORS=['#00ff88','#ffaa00','#00bbcc','#ff5555','#ff99ff','#ffee44','#44ffff','#ffffff'];
+  const x=cc.width*(0.15+Math.random()*0.7);
+  const y=cc.height*(0.1+Math.random()*0.5);
+  const col=COLORS[Math.floor(Math.random()*COLORS.length)];
+  const count=60+Math.floor(Math.random()*40);
+  for(let i=0;i<count;i++){
+    const angle=Math.random()*Math.PI*2;
+    const speed=1.5+Math.random()*4;
+    celebParticles.push({
+      x,y, vx:Math.cos(angle)*speed, vy:Math.sin(angle)*speed,
+      col, r:1.5+Math.random()*2.5,
+      life:60+Math.floor(Math.random()*60), maxLife:120
+    });
+  }
+  // Trailing sparkles
+  for(let i=0;i<20;i++){
+    celebParticles.push({
+      x:x+(Math.random()*40-20), y:y+(Math.random()*40-20),
+      vx:(Math.random()-.5)*2, vy:-Math.random()*3,
+      col:'#ffffff', r:1, life:40+Math.random()*30, maxLife:70
+    });
+  }
+}
+
+// ── Remove all UI elements from the browser's tab cycle ───────────────────
+// The game handles Tab entirely via keydown. This prevents the browser from
+// cycling through buttons/inputs and eventually landing on the address bar.
+function removeFromTabCycle(){
+  document.querySelectorAll('button,input,a,select,textarea').forEach(el=>{ el.tabIndex=-1; });
+  canvas.tabIndex=-1;
+}
+removeFromTabCycle();
+
+// ── Initial entry point ────────────────────────────────────────────────────
+showIntro();
+document.addEventListener('DOMContentLoaded',()=>{ const b=document.getElementById('muteBtn'); if(b) b.textContent=_muted?'🔇':'🔊'; });
+</script>
+</body>
+</html>
+<script defer src="https://static.itch.io/htmlgame.js" type="text/javascript"></script>

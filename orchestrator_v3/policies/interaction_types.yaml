@@ -1,0 +1,53 @@
+# Approved Interaction Types
+# Canonical taxonomy from the OS spec. Interaction Selector must choose from this list.
+# Adding a new type requires OS spec revision and at least one proof-case prototype.
+
+interaction_types:
+
+  route_and_dispatch:
+    id: route_and_dispatch
+    label: "Route and Dispatch"
+    math_concepts: ["subset selection", "categorization", "constraint matching", "optimization"]
+    reflection_prompts_focus: "Rule detection and categorization"
+    example_games: ["Fire Dispatch"]
+    notes: "Player selects from a fixed pool; items are single-use per round; exact match required."
+
+  combine_and_build:
+    id: combine_and_build
+    label: "Combine and Build"
+    math_concepts: ["addition", "additive decomposition", "number bonds", "composition"]
+    reflection_prompts_focus: "Sum tracking and composition strategy"
+    example_games: ["Bakery Rush"]
+    notes: "Player accumulates values toward a target; running total is always visible."
+
+  allocate_and_balance:
+    id: allocate_and_balance
+    label: "Allocate and Balance"
+    math_concepts: ["equality", "equations", "equivalence", "fractions", "proportional reasoning"]
+    reflection_prompts_focus: "Fairness, equivalence, and constraint logic"
+    example_games: []
+    notes: "Player distributes resources so both sides satisfy a constraint."
+
+  transform_and_manipulate:
+    id: transform_and_manipulate
+    label: "Transform and Manipulate"
+    math_concepts: ["operations", "functions", "transformations", "algebra"]
+    reflection_prompts_focus: "Change and effect tracking"
+    example_games: []
+    notes: "Player applies an operation to an object and observes the world change."
+
+  navigate_and_position:
+    id: navigate_and_position
+    label: "Navigate and Position"
+    math_concepts: ["angles", "coordinates", "spatial reasoning", "measurement", "geometry"]
+    reflection_prompts_focus: "Spatial reasoning and reference systems"
+    example_games: ["Unit Circle"]
+    notes: "Player places or moves something to an exact position; precision matters."
+
+  sequence_and_predict:
+    id: sequence_and_predict
+    label: "Sequence and Predict"
+    math_concepts: ["patterns", "functions", "series", "probability"]
+    reflection_prompts_focus: "Pattern identification and prediction"
+    example_games: []
+    notes: "Player identifies a rule and applies it to predict the next state."

@@ -1,0 +1,129 @@
+# Math Game Factory — Gate Policy
+# Machine-readable gate definitions consumed by orchestrator_v3/gates.py
+# Source of truth: docs/os_spec_2026.md Section 10 + docs/orchestration_v3_blueprint.md Section 7
+# All thresholds are validated at runtime — do not loosen without updating the OS spec.
+
+research_gate:
+  id: gate_1
+  label: "Research completeness"
+  description: "Evidence Scout must find age-relevant guidance, tool recommendation, and assessment implication before design begins."
+  require_all:
+    - field: evidence_summary
+      min_length: 50
+    - field: standards_notes
+      min_items: 1
+    - field: tool_recommendations
+      min_items: 1
+  on_fail:
+    route_to: evidence_scout
+    message: "Research incomplete — returning to Evidence Scout."
+
+role_to_math_gate:
+  id: gate_2
+  label: "Role genuinely requires the math"
+  description: "The role fantasy must make mathematical reasoning a natural and necessary activity — not decoration."
+  require_all:
+    - field: role_to_math_score
+      minimum: 0.75
+  on_fail:
+    route_to: role_to_math_auditor
+    message: "Role-to-math fit below threshold — returning to Role-to-Math Auditor and Interaction Selector."
+
+interaction_purity_gate:
+  id: gate_3
+  label: "Chosen interaction clarifies the math"
+  description: "The primary interaction type must make the math more visible, not hide it behind unrelated actions."
+  require_all:
+    - field: primary_interaction
+      not_empty: true
+    - field: one_sentence_promise
+      min_length: 20
+  on_fail:
+    route_to: interaction_selector
+    message: "Interaction type does not clearly serve the math — returning to Interaction Selector."
+
+misconception_gate:
+  id: gate_4
+  label: "Misconception coverage"
+  description: "At least three meaningful error categories must be named with detection signals before design proceeds."
+  require_all:
+    - field: misconception_map
+      min_items: 3
+      each_must_have: [category, detection_signal, feedback_response, clean_replay_task]
+  on_fail:
+    route_to: misconception_architect
+    message: "Fewer than 3 misconception categories defined — returning to Misconception Architect."
+
+adaptation_gate:
+  id: gate_5
+  label: "At least one adaptive response"
+  description: "The game must change its behavior in response to at least one detected misconception."
+  require_all:
+    - field: adaptation_plan
+      must_contain_key: misconception_specific_retries
+      min_keys: 1
+  on_fail:
+    route_to: adaptation_designer
+    message: "No misconception produces a different game response — returning to Adaptation Designer."
+
+reflection_gate:
+  id: gate_6
+  label: "Reflection beat present"
+  description: "One planning prompt, one monitoring prompt, and one evaluation prompt must all be defined."
+  require_all:
+    - field: reflection_plan
+      must_contain_key: planning_prompt
+    - field: reflection_plan
+      must_contain_key: monitoring_prompt
+    - field: reflection_plan
+      must_contain_key: evaluation_prompt
+  on_fail:
+    route_to: reflection_writer
+    message: "Incomplete reflection plan — returning to Reflection Writer."
+
+transfer_gate:
+  id: gate_7
+  label: "Transfer target declared"
+  description: "Every game must state what later topic, representation, or context it is preparing the learner for."
+  require_all:
+    - field: transfer_target
+      min_length: 10
+  on_fail:
+    route_to: transfer_mapper
+    message: "No transfer target declared — returning to Transfer Mapper."
+
+teacher_visibility_gate:
+  id: gate_8
+  label: "Teacher can see useful evidence"
+  description: "If a teacher cannot quickly see where students are confused, the game is not classroom-ready."
+  require_all:
+    - field: teacher_guide
+      not_empty: true
+    - field: dashboard_spec
+      not_empty: true
+  on_fail:
+    route_to: teacher_value_translator
+    message: "Teacher evidence undefined — returning to Teacher Value Translator."
+
+loop_purity_gate:
+  id: gate_9
+  label: "Loop purity"
+  description: "The player action must be the math. A loop that can be completed by guessing is not ready."
+  require_all:
+    - field: loop_purity_score
+      minimum: 0.80
+  on_fail:
+    route_to: loop_purity_auditor
+    message: "Loop purity below threshold — see fail_conditions in loop_purity_score output."
+  note: >
+    When this gate fails, also check loop_purity_auditor output for which
+    specific check failed (math_is_core_action, guessing_not_viable, etc.)
+    to route the repair correctly.
+
+# ── Human review trigger ─────────────────────────────────────────────────────
+human_review_2_trigger:
+  description: >
+    If gate_fail_count >= 2 for the same run, trigger Human Review 2 instead
+    of routing back to the failing node. Prevents infinite repair loops.
+    Human decides: repair (→ Design Subgraph) or kill (→ archive as failed pattern).
+  gate_fail_threshold: 2
