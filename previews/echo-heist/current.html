@@ -1,0 +1,2292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Echo Heist — Pass 2</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0a0a0f;display:flex;justify-content:center;align-items:center;min-height:100vh;font-family:'Segoe UI',system-ui,sans-serif;overflow:hidden}
+  canvas{display:block;image-rendering:pixelated}
+  #ui-overlay{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:10}
+  #math-popup{display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(10,15,30,0.96);border:2px solid #00e5ff;border-radius:12px;padding:24px 28px;min-width:340px;max-width:420px;pointer-events:all;z-index:20;box-shadow:0 0 40px rgba(0,229,255,0.25)}
+  #math-popup h3{color:#00e5ff;font-size:13px;text-transform:uppercase;letter-spacing:2px;margin-bottom:10px}
+  #math-popup .prompt-text{color:#e0e6ed;font-size:16px;line-height:1.5;margin-bottom:16px}
+  #math-popup input{width:100%;background:#0d1117;border:1px solid #30363d;color:#fff;font-size:18px;padding:10px 14px;border-radius:8px;outline:none;font-family:monospace}
+  #math-popup input:focus{border-color:#00e5ff}
+  #math-popup .feedback{margin-top:10px;font-size:14px;min-height:20px}
+  #math-popup .hint{color:#64748b;font-size:12px;margin-top:8px}
+  .fb-correct{color:#22c55e}.fb-wrong{color:#ef4444}
+  #math-popup.vault-mode{border-color:#ffd700;box-shadow:0 0 60px rgba(255,215,0,0.3)}
+  #math-popup.vault-mode h3{color:#ffd700}
+  #math-popup.vault-mode input:focus{border-color:#ffd700}
+  .vault-progress{display:flex;gap:8px;margin-bottom:12px}
+  .vault-step{width:32px;height:6px;border-radius:3px;background:#1e293b}
+  .vault-step.done{background:#22c55e}
+  .vault-step.active{background:#ffd700;animation:vaultPulse 0.6s ease-in-out infinite alternate}
+  @keyframes vaultPulse{from{opacity:0.6}to{opacity:1}}
+  #math-popup.escape-mode{border-color:#ef4444;box-shadow:0 0 60px rgba(239,68,68,0.3)}
+  #math-popup.escape-mode h3{color:#ef4444}
+  #math-popup.escape-mode input:focus{border-color:#ef4444}
+  #math-popup.ability-mode{border-color:var(--cls-color,#00e5ff);box-shadow:0 0 50px rgba(168,85,247,0.3)}
+  #math-popup.ability-mode h3{color:var(--cls-color,#00e5ff)}
+  #math-popup.ability-mode input:focus{border-color:var(--cls-color,#00e5ff)}
+  #popup-hint-area{color:#f59e0b;font-size:13px;margin-top:8px;min-height:18px;font-style:italic}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="ui-overlay">
+  <div id="math-popup">
+    <h3 id="popup-title">Terminal</h3>
+    <div class="prompt-text" id="popup-prompt"></div>
+    <input type="text" id="popup-input" autocomplete="off" spellcheck="false"/>
+    <div class="feedback" id="popup-feedback"></div>
+    <div id="popup-hint-area"></div>
+    <div class="hint" id="popup-hint-line">Press Enter to submit · Esc to cancel (costs heat) · H for hint (−50)</div>
+    <div class="vault-progress" id="vault-progress" style="display:none"></div>
+  </div>
+</div>
+<script>
+// ═══════════════════════════════════════════════════════════════
+//  ECHO HEIST — Pass 2: Pressure & Progression
+//  Self-contained Canvas stealth game with math-as-lockpick
+// ═══════════════════════════════════════════════════════════════
+
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const W = 960, H = 640;
+canvas.width = W; canvas.height = H;
+
+// ── CONSTANTS ──────────────────────────────────────────────────
+const TILE = 40; // pixels per tile
+const COLS = W / TILE; // 24
+const ROWS = H / TILE; // 16
+const PI2 = Math.PI * 2;
+const DEG = Math.PI / 180;
+
+// Tile types
+const T = {
+  FLOOR: 0, WALL: 1, DOOR_LOCKED: 2, DOOR_OPEN: 3,
+  TERMINAL: 4, CAMERA: 5, EXIT: 6, SPAWN: 7,
+  CARPET: 8, METAL: 9, VENT: 10, LOOT: 11
+};
+
+// Noise values per tile (noise/second while on tile)
+const NOISE_MAP = {
+  [T.FLOOR]: 3, [T.WALL]: 0, [T.CARPET]: 1, [T.METAL]: 5,
+  [T.VENT]: 2, [T.DOOR_LOCKED]: 0, [T.DOOR_OPEN]: 1,
+  [T.TERMINAL]: 1, [T.CAMERA]: 1, [T.EXIT]: 1, [T.SPAWN]: 1, [T.LOOT]: 2
+};
+
+// Colors
+const COLORS = {
+  bg: '#0a0a0f',
+  [T.FLOOR]: '#1a1f2e', [T.WALL]: '#2a2d3a', [T.DOOR_LOCKED]: '#8b4513',
+  [T.DOOR_OPEN]: '#3a2a1a', [T.TERMINAL]: '#0d2137', [T.CAMERA]: '#1a1f2e',
+  [T.EXIT]: '#0f3d1a', [T.SPAWN]: '#1a1f2e', [T.CARPET]: '#1a2a1e',
+  [T.METAL]: '#2a2a2e', [T.VENT]: '#1e1e28', [T.LOOT]: '#2a2a1a',
+  player: '#00e5ff', ghost: 'rgba(0,229,255,0.35)',
+  guard: '#ff4444', guardAlert: '#ff8800', guardCone: 'rgba(255,68,68,0.12)',
+  cameraCone: 'rgba(255,200,0,0.1)', cameraBody: '#ffcc00',
+  hud: '#0d1520', hudText: '#94a3b8', hudAccent: '#00e5ff',
+  heat: '#ef4444', noise: '#f59e0b', score: '#22c55e'
+};
+
+// Class definitions
+const CLASSES = {
+  hacker: {
+    name: 'Hacker', color: '#a855f7', icon: '🔓',
+    desc: 'Percents + Algebra · Overclock: solve % to speed hacks',
+    templates: ['T1','T2','T3','T4'], abilityName: 'Overclock',
+    moveSpeed: 2.2, noiseMultiplier: 1.0,
+    abilityCooldown: 45,
+    abilityPrompts: [
+      { text:'OVERCLOCK\nReduce 18s by 25%. New time = ?', answer:'13.5', hint1:'Percent decrease', hint2:'18 × 0.75' },
+      { text:'OVERCLOCK\nIncrease 40 by 10%. Result = ?', answer:'44', hint1:'Percent increase', hint2:'40 × 1.10' },
+      { text:'OVERCLOCK\n30% of 60 = ?', answer:'18', hint1:'Percent of quantity', hint2:'0.30 × 60' },
+      { text:'OVERCLOCK\nReduce 24s by 50%. New time = ?', answer:'12', hint1:'Percent decrease', hint2:'24 × 0.50' },
+      { text:'OVERCLOCK\n2x + 3 = 15. x = ?', answer:'6', hint1:'Two-step equation', hint2:'Subtract 3, divide by 2' }
+    ]
+  },
+  ghost: {
+    name: 'Ghost', color: '#22d3ee', icon: '👻',
+    desc: 'Fractions + Geometry · Soft Step: solve fraction to reduce noise',
+    templates: ['T5','T6','T11'], abilityName: 'Soft Step',
+    moveSpeed: 2.0, noiseMultiplier: 0.7,
+    abilityCooldown: 30,
+    abilityPrompts: [
+      { text:'SOFT STEP\n3/4 of 12 noise = ?', answer:'9', hint1:'Fraction of quantity', hint2:'12 × 3 ÷ 4' },
+      { text:'SOFT STEP\n2/3 of 18 noise = ?', answer:'12', hint1:'Fraction of quantity', hint2:'18 × 2 ÷ 3' },
+      { text:'SOFT STEP\n1/2 + 1/4 = ?', answer:'3/4', hint1:'Add fractions', hint2:'Common denominator 4' },
+      { text:'SOFT STEP\n5/6 of 24 noise = ?', answer:'20', hint1:'Fraction of quantity', hint2:'24 × 5 ÷ 6' },
+      { text:'SOFT STEP\nComplement of 55° (adds to 90°) = ?', answer:'35', hint1:'Complementary angles', hint2:'90 − 55' }
+    ]
+  },
+  runner: {
+    name: 'Runner', color: '#f97316', icon: '⚡',
+    desc: 'Rates + Integers · Burst: solve rate for a sprint window',
+    templates: ['T7','T9','T10'], abilityName: 'Burst',
+    moveSpeed: 2.8, noiseMultiplier: 1.2,
+    abilityCooldown: 40,
+    abilityPrompts: [
+      { text:'BURST\n6 m/s × 3 s = ? meters', answer:'18', hint1:'Rate × time = distance', hint2:'6 × 3' },
+      { text:'BURST\nSpeed 8 m/s for 4 s. Distance = ?', answer:'32', hint1:'d = r × t', hint2:'8 × 4' },
+      { text:'BURST\n45 m at 9 m/s. Time = ?', answer:'5', hint1:'t = d ÷ r', hint2:'45 ÷ 9' },
+      { text:'BURST\nStamina 12, drain −7. Result = ?', answer:'5', hint1:'Integer subtraction', hint2:'12 + (−7)' },
+      { text:'BURST\nRound 3.78 to nearest 0.1 = ?', answer:'3.8', hint1:'Rounding to tenths', hint2:'Look at hundredths digit' }
+    ]
+  }
+};
+
+// ── DISTRICT CONFIG (difficulty scaling) ───────────────────────
+const DISTRICT_CONFIG = [
+  { name:'Training Gallery', escapeTime:60, guardSpeedMult:1.0, heatGainMult:1.0, hintCost:50 },
+  { name:'Camera Commons', escapeTime:50, guardSpeedMult:1.2, heatGainMult:1.3, hintCost:75 },
+  { name:'Escape Lines', escapeTime:45, guardSpeedMult:1.4, heatGainMult:1.6, hintCost:100 }
+];
+
+function getDistrict(missionIdx) {
+  if (missionIdx < 10) return 0;
+  if (missionIdx < 20) return 1;
+  return 2;
+}
+
+function getDConfig() { return DISTRICT_CONFIG[getDistrict(currentMission)]; }
+
+// ── MISSION DATA (District 1, Missions 1–3) ───────────────────
+const MISSIONS = [
+  {
+    id: 1, name: 'Orientation Hall', district: 'Training Gallery',
+    objective: 'Steal the "Practice Gem" and exit unseen.',
+    prompts: [
+      { id:'m1p1', template:'T9', text:'Heat is 7. You reduce heat by -3.\nNew heat = ?', answer:'4', notes:'Integer modifier' },
+      { id:'m1p2', template:'T9', text:'Stamina is 5. A trap applies -6 stamina.\nNew stamina = ?', answer:'-1', notes:'Integer modifier, negative result' },
+      { id:'m1p3', template:'T5', text:'Enter 1/2 of 18 to calibrate the lock.', answer:'9', notes:'Fraction of quantity' },
+      { id:'m1p4', template:'T5', text:'The keypad needs 3/4 of 20.', answer:'15', notes:'Fraction of quantity' },
+      { id:'m1p5', template:'T10', text:'Round 47 to the nearest 10.', answer:'50', notes:'Rounding' },
+      { id:'m1p6', template:'T7', text:'You move at 4 m/s for 6 s.\nDistance = ?', answer:'24', notes:'Rate-time-distance' }
+    ],
+    vaultPrompts: [
+      { id:'m1v1', text:'VAULT LOCK 1\nSolve: 3 × 8 − 5 = ?', answer:'19', notes:'Multi-step arithmetic' },
+      { id:'m1v2', text:'VAULT LOCK 2\nWhat is 2/3 of 27?', answer:'18', notes:'Fraction of quantity' }
+    ],
+    escapePrompts: [
+      { id:'m1e1', text:'EMERGENCY GATE\nYou sprint at 6 m/s for 10 s.\nDistance covered = ?', answer:'60', notes:'Rate-time-distance' }
+    ]
+  },
+  {
+    id: 2, name: 'Camera Basics', district: 'Training Gallery',
+    objective: 'Disable 2 cameras.',
+    prompts: [
+      { id:'m2p1', template:'T11', text:'Camera cone is set to a right angle.\nType the angle in degrees.', answer:'90', notes:'Angles' },
+      { id:'m2p2', template:'T11', text:'Blind-spot wedge must be 60°.\nType the angle.', answer:'60', notes:'Angles' },
+      { id:'m2p3', template:'T3', text:'Hack reduces camera range by 25% from 40.\nNew range = ?', answer:'30', notes:'Percent decrease' },
+      { id:'m2p4', template:'T3', text:'Alarm time increases by 20% from 50 seconds.\nNew time = ?', answer:'60', notes:'Percent increase' },
+      { id:'m2p5', template:'T9', text:'Heat is 3. Mistake adds +4 heat.\nNew heat = ?', answer:'7', notes:'Integer modifier' },
+      { id:'m2p6', template:'T10', text:'Round 6.47 to the nearest 0.1.', answer:'6.5', notes:'Rounding to tenths' }
+    ],
+    vaultPrompts: [
+      { id:'m2v1', text:'VAULT LOCK 1\n15% of 80 = ?', answer:'12', notes:'Percent of quantity' },
+      { id:'m2v2', text:'VAULT LOCK 2\n180° − 45° = ?', answer:'135', notes:'Angle subtraction' },
+      { id:'m2v3', text:'VAULT LOCK 3\nIf 4x = 48, then x = ?', answer:'12', notes:'One-step algebra' }
+    ],
+    escapePrompts: [
+      { id:'m2e1', text:'LOCKDOWN OVERRIDE\nTime remaining: 120 − 75 = ? seconds', answer:'45', notes:'Arithmetic under pressure' }
+    ]
+  },
+  {
+    id: 3, name: 'Quiet Floors', district: 'Training Gallery',
+    objective: 'Cross a noisy corridor without triggering alarm.',
+    prompts: [
+      { id:'m3p1', template:'T5', text:'Noise budget is 16. Spend 1/4 of 16.', answer:'4', notes:'Fraction of quantity' },
+      { id:'m3p2', template:'T5', text:'Use 2/3 of 21 to tune the dampener.', answer:'14', notes:'Fraction of quantity' },
+      { id:'m3p3', template:'T5', text:'The lock needs 3/5 of 25.', answer:'15', notes:'Fraction of quantity' },
+      { id:'m3p4', template:'T9', text:'Stamina is 8. Crouch drain is -3.\nNew stamina = ?', answer:'5', notes:'Integer modifier' },
+      { id:'m3p5', template:'T9', text:'Heat is 5. You cool down by -2.\nNew heat = ?', answer:'3', notes:'Integer modifier' },
+      { id:'m3p6', template:'T10', text:'Round 93 to the nearest 10.', answer:'90', notes:'Rounding' }
+    ],
+    vaultPrompts: [
+      { id:'m3v1', text:'VAULT LOCK 1\n5/8 of 40 = ?', answer:'25', notes:'Fraction of quantity' },
+      { id:'m3v2', text:'VAULT LOCK 2\nRound 73.6 to the nearest whole number.', answer:'74', notes:'Rounding' },
+      { id:'m3v3', text:'VAULT LOCK 3\nSpeed 8 m/s for 5 seconds.\nDistance = ?', answer:'40', notes:'Rate-time-distance' }
+    ],
+    escapePrompts: [
+      { id:'m3e1', text:'ESCAPE ROUTE\n90 meters at 15 m/s.\nTime needed = ?', answer:'6', notes:'Rate-time-distance' }
+    ]
+  },
+  // Missions 4–10 (District 1 remainder) — generated prompts
+  ...generateDistrictMissions(4, 10, 'Training Gallery', [
+    {name:'First Keypads',obj:'Open 3 doors before patrol returns.'},
+    {name:'Timer Gates',obj:'Beat a timed gate cycle.'},
+    {name:'Fraction Locks',obj:'Collect 2 ratio keys.'},
+    {name:'Percent Practice',obj:'Reduce heat by disabling a node.'},
+    {name:'Value Choice',obj:'Choose the best expected value loot.'},
+    {name:'Mixed Drill',obj:'Complete a 3-room micro-heist.'},
+    {name:'Exhibit Vault',obj:'Crack the training vault and escape.'}
+  ]),
+  // Missions 11–20 (District 2: Camera Commons)
+  ...generateDistrictMissions(11, 20, 'Camera Commons', [
+    {name:'Lobby Sweep',obj:'Loop a security feed and reach server door.'},
+    {name:'Badge Printer',obj:'Forge a badge via 3-step station.'},
+    {name:'Vent Math',obj:'Route through vents choosing correct lengths.'},
+    {name:'Camera Grid',obj:'Disable 4 cameras with minimal time loss.'},
+    {name:'Two-Step Terminals',obj:'Unlock the main terminal.'},
+    {name:'Ratio Deals',obj:'Choose best gadget loadout from shop kiosk.'},
+    {name:'Heat Management',obj:'Keep heat under threshold while grabbing 3 files.'},
+    {name:'Fraction Comeback',obj:'Silent route with noise budget constraints.'},
+    {name:'EV Heist',obj:'Pick 2 of 3 loot options for max expected value.'},
+    {name:'Admin Vault',obj:'Crack vault and survive a camera lockdown.'}
+  ]),
+  // Missions 21–30 (District 3: Escape Lines)
+  ...generateDistrictMissions(21, 30, 'Escape Lines', [
+    {name:'Platform Timing',obj:'Catch the extraction train.'},
+    {name:'Rooftop Angles',obj:'Cross rooftops via camera blind spots.'},
+    {name:'Cargo Weight',obj:'Carry loot without stamina crash.'},
+    {name:'Two-Step Sprint',obj:'Open 3 gates during patrol cycles.'},
+    {name:'Fraction + Rate',obj:'Balance noise budget while racing the clock.'},
+    {name:'Market Choices',obj:'Choose best 2 upgrades for final heist.'},
+    {name:'Probability Payoff',obj:'Risk/reward crates in an optional side room.'},
+    {name:'Alarm Cascade',obj:'Stop escalating alarms by solving quickly.'},
+    {name:'The Long Run',obj:'Extended 4-room run under 10 minutes.'},
+    {name:'Grand Terminal',obj:'Crack the vault, pick best loot, escape chase.'}
+  ])
+];
+
+// ── MISSION GENERATOR (procedural prompts per district) ────────
+function generateDistrictMissions(startId, endId, district, defs) {
+  const missions = [];
+  // Template banks per district
+  const banks = {
+    'Training Gallery': [
+      {text:'Solve: x + {a} = {b}',mk:(a,b)=>({answer:''+(b-a),hint1:'One-step equation',hint2:`${b} − ${a}`}),gen:()=>{const a=3+Math.floor(Math.random()*10),b=a+2+Math.floor(Math.random()*15);return{a,b}}},
+      {text:'{a}% of {b} = ?',mk:(a,b)=>({answer:''+((a/100)*b),hint1:'Percent of quantity',hint2:`${a}/100 × ${b}`}),gen:()=>({a:[10,20,25,50][Math.floor(Math.random()*4)],b:(Math.floor(Math.random()*8)+2)*10})},
+      {text:'{a}/{b} of {c} = ?',mk:(a,b,c)=>({answer:''+((a/b)*c),hint1:'Fraction of quantity',hint2:`${c} × ${a} ÷ ${b}`}),gen:()=>{const pairs=[[1,2],[1,3],[2,3],[1,4],[3,4],[2,5],[3,5]];const[a,b]=pairs[Math.floor(Math.random()*pairs.length)];return{a,b,c:b*(1+Math.floor(Math.random()*6))}}},
+      {text:'Round {a} to the nearest {b}.',mk:(a,b)=>{const r=b>=1?Math.round(a/b)*b:parseFloat((Math.round(a/b)*b).toFixed(1));return{answer:''+r,hint1:'Rounding',hint2:`Look at the digit after ${b}`}},gen:()=>{const rules=[[10,()=>10+Math.floor(Math.random()*90)],[0.1,()=>parseFloat((Math.random()*10).toFixed(2))]];const[b,fn]=rules[Math.floor(Math.random()*rules.length)];return{a:fn(),b}}},
+      {text:'Speed {a} m/s for {b} s. Distance = ?',mk:(a,b)=>({answer:''+(a*b),hint1:'d = r × t',hint2:`${a} × ${b}`}),gen:()=>({a:2+Math.floor(Math.random()*8),b:2+Math.floor(Math.random()*10)})},
+      {text:'Heat is {a}. Change of {b}. New heat = ?',mk:(a,b)=>({answer:''+(a+b),hint1:'Integer operation',hint2:`${a} + (${b})`}),gen:()=>({a:Math.floor(Math.random()*15),b:[-7,-5,-3,3,4,6][Math.floor(Math.random()*6)]})}
+    ],
+    'Camera Commons': [
+      {text:'Solve: {a}x + {b} = {c}',mk:(a,b,c)=>({answer:''+((c-b)/a),hint1:'Two-step equation',hint2:`(${c} − ${b}) ÷ ${a}`}),gen:()=>{const a=2+Math.floor(Math.random()*4),x=2+Math.floor(Math.random()*8),b=1+Math.floor(Math.random()*10);return{a,b,c:a*x+b,_x:x}}},
+      {text:'Reduce {a} by {b}%. New value = ?',mk:(a,b)=>({answer:''+(a*(1-b/100)),hint1:'Percent decrease',hint2:`${a} × ${1-b/100}`}),gen:()=>({a:[20,40,50,60,80][Math.floor(Math.random()*5)],b:[10,15,20,25,30][Math.floor(Math.random()*5)]})},
+      {text:'Convert {a} to {b}.',mk:(a,b)=>{if(b==='percent')return{answer:(parseFloat(a)*100)+'%',hint1:'Decimal → percent',hint2:'Multiply by 100'};return{answer:''+(parseFloat(a.replace('%',''))/100),hint1:'Percent → decimal',hint2:'Divide by 100'}},gen:()=>{const dec=Math.random()>0.5;const v=dec?'0.'+(Math.floor(Math.random()*9)+1)*5:(Math.floor(Math.random()*9)+1)*10+'%';return{a:v,b:dec?'percent':'decimal'}}},
+      {text:'Angle: {a}° is supplementary to ? (adds to 180°)',mk:(a)=>({answer:''+(180-a),hint1:'Supplementary angles',hint2:`180 − ${a}`}),gen:()=>({a:30+Math.floor(Math.random()*12)*10})},
+      {text:'Better rate? A: {a1} in {a2} min; B: {b1} in {b2} min.',mk:(a1,a2,b1,b2)=>{const ra=a1/a2,rb=b1/b2;return{answer:ra>=rb?'A':'B',hint1:'Compare rates',hint2:`A=${(ra).toFixed(1)}/min, B=${(rb).toFixed(1)}/min`}},gen:()=>({a1:12+Math.floor(Math.random()*20),a2:2+Math.floor(Math.random()*5),b1:12+Math.floor(Math.random()*20),b2:2+Math.floor(Math.random()*5)})},
+      {text:'{a}/{b} + {c}/{d} = ?',mk:(a,b,c,d)=>{const num=a*d+c*b,den=b*d,g=gcd(Math.abs(num),den);return{answer:`${num/g}/${den/g}`,hint1:'Add fractions',hint2:`Common denominator ${b*d}`}},gen:()=>{const pairs=[[1,2,1,4],[1,3,1,6],[2,3,1,6],[3,4,1,8],[1,2,1,3]];const p=pairs[Math.floor(Math.random()*pairs.length)];return{a:p[0],b:p[1],c:p[2],d:p[3]}}}
+    ],
+    'Escape Lines': [
+      {text:'Solve: {a}x − {b} = {c}',mk:(a,b,c)=>({answer:''+((c+b)/a),hint1:'Two-step equation',hint2:`(${c} + ${b}) ÷ ${a}`}),gen:()=>{const a=2+Math.floor(Math.random()*5),x=2+Math.floor(Math.random()*12),b=2+Math.floor(Math.random()*15);return{a,b,c:a*x-b}}},
+      {text:'{a}% chance of {b} coins, else {c}. EV = ?',mk:(a,b,c)=>{const ev=(a/100)*b+((100-a)/100)*c;return{answer:ev%1===0?''+ev:ev.toFixed(1),hint1:'Expected value',hint2:`${a/100}×${b} + ${(100-a)/100}×${c}`}},gen:()=>({a:[20,25,30,40,50,60,70,80][Math.floor(Math.random()*8)],b:10+Math.floor(Math.random()*40)*5,c:Math.floor(Math.random()*3)*5})},
+      {text:'Distance {a}m at {b} m/s. Time = ?',mk:(a,b)=>({answer:''+(a/b),hint1:'t = d ÷ r',hint2:`${a} ÷ ${b}`}),gen:()=>{const b=2+Math.floor(Math.random()*8);return{a:b*(2+Math.floor(Math.random()*10)),b}}},
+      {text:'Increase {a} by {b}%. Result = ?',mk:(a,b)=>({answer:''+(a*(1+b/100)),hint1:'Percent increase',hint2:`${a} × ${1+b/100}`}),gen:()=>({a:[30,40,50,60,80,100][Math.floor(Math.random()*6)],b:[10,12,15,20,25][Math.floor(Math.random()*5)]})},
+      {text:'Round {a} to nearest {b}.',mk:(a,b)=>{const r=b>=1?Math.round(a/b)*b:parseFloat((Math.round(a/b)*b).toFixed(2));return{answer:''+r,hint1:'Rounding',hint2:'Look at the next digit'}},gen:()=>{const rules=[[100,()=>100+Math.floor(Math.random()*900)],[0.01,()=>parseFloat((Math.random()*5).toFixed(3))]];const[b,fn]=rules[Math.floor(Math.random()*rules.length)];return{a:fn(),b}}},
+      {text:'{a}/{b} of {c} = ?',mk:(a,b,c)=>({answer:''+((a/b)*c),hint1:'Fraction of quantity',hint2:`${c} × ${a} ÷ ${b}`}),gen:()=>{const pairs=[[3,8],[5,6],[7,10],[2,7],[5,8]];const[a,b]=pairs[Math.floor(Math.random()*pairs.length)];return{a,b,c:b*(1+Math.floor(Math.random()*8))}}}
+    ]
+  };
+  function gcd(a,b){return b?gcd(b,a%b):a;}
+  function pickPrompts(district,count) {
+    const bank = banks[district] || banks['Training Gallery'];
+    const result = [];
+    for (let i = 0; i < count; i++) {
+      const tmpl = bank[i % bank.length];
+      const vals = tmpl.gen();
+      let txt = tmpl.text;
+      for (const[k,v] of Object.entries(vals)) if(!k.startsWith('_')) txt = txt.replace(`{${k}}`, v);
+      const args = Object.values(vals).filter((_,i2)=>!Object.keys(vals)[i2].startsWith('_'));
+      const res = tmpl.mk(...args);
+      result.push({ id:`gen_${startId}_${i}`, text:txt, answer:res.answer, hint1:res.hint1, hint2:res.hint2, notes:res.hint1 });
+    }
+    return result;
+  }
+  for (let i = 0; i < defs.length; i++) {
+    const id = startId + i;
+    const d = defs[i];
+    missions.push({
+      id, name: d.name, district,
+      objective: d.obj,
+      prompts: pickPrompts(district, 6),
+      vaultPrompts: pickPrompts(district, id <= 10 ? 2 : 3),
+      escapePrompts: pickPrompts(district, 1)
+    });
+  }
+  return missions;
+}
+
+// ── LEVEL GENERATOR (procedural from district templates) ──────
+function generateLevel(missionIdx) {
+  const dist = getDistrict(missionIdx);
+  const dc = DISTRICT_CONFIG[dist];
+  const seed = missionIdx * 7 + 13; // deterministic variation
+  function seededRand(i) { return ((seed * 9301 + i * 49297) % 233280) / 233280; }
+
+  // Base map: all walls on border, floor inside
+  const map = [];
+  for (let y = 0; y < ROWS; y++) {
+    const row = [];
+    for (let x = 0; x < COLS; x++) {
+      row.push((x === 0 || x === COLS-1 || y === 0 || y === ROWS-1) ? 1 : 0);
+    }
+    map.push(row);
+  }
+
+  // Add internal walls (2-4 wall segments per level)
+  const wallSegs = 2 + Math.floor(seededRand(0) * 3);
+  for (let w = 0; w < wallSegs; w++) {
+    const horiz = seededRand(w*10+1) > 0.5;
+    if (horiz) {
+      const wy = 4 + Math.floor(seededRand(w*10+2) * 8);
+      const wx1 = 1 + Math.floor(seededRand(w*10+3) * 6);
+      const wx2 = wx1 + 3 + Math.floor(seededRand(w*10+4) * 5);
+      for (let x = wx1; x <= Math.min(wx2, COLS-2); x++) map[wy][x] = 1;
+      // Gap
+      const gx = wx1 + 1 + Math.floor(seededRand(w*10+5) * (wx2-wx1-1));
+      if (gx < COLS-1) map[wy][gx] = 0;
+    } else {
+      const wx = 5 + Math.floor(seededRand(w*10+2) * 14);
+      const wy1 = 2 + Math.floor(seededRand(w*10+3) * 4);
+      const wy2 = wy1 + 3 + Math.floor(seededRand(w*10+4) * 5);
+      for (let y = wy1; y <= Math.min(wy2, ROWS-2); y++) map[y][wx] = 1;
+      const gy = wy1 + 1 + Math.floor(seededRand(w*10+5) * (wy2-wy1-1));
+      if (gy < ROWS-1) map[gy][wx] = 0;
+    }
+  }
+
+  // Scatter floor types
+  for (let y = 1; y < ROWS-1; y++) {
+    for (let x = 1; x < COLS-1; x++) {
+      if (map[y][x] !== 0) continue;
+      const r = seededRand(y*COLS+x);
+      if (r < 0.08) map[y][x] = 8; // carpet
+      else if (r < 0.13) map[y][x] = 9; // metal
+    }
+  }
+
+  // Place spawn, exit, loot
+  map[ROWS-2][2] = 7; // spawn bottom-left
+  map[ROWS-3][COLS-2] = 6; // exit top-right area
+  const lootX = 10 + Math.floor(seededRand(99) * 10);
+  const lootY = 3 + Math.floor(seededRand(98) * 6);
+  if (map[lootY][lootX] === 0 || map[lootY][lootX] === 8 || map[lootY][lootX] === 9) map[lootY][lootX] = 0;
+
+  // Guards: scale with district
+  const guardCount = 2 + dist;
+  const guards = [];
+  for (let g = 0; g < guardCount; g++) {
+    const gx = 4 + Math.floor(seededRand(200+g*10) * 16);
+    const gy = 3 + Math.floor(seededRand(201+g*10) * 9);
+    const r2x = 3 + Math.floor(seededRand(202+g*10) * 8);
+    const r2y = 3 + Math.floor(seededRand(203+g*10) * 8);
+    guards.push({
+      x:gx, y:gy,
+      route:[[gx,gy],[gx+r2x>21?gx-r2x:gx+r2x,gy],[gx+r2x>21?gx-r2x:gx+r2x,gy+r2y>13?gy-r2y:gy+r2y],[gx,gy+r2y>13?gy-r2y:gy+r2y]].map(p=>[Math.max(2,Math.min(21,p[0])),Math.max(2,Math.min(13,p[1]))]),
+      speed: 0.8 + seededRand(204+g*10) * 0.6 * dc.guardSpeedMult,
+      coneAngle: 55 + Math.floor(seededRand(205+g*10) * 25),
+      coneRange: 4 + Math.floor(seededRand(206+g*10) * 2)
+    });
+  }
+
+  // Cameras: scale with district
+  const camCount = 1 + dist + Math.floor(seededRand(300) * 2);
+  const cameras = [];
+  for (let c = 0; c < camCount; c++) {
+    cameras.push({
+      x: 3 + Math.floor(seededRand(310+c*10) * 18),
+      y: 1 + Math.floor(seededRand(311+c*10) * 4),
+      angle: [90,180,270][Math.floor(seededRand(312+c*10)*3)],
+      sweep: 60 + Math.floor(seededRand(313+c*10)*40),
+      range: 4 + Math.floor(seededRand(314+c*10)*2),
+      speed: 25 + Math.floor(seededRand(315+c*10)*15)
+    });
+  }
+
+  // Interactables: 5-6 doors/terminals
+  const iaCount = 5 + (dist > 0 ? 1 : 0);
+  const interactables = [];
+  const usedPositions = new Set();
+  for (let i = 0; i < iaCount; i++) {
+    let ix, iy, tries = 0;
+    do {
+      ix = 3 + Math.floor(seededRand(400+i*10+tries) * 18);
+      iy = 2 + Math.floor(seededRand(401+i*10+tries) * 11);
+      tries++;
+    } while ((map[iy][ix] !== 0 || usedPositions.has(`${ix},${iy}`)) && tries < 20);
+    usedPositions.add(`${ix},${iy}`);
+    interactables.push({ x:ix, y:iy, type: i%2===0 ? 'door' : 'terminal', promptIdx: i });
+    if (i%2===0) map[iy][ix] = 2; // locked door on map
+  }
+
+  return {
+    guards, cameras, interactables,
+    loot: { x:lootX, y:lootY },
+    escapeGates: [{ x:COLS-3, y:ROWS-3 }],
+    map
+  };
+}
+
+// ── LEVEL DATA ────────────────────────────────────────────
+// First 3 are hand-crafted; rest are procedurally generated
+// Legend: 0=floor, 1=wall, 2=locked door, 4=terminal, 5=camera, 6=exit, 7=spawn, 8=carpet, 9=metal, 11=loot
+const LEVELS = [
+  // Mission 1: Orientation Hall
+  { guards: [
+      { x:12, y:4, route:[[12,4],[16,4],[16,8],[12,8]], speed:1.2, coneAngle:70, coneRange:5 },
+      { x:6, y:10, route:[[6,10],[6,6],[10,6],[10,10]], speed:1.0, coneAngle:60, coneRange:4 }
+    ],
+    cameras: [
+      { x:8, y:2, angle:180, sweep:90, range:5, speed:30 },
+      { x:18, y:6, angle:270, sweep:80, range:4, speed:25 }
+    ],
+    interactables: [
+      { x:5, y:3, type:'door', promptIdx:0 },
+      { x:10, y:3, type:'door', promptIdx:2 },
+      { x:14, y:7, type:'terminal', promptIdx:3 },
+      { x:19, y:5, type:'terminal', promptIdx:4 },
+      { x:17, y:11, type:'door', promptIdx:5 }
+    ],
+    loot: { x:15, y:7 },
+    escapeGates: [{ x:19, y:12 }],
+    map: [
+      [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+      [1,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,1],
+      [1,0,0,0,0,0,0,0,5,0,0,1,1,0,0,0,0,0,5,0,0,0,0,1],
+      [1,0,0,8,8,2,0,0,0,0,2,1,1,0,0,9,9,0,0,0,0,0,0,1],
+      [1,0,0,8,8,0,0,0,0,0,0,0,0,0,0,9,9,0,0,0,0,0,0,1],
+      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,0,0,0,1],
+      [1,1,1,1,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,1,1,1],
+      [1,0,0,0,0,0,0,0,0,0,0,1,1,0,4,0,11,0,0,0,0,0,0,1],
+      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+      [1,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,1],
+      [1,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,2,0,0,0,0,0,1],
+      [1,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,6,0,1],
+      [1,0,7,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,1],
+      [1,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,1],
+      [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+    ]
+  },
+  // Mission 2: Camera Basics
+  { guards: [
+      { x:4, y:7, route:[[4,7],[4,3],[8,3],[8,7]], speed:1.1, coneAngle:65, coneRange:5 },
+      { x:18, y:10, route:[[18,10],[18,5],[14,5],[14,10]], speed:1.3, coneAngle:75, coneRange:5 }
+    ],
+    cameras: [
+      { x:6, y:1, angle:180, sweep:100, range:5, speed:35 },
+      { x:12, y:1, angle:180, sweep:90, range:6, speed:28 },
+      { x:20, y:5, angle:270, sweep:70, range:5, speed:32 },
+      { x:10, y:10, angle:90, sweep:80, range:4, speed:30 }
+    ],
+    interactables: [
+      { x:6, y:4, type:'terminal', promptIdx:0 },   // disable camera 1
+      { x:12, y:4, type:'terminal', promptIdx:1 },   // disable camera 2
+      { x:16, y:3, type:'door', promptIdx:2 },
+      { x:20, y:8, type:'terminal', promptIdx:3 },
+      { x:8, y:11, type:'door', promptIdx:4 },
+      { x:14, y:12, type:'terminal', promptIdx:5 }
+    ],
+    loot: { x:20, y:3 },
+    escapeGates: [{ x:19, y:12 }],
+    map: [
+      [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+      [1,0,0,0,0,0,5,0,0,0,0,0,5,0,0,0,0,0,0,0,0,0,0,1],
+      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+      [1,0,0,8,8,0,0,0,0,0,0,0,0,0,0,0,2,0,0,0,11,0,0,1],
+      [1,0,0,8,0,0,4,0,0,0,0,0,4,0,0,0,0,0,0,0,0,0,0,1],
+      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,5,0,0,1],
+      [1,1,1,1,0,0,0,0,1,1,1,1,1,1,0,0,0,0,1,1,1,1,1,1],
+      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+      [1,0,7,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,0,0,1],
+      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+      [1,0,0,0,0,0,0,0,0,0,5,0,0,0,0,0,0,0,0,0,0,0,0,1],
+      [1,0,0,0,0,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,4,0,0,0,0,0,0,6,0,1],
+      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+      [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+    ]
+  },
+  // Mission 3: Quiet Floors
+  { guards: [
+      { x:6, y:5, route:[[6,5],[6,10],[12,10],[12,5]], speed:1.0, coneAngle:60, coneRange:4 },
+      { x:18, y:8, route:[[18,8],[18,4],[22,4],[22,8]], speed:1.4, coneAngle:70, coneRange:5 }
+    ],
+    cameras: [
+      { x:10, y:3, angle:180, sweep:80, range:5, speed:28 }
+    ],
+    interactables: [
+      { x:4, y:6, type:'terminal', promptIdx:0 },
+      { x:10, y:6, type:'door', promptIdx:1 },
+      { x:15, y:4, type:'terminal', promptIdx:2 },
+      { x:8, y:10, type:'door', promptIdx:3 },
+      { x:18, y:12, type:'terminal', promptIdx:4 },
+      { x:20, y:6, type:'door', promptIdx:5 }
+    ],
+    loot: { x:21, y:4 },
+    escapeGates: [{ x:19, y:12 }],
+    map: [
+      [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+      [1,0,7,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,1],
+      [1,0,0,0,0,0,0,0,0,0,5,0,1,1,0,0,0,0,9,9,9,0,0,1],
+      [1,0,0,9,9,9,9,0,0,0,0,0,1,1,0,4,0,0,9,9,9,11,0,1],
+      [1,0,0,9,9,9,9,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+      [1,0,0,0,4,0,0,0,0,0,2,0,0,0,0,0,0,0,0,0,2,0,0,1],
+      [1,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,1],
+      [1,0,0,8,8,8,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,1],
+      [1,0,0,8,8,8,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,1],
+      [1,0,0,0,0,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+      [1,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,4,0,0,6,0,1],
+      [1,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,1],
+      [1,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,1],
+      [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+    ]
+  }
+];
+// Generate procedural levels for missions 4–30
+for (let i = 3; i < MISSIONS.length; i++) LEVELS.push(generateLevel(i));
+
+// ── GAME STATE ─────────────────────────────────────────────────
+const STATE = {
+  MENU: 'menu', BRIEFING: 'briefing', PLAYING: 'playing',
+  MATH: 'math', VAULT: 'vault', PAUSED: 'paused', RESULTS: 'results', CAUGHT: 'caught'
+};
+
+let gameState = STATE.MENU;
+let selectedClass = null;
+let currentMission = 0;
+let level = null;
+
+// Player
+let player = { x:0, y:0, vx:0, vy:0, crouching:false, hasLoot:false, facing:0 };
+
+// Guards (runtime)
+let guards = [];
+// Cameras (runtime)
+let cameras = [];
+// Interactables (runtime)
+let interactables = [];
+// Loot position
+let lootPos = null;
+
+// Metrics
+let heat = 0;
+let noise = 0;
+let noiseDecay = 8; // noise/sec decay
+let score = 0;
+let mathCorrect = 0;
+let mathTotal = 0;
+let mathTimes = [];
+let promptQueue = [];
+let currentPromptIdx = 0;
+let missionTimer = 0;
+let missionTimeLimit = 480; // 8 min in seconds
+
+// Echo system
+let echoRecording = false;
+let echoBuffer = []; // [{x,y,facing,crouching,t}]
+let echoGhost = null; // {frames:[], playIdx:0, active:false}
+let echoStartTime = 0;
+const ECHO_DURATION = 15; // seconds
+let echoAvailable = true;
+
+// Math popup state
+let mathActive = false;
+let mathPrompt = null;
+let mathInteractable = null;
+let mathStartTime = 0;
+let mathInputValue = '';
+
+// Vault state
+let vaultActive = false;
+let vaultStep = 0;
+let vaultPrompts = [];
+let vaultTimer = 0;
+const VAULT_TIME_LIMIT = 90; // seconds
+let vaultStartTime = 0;
+
+// Escape state
+let escapeActive = false;
+let escapeCountdown = 60;
+let escapeStartTime = 0;
+let escapeFlashTimer = 0;
+
+// Ability state
+let abilityCooldown = 0; // seconds remaining
+let abilityBuffType = null; // 'overclock'|'softstep'|'burst'|null
+let abilityBuffTimer = 0;
+let abilityBuffData = 0; // overclock: hacks remaining; burst: sprint seconds left
+let abilityActive = false; // popup is open for ability
+
+// Gadget state
+let gadgetAvailable = true;
+let gadgetPos = null; // {x,y}
+let gadgetTimer = 0; // counts up from placement
+let gadgetEmitting = false;
+const GADGET_DELAY = 2; // seconds before noise starts
+const GADGET_DURATION = 4; // seconds of noise emission
+
+// Hint state
+let currentHintsUsed = 0;
+let totalHintsUsed = 0;
+
+// Audio system
+let audioCtx = null;
+let audioMuted = false;
+function initAudio() { if (!audioCtx) try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {} }
+function playTone(freq, dur, type, vol) {
+  if (!audioCtx || audioMuted) return;
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.type = type || 'sine';
+  o.frequency.value = freq;
+  g.gain.value = vol || 0.12;
+  g.gain.linearRampToValueAtTime(0, audioCtx.currentTime + dur);
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start(); o.stop(audioCtx.currentTime + dur);
+}
+function sfxCorrect() { playTone(400,0.1,'sine'); setTimeout(()=>playTone(600,0.12,'sine'),100); }
+function sfxWrong() { playTone(150,0.2,'sawtooth',0.08); }
+function sfxVaultCrack() { playTone(300,0.15,'sine'); setTimeout(()=>playTone(500,0.15,'sine'),120); setTimeout(()=>playTone(800,0.2,'sine'),240); }
+function sfxExit() { playTone(400,0.1,'sine'); setTimeout(()=>playTone(500,0.1,'sine'),100); setTimeout(()=>playTone(700,0.15,'sine'),200); }
+function sfxAlert() { playTone(350,0.15,'square',0.06); }
+function sfxChase() { playTone(500,0.08,'square',0.08); setTimeout(()=>playTone(500,0.08,'square',0.08),120); }
+
+// Keys
+const keys = {};
+document.addEventListener('keydown', e => {
+  keys[e.key.toLowerCase()] = true;
+  initAudio();
+  if (e.key === 'm' && gameState !== STATE.MENU) { audioMuted = !audioMuted; return; }
+  if (gameState === STATE.VAULT) handleVaultKey(e);
+  else if (gameState === STATE.MATH) handleMathKey(e);
+  else if (gameState === STATE.MENU) handleMenuKey(e);
+  else if (gameState === STATE.BRIEFING) handleBriefingKey(e);
+  else if (gameState === STATE.RESULTS || gameState === STATE.CAUGHT) handleResultsKey(e);
+  else if (gameState === STATE.PLAYING) handlePlayingKey(e);
+});
+document.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+
+// ── MATH VALIDATION ENGINE ─────────────────────────────────────
+function normalizeAnswer(raw) {
+  let s = raw.trim().toLowerCase().replace(/\s+/g, '');
+  // Remove trailing % for comparison
+  s = s.replace(/%$/, '');
+  return s;
+}
+
+function parseNumericValue(s) {
+  // Try fraction
+  const fracMatch = s.match(/^(-?\d+)\/(\d+)$/);
+  if (fracMatch) return parseInt(fracMatch[1]) / parseInt(fracMatch[2]);
+  // Try decimal
+  const n = parseFloat(s);
+  if (!isNaN(n)) return n;
+  return null;
+}
+
+function checkAnswer(userRaw, correctRaw, tolerance) {
+  const u = normalizeAnswer(userRaw);
+  const c = normalizeAnswer(correctRaw);
+  // Exact string match
+  if (u === c) return true;
+  // Numeric equivalence
+  const uv = parseNumericValue(u);
+  const cv = parseNumericValue(c);
+  if (uv !== null && cv !== null) {
+    const tol = tolerance || 0.01;
+    return Math.abs(uv - cv) < tol;
+  }
+  return false;
+}
+
+// ── ENTITY HELPERS ─────────────────────────────────────────────
+function tileAt(gx, gy) {
+  if (gx < 0 || gx >= COLS || gy < 0 || gy >= ROWS) return T.WALL;
+  return level.map[gy][gx];
+}
+
+function isSolid(gx, gy) {
+  const t = tileAt(gx, gy);
+  return t === T.WALL || t === T.DOOR_LOCKED;
+}
+
+function pixelToGrid(px, py) {
+  return { gx: Math.floor(px / TILE), gy: Math.floor(py / TILE) };
+}
+
+// ── GUARD AI ───────────────────────────────────────────────────
+function createGuard(def) {
+  return {
+    x: def.x * TILE + TILE/2,
+    y: def.y * TILE + TILE/2,
+    route: def.route.map(r => ({ x: r[0]*TILE+TILE/2, y: r[1]*TILE+TILE/2 })),
+    routeIdx: 0,
+    speed: def.speed,
+    coneAngle: def.coneAngle * DEG,
+    coneRange: def.coneRange * TILE,
+    facing: 0,
+    state: 'patrol', // patrol, investigate, chase
+    alertTimer: 0,
+    investigateTarget: null,
+    chaseTimer: 0
+  };
+}
+
+function updateGuard(g, dt) {
+  if (g.state === 'patrol') {
+    const target = g.route[g.routeIdx];
+    const dx = target.x - g.x;
+    const dy = target.y - g.y;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    if (dist < 2) {
+      g.routeIdx = (g.routeIdx + 1) % g.route.length;
+    } else {
+      const speed = g.speed * TILE * dt;
+      g.x += (dx/dist) * speed;
+      g.y += (dy/dist) * speed;
+      g.facing = Math.atan2(dy, dx);
+    }
+  } else if (g.state === 'investigate') {
+    if (g.investigateTarget) {
+      const dx = g.investigateTarget.x - g.x;
+      const dy = g.investigateTarget.y - g.y;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist < TILE) {
+        g.alertTimer -= dt;
+        if (g.alertTimer <= 0) {
+          g.state = 'patrol';
+          g.investigateTarget = null;
+        }
+      } else {
+        const speed = g.speed * 1.5 * TILE * dt;
+        g.x += (dx/dist) * speed;
+        g.y += (dy/dist) * speed;
+        g.facing = Math.atan2(dy, dx);
+      }
+    }
+  } else if (g.state === 'chase') {
+    const dx = player.x - g.x;
+    const dy = player.y - g.y;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    const speed = g.speed * 2.0 * TILE * dt;
+    g.x += (dx/dist) * speed;
+    g.y += (dy/dist) * speed;
+    g.facing = Math.atan2(dy, dx);
+    g.chaseTimer -= dt;
+    if (g.chaseTimer <= 0 || dist > 8 * TILE) {
+      g.state = 'patrol';
+    }
+    // Catch player
+    if (dist < TILE * 0.6) {
+      gameState = STATE.CAUGHT;
+    }
+  }
+
+  // Vision check
+  if (gameState === STATE.PLAYING && !mathActive) {
+    const dx = player.x - g.x;
+    const dy = player.y - g.y;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    const angle = Math.atan2(dy, dx);
+    let diff = angle - g.facing;
+    while (diff > Math.PI) diff -= PI2;
+    while (diff < -Math.PI) diff += PI2;
+
+    const effectiveRange = player.crouching ? g.coneRange * 0.6 : g.coneRange;
+    if (dist < effectiveRange && Math.abs(diff) < g.coneAngle / 2) {
+      // Line of sight check (simple: just check walls between)
+      if (hasLineOfSight(g.x, g.y, player.x, player.y)) {
+        if (g.state === 'patrol') {
+          g.state = 'investigate';
+          g.investigateTarget = { x: player.x, y: player.y };
+          g.alertTimer = 3;
+          heat = Math.min(100, heat + 15);
+        } else if (g.state === 'investigate' && dist < effectiveRange * 0.6) {
+          g.state = 'chase';
+          g.chaseTimer = 6;
+          heat = Math.min(100, heat + 25);
+        }
+      }
+    }
+  }
+
+  // React to gadget noise (priority over player noise)
+  if (gadgetEmitting && gadgetPos && g.state === 'patrol') {
+    const gdx = gadgetPos.x - g.x;
+    const gdy = gadgetPos.y - g.y;
+    const gdist = Math.sqrt(gdx*gdx + gdy*gdy);
+    if (gdist < 6 * TILE) {
+      g.state = 'investigate';
+      g.investigateTarget = { x: gadgetPos.x + (Math.random()-0.5)*TILE, y: gadgetPos.y + (Math.random()-0.5)*TILE };
+      g.alertTimer = 5;
+    }
+  }
+  // React to player noise
+  else if (noise > 40 && g.state === 'patrol') {
+    const dx = player.x - g.x;
+    const dy = player.y - g.y;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    if (dist < 6 * TILE) {
+      g.state = 'investigate';
+      g.investigateTarget = { x: player.x + (Math.random()-0.5)*TILE*2, y: player.y + (Math.random()-0.5)*TILE*2 };
+      g.alertTimer = 4;
+    }
+  }
+}
+
+function hasLineOfSight(x1, y1, x2, y2) {
+  const steps = 20;
+  for (let i = 1; i < steps; i++) {
+    const t = i / steps;
+    const px = x1 + (x2-x1)*t;
+    const py = y1 + (y2-y1)*t;
+    if (isSolid(Math.floor(px/TILE), Math.floor(py/TILE))) return false;
+  }
+  return true;
+}
+
+// ── CAMERA SYSTEM ──────────────────────────────────────────────
+function createCamera(def) {
+  return {
+    x: def.x * TILE + TILE/2,
+    y: def.y * TILE + TILE/2,
+    baseAngle: def.angle * DEG,
+    currentAngle: def.angle * DEG,
+    sweep: def.sweep * DEG,
+    range: def.range * TILE,
+    speed: def.speed * DEG,
+    direction: 1,
+    disabled: false
+  };
+}
+
+function updateCamera(cam, dt) {
+  if (cam.disabled) return;
+  cam.currentAngle += cam.speed * cam.direction * dt;
+  const halfSweep = cam.sweep / 2;
+  if (cam.currentAngle > cam.baseAngle + halfSweep) {
+    cam.direction = -1;
+  } else if (cam.currentAngle < cam.baseAngle - halfSweep) {
+    cam.direction = 1;
+  }
+
+  // Detection
+  if (gameState === STATE.PLAYING && !mathActive) {
+    const dx = player.x - cam.x;
+    const dy = player.y - cam.y;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    const angle = Math.atan2(dy, dx);
+    let diff = angle - cam.currentAngle;
+    while (diff > Math.PI) diff -= PI2;
+    while (diff < -Math.PI) diff += PI2;
+    const coneHalf = 35 * DEG;
+    if (dist < cam.range && Math.abs(diff) < coneHalf) {
+      if (hasLineOfSight(cam.x, cam.y, player.x, player.y)) {
+        heat = Math.min(100, heat + 20 * dt);
+        if (heat >= 100) gameState = STATE.CAUGHT;
+      }
+    }
+  }
+}
+
+// ── LEVEL INITIALIZATION ───────────────────────────────────────
+function loadLevel(missionIdx) {
+  // Deep copy so door unlocks don't persist across retries
+  const src = LEVELS[missionIdx];
+  level = {
+    guards: src.guards,
+    cameras: src.cameras,
+    interactables: src.interactables,
+    loot: src.loot,
+    map: src.map.map(row => [...row])
+  };
+  const mission = MISSIONS[missionIdx];
+
+  // Find spawn
+  for (let y = 0; y < ROWS; y++) {
+    for (let x = 0; x < COLS; x++) {
+      if (level.map[y][x] === T.SPAWN) {
+        player.x = x * TILE + TILE/2;
+        player.y = y * TILE + TILE/2;
+      }
+    }
+  }
+
+  player.vx = 0; player.vy = 0;
+  player.crouching = false;
+  player.hasLoot = false;
+  player.facing = 0;
+
+  guards = level.guards.map(createGuard);
+  cameras = level.cameras.map(createCamera);
+
+  interactables = level.interactables.map(ia => ({
+    x: ia.x * TILE + TILE/2,
+    y: ia.y * TILE + TILE/2,
+    type: ia.type,
+    prompt: mission.prompts[ia.promptIdx],
+    solved: false,
+    gx: ia.x, gy: ia.y
+  }));
+
+  lootPos = level.loot ? { x: level.loot.x * TILE + TILE/2, y: level.loot.y * TILE + TILE/2 } : null;
+
+  heat = 0; noise = 0; score = 0;
+  mathCorrect = 0; mathTotal = 0; mathTimes = [];
+  missionTimer = 0;
+  echoRecording = false; echoBuffer = []; echoGhost = null; echoAvailable = true;
+  promptQueue = [...mission.prompts];
+  currentPromptIdx = 0;
+
+  // Reset vault/escape
+  vaultActive = false; vaultStep = 0; vaultPrompts = []; vaultTimer = 0;
+  const dc = getDConfig();
+  escapeActive = false; escapeCountdown = dc.escapeTime; escapeFlashTimer = 0;
+  mathActive = false;
+
+  // Reset ability/gadget/hints
+  abilityCooldown = 0; abilityBuffType = null; abilityBuffTimer = 0; abilityBuffData = 0; abilityActive = false;
+  gadgetAvailable = true; gadgetPos = null; gadgetTimer = 0; gadgetEmitting = false;
+  currentHintsUsed = 0; totalHintsUsed = 0;
+
+  document.getElementById('math-popup').style.display = 'none';
+  document.getElementById('vault-progress').style.display = 'none';
+}
+
+// ── PLAYER UPDATE ──────────────────────────────────────────────
+function updatePlayer(dt) {
+  if (mathActive) return;
+
+  const cls = CLASSES[selectedClass];
+  let speed = cls.moveSpeed * TILE;
+  if (player.crouching) speed *= 0.5;
+
+  // Runner burst buff: 2× speed, zero noise
+  let burstActive = false;
+  if (abilityBuffType === 'burst' && abilityBuffTimer > 0) {
+    speed *= 2;
+    burstActive = true;
+  }
+
+  player.vx = 0; player.vy = 0;
+  if (keys['w'] || keys['arrowup']) player.vy = -speed;
+  if (keys['s'] || keys['arrowdown']) player.vy = speed;
+  if (keys['a'] || keys['arrowleft']) player.vx = -speed;
+  if (keys['d'] || keys['arrowright']) player.vx = speed;
+
+  // Normalize diagonal
+  if (player.vx && player.vy) {
+    player.vx *= 0.707;
+    player.vy *= 0.707;
+  }
+
+  // Update facing
+  if (player.vx || player.vy) {
+    player.facing = Math.atan2(player.vy, player.vx);
+  }
+
+  // Move with collision
+  const nx = player.x + player.vx * dt;
+  const ny = player.y + player.vy * dt;
+  const r = TILE * 0.3;
+
+  // X axis
+  if (!isSolid(Math.floor((nx - r)/TILE), Math.floor((player.y - r)/TILE)) &&
+      !isSolid(Math.floor((nx + r)/TILE), Math.floor((player.y - r)/TILE)) &&
+      !isSolid(Math.floor((nx - r)/TILE), Math.floor((player.y + r)/TILE)) &&
+      !isSolid(Math.floor((nx + r)/TILE), Math.floor((player.y + r)/TILE))) {
+    player.x = nx;
+  }
+  // Y axis
+  if (!isSolid(Math.floor((player.x - r)/TILE), Math.floor((ny - r)/TILE)) &&
+      !isSolid(Math.floor((player.x + r)/TILE), Math.floor((ny - r)/TILE)) &&
+      !isSolid(Math.floor((player.x - r)/TILE), Math.floor((ny + r)/TILE)) &&
+      !isSolid(Math.floor((player.x + r)/TILE), Math.floor((ny + r)/TILE))) {
+    player.y = ny;
+  }
+
+  // Noise generation
+  const { gx, gy } = pixelToGrid(player.x, player.y);
+  const tileType = tileAt(gx, gy);
+  const tileNoise = NOISE_MAP[tileType] || 2;
+  const moving = player.vx !== 0 || player.vy !== 0;
+  const noiseGen = moving ? tileNoise * cls.noiseMultiplier * (player.crouching ? 0.3 : 1.0) * (burstActive ? 0 : 1) : 0;
+  noise = Math.max(0, Math.min(100, noise + noiseGen * dt - noiseDecay * dt));
+
+  // Update ability cooldown and buff timers
+  if (abilityCooldown > 0) abilityCooldown = Math.max(0, abilityCooldown - dt);
+  if (abilityBuffTimer > 0) {
+    abilityBuffTimer -= dt;
+    if (abilityBuffTimer <= 0) { abilityBuffType = null; abilityBuffData = 0; }
+  }
+
+  // Update gadget
+  if (gadgetPos && !gadgetEmitting) {
+    gadgetTimer += dt;
+    if (gadgetTimer >= GADGET_DELAY) { gadgetEmitting = true; gadgetTimer = 0; }
+  }
+  if (gadgetEmitting) {
+    gadgetTimer += dt;
+    if (gadgetTimer >= GADGET_DURATION) { gadgetEmitting = false; gadgetPos = null; }
+  }
+
+  // Crouching
+  player.crouching = keys['shift'];
+
+  // Loot pickup → triggers vault sequence instead of instant pickup
+  if (lootPos && !player.hasLoot && !vaultActive && !escapeActive) {
+    const dx = player.x - lootPos.x;
+    const dy = player.y - lootPos.y;
+    if (Math.sqrt(dx*dx + dy*dy) < TILE * 0.8) {
+      startVault();
+    }
+  }
+
+  // Exit check — only during escape phase
+  if (escapeActive) {
+    const exitTile = tileAt(gx, gy);
+    if (exitTile === T.EXIT) {
+      finishMission();
+    }
+  }
+
+  // Echo recording
+  if (echoRecording) {
+    const elapsed = (Date.now() - echoStartTime) / 1000;
+    echoBuffer.push({ x: player.x, y: player.y, facing: player.facing, crouching: player.crouching, t: elapsed });
+    if (elapsed >= ECHO_DURATION) {
+      stopEchoRecording();
+    }
+  }
+}
+
+// ── ECHO SYSTEM ────────────────────────────────────────────────
+function startEchoRecording() {
+  if (!echoAvailable || echoRecording) return;
+  echoRecording = true;
+  echoBuffer = [];
+  echoStartTime = Date.now();
+}
+
+function stopEchoRecording() {
+  echoRecording = false;
+  echoAvailable = false;
+  echoGhost = { frames: [...echoBuffer], playIdx: 0, active: true, startTime: Date.now() };
+}
+
+function updateEcho(dt) {
+  if (!echoGhost || !echoGhost.active) return;
+  const elapsed = (Date.now() - echoGhost.startTime) / 1000;
+  // Find frame closest to elapsed time
+  while (echoGhost.playIdx < echoGhost.frames.length - 1 &&
+         echoGhost.frames[echoGhost.playIdx + 1].t <= elapsed) {
+    echoGhost.playIdx++;
+  }
+  if (echoGhost.playIdx >= echoGhost.frames.length - 1) {
+    echoGhost.active = false;
+  }
+}
+
+// ── VAULT SEQUENCE ─────────────────────────────────────────────
+function startVault() {
+  const mission = MISSIONS[currentMission];
+  vaultActive = true;
+  vaultStep = 0;
+  vaultPrompts = mission.vaultPrompts;
+  vaultStartTime = Date.now();
+  vaultTimer = 0;
+  gameState = STATE.VAULT;
+  showVaultPrompt();
+}
+
+function showVaultPrompt() {
+  const p = vaultPrompts[vaultStep];
+  mathActive = true;
+  mathPrompt = p;
+  mathStartTime = Date.now();
+
+  const popup = document.getElementById('math-popup');
+  const title = document.getElementById('popup-title');
+  const prompt = document.getElementById('popup-prompt');
+  const input = document.getElementById('popup-input');
+  const feedback = document.getElementById('popup-feedback');
+  const progress = document.getElementById('vault-progress');
+
+  popup.className = 'vault-mode';
+  popup.style.display = 'block';
+  title.textContent = `🔐 VAULT · LOCK ${vaultStep + 1} / ${vaultPrompts.length}`;
+  prompt.textContent = p.text;
+  input.value = '';
+  feedback.textContent = '';
+  input.focus();
+
+  // Build step indicators
+  progress.style.display = 'flex';
+  progress.innerHTML = vaultPrompts.map((_, i) =>
+    `<div class="vault-step ${i < vaultStep ? 'done' : ''} ${i === vaultStep ? 'active' : ''}"></div>`
+  ).join('');
+}
+
+function advanceVault() {
+  vaultStep++;
+  if (vaultStep >= vaultPrompts.length) {
+    finishVault();
+  } else {
+    showVaultPrompt();
+  }
+}
+
+function finishVault() {
+  vaultActive = false;
+  mathActive = false;
+  const popup = document.getElementById('math-popup');
+  popup.style.display = 'none';
+  popup.className = '';
+  document.getElementById('vault-progress').style.display = 'none';
+
+  player.hasLoot = true;
+  score += 300; // vault bonus
+  startEscape();
+}
+
+function handleVaultKey(e) {
+  const input = document.getElementById('popup-input');
+  const feedback = document.getElementById('popup-feedback');
+
+  // No escape from vault — you must solve it
+  if (e.key === 'Escape') {
+    feedback.textContent = '⚠ Vault cannot be abandoned!';
+    feedback.className = 'feedback fb-wrong';
+    return;
+  }
+
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    const userAnswer = input.value;
+    if (!userAnswer.trim()) return;
+    mathTotal++;
+    const solveTime = (Date.now() - mathStartTime) / 1000;
+
+    if (checkAnswer(userAnswer, mathPrompt.answer)) {
+      mathCorrect++;
+      mathTimes.push(solveTime);
+      feedback.textContent = '✓ LOCK CRACKED!';
+      feedback.className = 'feedback fb-correct';
+      sfxVaultCrack();
+      score += Math.max(20, Math.floor(150 - solveTime * 5));
+      setTimeout(() => advanceVault(), 800);
+    } else {
+      feedback.textContent = '✗ Wrong code — try again';
+      feedback.className = 'feedback fb-wrong';
+      sfxWrong();
+      heat = Math.min(100, heat + 8);
+      input.value = '';
+      input.focus();
+    }
+  }
+}
+
+// ── ESCAPE SEQUENCE ────────────────────────────────────────────
+function startEscape() {
+  escapeActive = true;
+  escapeCountdown = 60;
+  escapeStartTime = Date.now();
+  escapeFlashTimer = 0;
+  gameState = STATE.PLAYING;
+
+  // Speed up all guards and set them to investigate toward player
+  for (const g of guards) {
+    g.speed *= 1.6;
+    g.coneRange *= 1.3;
+    g.coneAngle *= 1.2;
+    g.state = 'investigate';
+    g.investigateTarget = { x: player.x + (Math.random()-0.5)*TILE*4, y: player.y + (Math.random()-0.5)*TILE*4 };
+    g.alertTimer = 5;
+  }
+
+  // Place escape gates — lock doors on the escape path
+  const mission = MISSIONS[currentMission];
+  const src = LEVELS[currentMission];
+  if (src.escapeGates) {
+    src.escapeGates.forEach((gate, i) => {
+      level.map[gate.y][gate.x] = T.DOOR_LOCKED;
+      const escPrompt = mission.escapePrompts[i] || mission.escapePrompts[0];
+      interactables.push({
+        x: gate.x * TILE + TILE/2,
+        y: gate.y * TILE + TILE/2,
+        type: 'escape_gate',
+        prompt: escPrompt,
+        solved: false,
+        gx: gate.x, gy: gate.y
+      });
+    });
+  }
+}
+
+function updateEscape(dt) {
+  if (!escapeActive) return;
+  escapeCountdown -= dt;
+  escapeFlashTimer += dt;
+  if (escapeCountdown <= 0) {
+    escapeCountdown = 0;
+    gameState = STATE.CAUGHT;
+  }
+}
+
+// ── INTERACTION ────────────────────────────────────────────────
+function tryInteract() {
+  for (const ia of interactables) {
+    if (ia.solved) continue;
+    const dx = player.x - ia.x;
+    const dy = player.y - ia.y;
+    if (Math.sqrt(dx*dx + dy*dy) < TILE * 1.2) {
+      openMathPopup(ia);
+      return;
+    }
+  }
+}
+
+function openMathPopup(ia) {
+  mathActive = true;
+  mathPrompt = ia.prompt;
+  mathInteractable = ia;
+  mathStartTime = Date.now();
+  mathInputValue = '';
+  currentHintsUsed = 0;
+  gameState = STATE.MATH;
+
+  const popup = document.getElementById('math-popup');
+  const title = document.getElementById('popup-title');
+  const prompt = document.getElementById('popup-prompt');
+  const input = document.getElementById('popup-input');
+  const feedback = document.getElementById('popup-feedback');
+
+  // Style based on context
+  popup.className = ia.type === 'escape_gate' ? 'escape-mode' : '';
+  document.getElementById('vault-progress').style.display = 'none';
+  document.getElementById('popup-hint-area').textContent = '';
+
+  if (ia.type === 'escape_gate') {
+    title.textContent = '🚨 ESCAPE GATE';
+  } else {
+    title.textContent = ia.type === 'terminal' ? '🖥 Terminal' : '🔒 Keypad';
+  }
+  prompt.textContent = mathPrompt.text;
+  input.value = '';
+  feedback.textContent = '';
+  popup.style.display = 'block';
+  input.focus();
+}
+
+function closeMathPopup(solved) {
+  // If ability popup, route to ability resolver
+  if (abilityActive) { resolveAbility(solved); return; }
+
+  mathActive = false;
+  const popup = document.getElementById('math-popup');
+  popup.style.display = 'none';
+  popup.className = '';
+  gameState = STATE.PLAYING;
+
+  if (solved && mathInteractable) {
+    mathInteractable.solved = true;
+    // Open door / escape gate
+    if (mathInteractable.type === 'door' || mathInteractable.type === 'escape_gate') {
+      level.map[mathInteractable.gy][mathInteractable.gx] = T.DOOR_OPEN;
+    }
+    // Disable nearby camera if terminal
+    if (mathInteractable.type === 'terminal') {
+      let closest = null, closestDist = Infinity;
+      for (const cam of cameras) {
+        const dx = cam.x - mathInteractable.x;
+        const dy = cam.y - mathInteractable.y;
+        const d = Math.sqrt(dx*dx + dy*dy);
+        if (d < closestDist && !cam.disabled) {
+          closest = cam; closestDist = d;
+        }
+      }
+      if (closest && closestDist < 8 * TILE) {
+        closest.disabled = true;
+      }
+    }
+    score += mathInteractable.type === 'escape_gate' ? 100 : 50;
+  }
+
+  mathPrompt = null;
+  mathInteractable = null;
+}
+
+function showHint() {
+  if (!mathPrompt) return;
+  const dc = getDConfig();
+  const hintArea = document.getElementById('popup-hint-area');
+  if (currentHintsUsed >= 2) { hintArea.textContent = 'No more hints available'; return; }
+  currentHintsUsed++;
+  totalHintsUsed++;
+  score = Math.max(0, score - dc.hintCost);
+  // Try to get hint from prompt data
+  const h1 = mathPrompt.hint1 || mathPrompt.notes || 'Think carefully';
+  const h2 = mathPrompt.hint2 || 'Try a different approach';
+  hintArea.textContent = currentHintsUsed === 1 ? `💡 ${h1}` : `💡 ${h2}`;
+}
+
+function handleMathKey(e) {
+  const input = document.getElementById('popup-input');
+  const feedback = document.getElementById('popup-feedback');
+
+  if (e.key === 'h' || e.key === 'H') {
+    if (e.target !== input || !input.value) { showHint(); return; }
+  }
+
+  if (e.key === 'Escape') {
+    heat = Math.min(100, heat + 10);
+    closeMathPopup(false);
+    return;
+  }
+
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    const userAnswer = input.value;
+    if (!userAnswer.trim()) return;
+    mathTotal++;
+    const solveTime = (Date.now() - mathStartTime) / 1000;
+
+    if (checkAnswer(userAnswer, mathPrompt.answer)) {
+      mathCorrect++;
+      mathTimes.push(solveTime);
+      feedback.textContent = '✓ Correct!';
+      feedback.className = 'feedback fb-correct';
+      sfxCorrect();
+      // Overclock buff: reduce solve-time scoring bonus for next hacks
+      const bonus = abilityBuffType === 'overclock' && abilityBuffData > 0
+        ? Math.max(20, Math.floor(130 - solveTime * 5))
+        : Math.max(10, Math.floor(100 - solveTime * 5));
+      if (abilityBuffType === 'overclock' && abilityBuffData > 0) abilityBuffData--;
+      score += bonus;
+      setTimeout(() => closeMathPopup(true), 600);
+    } else {
+      feedback.textContent = '✗ Try again';
+      feedback.className = 'feedback fb-wrong';
+      sfxWrong();
+      heat = Math.min(100, heat + 5);
+      input.value = '';
+      input.focus();
+    }
+  }
+}
+
+// ── INPUT HANDLERS ─────────────────────────────────────────────
+let menuSelection = 0;
+const classKeys = ['hacker', 'ghost', 'runner'];
+
+function handleMenuKey(e) {
+  if (e.key === 'ArrowLeft' || e.key === 'a') menuSelection = (menuSelection + 2) % 3;
+  if (e.key === 'ArrowRight' || e.key === 'd') menuSelection = (menuSelection + 1) % 3;
+  if (e.key === 'Enter' || e.key === ' ') {
+    selectedClass = classKeys[menuSelection];
+    gameState = STATE.BRIEFING;
+  }
+}
+
+function handleBriefingKey(e) {
+  if (e.key === 'Enter' || e.key === ' ') {
+    loadLevel(currentMission);
+    gameState = STATE.PLAYING;
+  }
+}
+
+function handlePlayingKey(e) {
+  if (e.key === 'e') tryInteract();
+  if (e.key === 'r') {
+    if (!echoRecording && echoAvailable) startEchoRecording();
+    else if (echoRecording) stopEchoRecording();
+  }
+  if (e.key === ' ') { e.preventDefault(); activateAbility(); }
+  if (e.key === 'q') placeGadget();
+}
+
+// ── CLASS ABILITY SYSTEM ──────────────────────────────────────
+function activateAbility() {
+  if (abilityCooldown > 0 || abilityActive || mathActive) return;
+  const cls = CLASSES[selectedClass];
+  const prompts = cls.abilityPrompts;
+  const p = prompts[Math.floor(Math.random() * prompts.length)];
+  abilityActive = true;
+  mathActive = true;
+  mathPrompt = p;
+  mathStartTime = Date.now();
+  currentHintsUsed = 0;
+  gameState = STATE.MATH;
+
+  const popup = document.getElementById('math-popup');
+  popup.className = 'ability-mode';
+  popup.style.setProperty('--cls-color', cls.color);
+  popup.style.display = 'block';
+  document.getElementById('popup-title').textContent = `⚡ ${cls.abilityName}`;
+  document.getElementById('popup-prompt').textContent = p.text;
+  document.getElementById('popup-input').value = '';
+  document.getElementById('popup-feedback').textContent = '';
+  document.getElementById('popup-hint-area').textContent = '';
+  document.getElementById('vault-progress').style.display = 'none';
+  document.getElementById('popup-input').focus();
+}
+
+function resolveAbility(correct) {
+  abilityActive = false;
+  mathActive = false;
+  document.getElementById('math-popup').style.display = 'none';
+  document.getElementById('math-popup').className = '';
+  gameState = STATE.PLAYING;
+
+  const cls = CLASSES[selectedClass];
+  abilityCooldown = cls.abilityCooldown;
+
+  if (!correct) return; // wasted cooldown
+
+  if (selectedClass === 'hacker') {
+    abilityBuffType = 'overclock';
+    abilityBuffTimer = 30; // buff window
+    abilityBuffData = 2; // next 2 hacks boosted
+  } else if (selectedClass === 'ghost') {
+    // Instant noise reduction
+    const reduction = parseFloat(mathPrompt.answer) || 10;
+    noise = Math.max(0, noise - reduction);
+    abilityBuffType = 'softstep';
+    abilityBuffTimer = 0.5; // brief flash
+  } else if (selectedClass === 'runner') {
+    abilityBuffType = 'burst';
+    abilityBuffTimer = 3; // 3 second sprint
+    abilityBuffData = 3;
+  }
+}
+
+// ── GADGET: NOISE MAKER ───────────────────────────────────────
+function placeGadget() {
+  if (!gadgetAvailable || mathActive) return;
+  gadgetAvailable = false;
+  gadgetPos = { x: player.x, y: player.y };
+  gadgetTimer = 0;
+  gadgetEmitting = false;
+}
+
+function handleResultsKey(e) {
+  if (e.key === 'Enter' || e.key === ' ') {
+    if (gameState === STATE.CAUGHT) {
+      // Restart same mission
+      loadLevel(currentMission);
+      gameState = STATE.PLAYING;
+    } else {
+      currentMission++;
+      if (currentMission >= MISSIONS.length) {
+        currentMission = 0;
+        gameState = STATE.MENU;
+      } else {
+        gameState = STATE.BRIEFING;
+      }
+    }
+  }
+}
+
+function finishMission() {
+  // Calculate final score
+  const timeBonus = Math.max(0, Math.floor((missionTimeLimit - missionTimer) / 10));
+  const stealthBonus = Math.max(0, Math.floor((100 - heat) * 3));
+  const accuracyBonus = mathTotal > 0 ? Math.floor((mathCorrect / mathTotal) * 200) : 0;
+  const escapeBonus = escapeActive ? Math.floor(escapeCountdown * 5) : 0;
+  score += timeBonus + stealthBonus + accuracyBonus + escapeBonus;
+  escapeActive = false;
+  sfxExit();
+  gameState = STATE.RESULTS;
+}
+
+// ── RENDER ─────────────────────────────────────────────────────
+function drawTiles() {
+  for (let y = 0; y < ROWS; y++) {
+    for (let x = 0; x < COLS; x++) {
+      const t = level.map[y][x];
+      ctx.fillStyle = COLORS[t] || COLORS[T.FLOOR];
+      ctx.fillRect(x * TILE, y * TILE, TILE, TILE);
+
+      // Grid lines (subtle)
+      ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+      ctx.strokeRect(x * TILE, y * TILE, TILE, TILE);
+
+      // Decorations
+      if (t === T.DOOR_LOCKED) {
+        ctx.fillStyle = '#cc6600';
+        ctx.fillRect(x*TILE+4, y*TILE+TILE/2-2, TILE-8, 4);
+        ctx.fillStyle = '#ffcc00';
+        ctx.beginPath();
+        ctx.arc(x*TILE+TILE/2, y*TILE+TILE/2, 4, 0, PI2);
+        ctx.fill();
+      }
+      if (t === T.DOOR_OPEN) {
+        ctx.fillStyle = 'rgba(58,42,26,0.5)';
+        ctx.fillRect(x*TILE, y*TILE, TILE, TILE);
+      }
+      if (t === T.EXIT) {
+        ctx.fillStyle = '#00ff4488';
+        ctx.font = '20px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('EXIT', x*TILE+TILE/2, y*TILE+TILE/2+6);
+      }
+      if (t === T.METAL) {
+        // Metal floor pattern
+        ctx.strokeStyle = 'rgba(100,100,120,0.2)';
+        ctx.beginPath();
+        ctx.moveTo(x*TILE, y*TILE); ctx.lineTo(x*TILE+TILE, y*TILE+TILE);
+        ctx.moveTo(x*TILE+TILE, y*TILE); ctx.lineTo(x*TILE, y*TILE+TILE);
+        ctx.stroke();
+      }
+      if (t === T.CARPET) {
+        ctx.fillStyle = 'rgba(40,80,50,0.15)';
+        for (let i = 0; i < 3; i++) {
+          ctx.fillRect(x*TILE+5+i*12, y*TILE+5, 8, 2);
+          ctx.fillRect(x*TILE+8+i*10, y*TILE+TILE-7, 6, 2);
+        }
+      }
+    }
+  }
+}
+
+function drawLoot() {
+  if (!lootPos || player.hasLoot) return;
+  const pulse = Math.sin(Date.now() / 300) * 0.3 + 0.7;
+  ctx.save();
+  ctx.globalAlpha = pulse;
+  ctx.fillStyle = '#ffd700';
+  ctx.beginPath();
+  // Diamond shape
+  const cx = lootPos.x, cy = lootPos.y;
+  ctx.moveTo(cx, cy - 12);
+  ctx.lineTo(cx + 10, cy);
+  ctx.lineTo(cx, cy + 12);
+  ctx.lineTo(cx - 10, cy);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = '#ffaa00';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.restore();
+
+  // Glow
+  const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, 25);
+  grad.addColorStop(0, 'rgba(255,215,0,0.2)');
+  grad.addColorStop(1, 'rgba(255,215,0,0)');
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(cx, cy, 25, 0, PI2);
+  ctx.fill();
+}
+
+function drawInteractables() {
+  for (const ia of interactables) {
+    if (ia.solved) continue;
+    const pulse = Math.sin(Date.now() / 500) * 0.2 + 0.8;
+
+    if (ia.type === 'terminal') {
+      ctx.fillStyle = `rgba(0,229,255,${pulse * 0.8})`;
+      ctx.fillRect(ia.x - 8, ia.y - 10, 16, 14);
+      ctx.fillStyle = '#001a22';
+      ctx.fillRect(ia.x - 6, ia.y - 8, 12, 8);
+      // Blinking cursor
+      if (Math.floor(Date.now() / 500) % 2) {
+        ctx.fillStyle = '#00e5ff';
+        ctx.fillRect(ia.x - 3, ia.y - 5, 6, 2);
+      }
+    } else if (ia.type === 'door') {
+      // Keypad glow near door
+      ctx.fillStyle = `rgba(255,100,0,${pulse * 0.6})`;
+      ctx.beginPath();
+      ctx.arc(ia.x, ia.y, 6, 0, PI2);
+      ctx.fill();
+    } else if (ia.type === 'escape_gate') {
+      // Pulsing red gate indicator
+      const ep = Math.sin(Date.now() / 200) * 0.3 + 0.7;
+      ctx.fillStyle = `rgba(239,68,68,${ep * 0.7})`;
+      ctx.beginPath();
+      ctx.arc(ia.x, ia.y, 8, 0, PI2);
+      ctx.fill();
+      ctx.fillStyle = '#ef4444';
+      ctx.font = 'bold 10px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('LOCKED', ia.x, ia.y + 18);
+    }
+
+    // Proximity indicator
+    const dx = player.x - ia.x;
+    const dy = player.y - ia.y;
+    if (Math.sqrt(dx*dx + dy*dy) < TILE * 1.5) {
+      ctx.strokeStyle = 'rgba(0,229,255,0.5)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4,4]);
+      ctx.beginPath();
+      ctx.arc(ia.x, ia.y, TILE * 0.8, 0, PI2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // E prompt
+      ctx.fillStyle = 'rgba(0,229,255,0.9)';
+      ctx.font = 'bold 11px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('[E]', ia.x, ia.y - 16);
+    }
+  }
+}
+
+function drawGuards() {
+  for (const g of guards) {
+    // Vision cone
+    ctx.save();
+    ctx.translate(g.x, g.y);
+    ctx.rotate(g.facing);
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.arc(0, 0, g.coneRange, -g.coneAngle/2, g.coneAngle/2);
+    ctx.closePath();
+    ctx.fillStyle = g.state === 'patrol' ? COLORS.guardCone :
+                    g.state === 'investigate' ? 'rgba(255,136,0,0.15)' :
+                    'rgba(255,0,0,0.2)';
+    ctx.fill();
+    ctx.restore();
+
+    // Body
+    const color = g.state === 'patrol' ? COLORS.guard :
+                  g.state === 'investigate' ? COLORS.guardAlert : '#ff0000';
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(g.x, g.y, TILE * 0.35, 0, PI2);
+    ctx.fill();
+
+    // Direction indicator
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(g.x, g.y);
+    ctx.lineTo(g.x + Math.cos(g.facing) * TILE * 0.4, g.y + Math.sin(g.facing) * TILE * 0.4);
+    ctx.stroke();
+
+    // Alert icon
+    if (g.state !== 'patrol') {
+      ctx.fillStyle = g.state === 'chase' ? '#ff0000' : '#ff8800';
+      ctx.font = 'bold 14px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(g.state === 'chase' ? '!!' : '?', g.x, g.y - 20);
+    }
+  }
+}
+
+function drawCameras() {
+  for (const cam of cameras) {
+    if (cam.disabled) {
+      ctx.fillStyle = 'rgba(100,100,100,0.3)';
+      ctx.beginPath();
+      ctx.arc(cam.x, cam.y, 6, 0, PI2);
+      ctx.fill();
+      continue;
+    }
+
+    // Camera cone
+    ctx.save();
+    ctx.translate(cam.x, cam.y);
+    ctx.rotate(cam.currentAngle);
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.arc(0, 0, cam.range, -35 * DEG, 35 * DEG);
+    ctx.closePath();
+    ctx.fillStyle = COLORS.cameraCone;
+    ctx.fill();
+    ctx.restore();
+
+    // Camera body
+    ctx.fillStyle = COLORS.cameraBody;
+    ctx.beginPath();
+    ctx.arc(cam.x, cam.y, 6, 0, PI2);
+    ctx.fill();
+
+    // Direction line
+    ctx.strokeStyle = COLORS.cameraBody;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(cam.x, cam.y);
+    ctx.lineTo(cam.x + Math.cos(cam.currentAngle) * 12, cam.y + Math.sin(cam.currentAngle) * 12);
+    ctx.stroke();
+  }
+}
+
+function drawPlayer() {
+  const cls = CLASSES[selectedClass];
+
+  // Player body
+  const size = player.crouching ? TILE * 0.25 : TILE * 0.3;
+  ctx.fillStyle = cls.color;
+  ctx.beginPath();
+  ctx.arc(player.x, player.y, size, 0, PI2);
+  ctx.fill();
+
+  // Facing line
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(player.x, player.y);
+  ctx.lineTo(player.x + Math.cos(player.facing) * TILE * 0.4, player.y + Math.sin(player.facing) * TILE * 0.4);
+  ctx.stroke();
+
+  // Loot indicator
+  if (player.hasLoot) {
+    ctx.fillStyle = '#ffd700';
+    ctx.font = '12px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('💎', player.x, player.y - 18);
+  }
+
+  // Crouch indicator
+  if (player.crouching) {
+    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3,3]);
+    ctx.beginPath();
+    ctx.arc(player.x, player.y, size + 4, 0, PI2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+}
+
+function drawGadget() {
+  if (!gadgetPos) return;
+  const gx = gadgetPos.x, gy = gadgetPos.y;
+  if (gadgetEmitting) {
+    const t = gadgetTimer / GADGET_DURATION;
+    for (let r = 1; r <= 3; r++) {
+      const radius = (t * r * 30 + r * 10) % 80;
+      ctx.strokeStyle = `rgba(245,158,11,${0.4 - t * 0.3})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(gx, gy, radius, 0, PI2);
+      ctx.stroke();
+    }
+    ctx.fillStyle = '#f59e0b';
+  } else {
+    const p = Math.sin(Date.now() / 300) * 0.3 + 0.7;
+    ctx.fillStyle = `rgba(245,158,11,${p})`;
+  }
+  ctx.beginPath();
+  ctx.arc(gx, gy, 5, 0, PI2);
+  ctx.fill();
+  ctx.fillStyle = '#f59e0b';
+  ctx.font = '9px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(gadgetEmitting ? 'NOISE' : 'GADGET', gx, gy - 10);
+}
+
+function drawEchoGhost() {
+  if (!echoGhost || !echoGhost.active) return;
+  const frame = echoGhost.frames[echoGhost.playIdx];
+  if (!frame) return;
+
+  ctx.save();
+  ctx.globalAlpha = 0.4;
+  ctx.fillStyle = COLORS.ghost;
+  ctx.beginPath();
+  ctx.arc(frame.x, frame.y, TILE * 0.28, 0, PI2);
+  ctx.fill();
+
+  // Ghost trail
+  const trailStart = Math.max(0, echoGhost.playIdx - 10);
+  ctx.globalAlpha = 0.1;
+  for (let i = trailStart; i < echoGhost.playIdx; i++) {
+    const f = echoGhost.frames[i];
+    ctx.beginPath();
+    ctx.arc(f.x, f.y, 3, 0, PI2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawEchoRecordingIndicator() {
+  if (!echoRecording) return;
+  const elapsed = (Date.now() - echoStartTime) / 1000;
+  const remaining = ECHO_DURATION - elapsed;
+  const pulse = Math.sin(Date.now() / 200) * 0.3 + 0.7;
+
+  ctx.save();
+  ctx.fillStyle = `rgba(255,0,0,${pulse})`;
+  ctx.beginPath();
+  ctx.arc(W - 80, 50, 6, 0, PI2);
+  ctx.fill();
+  ctx.fillStyle = '#ff4444';
+  ctx.font = 'bold 12px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText(`REC ${remaining.toFixed(1)}s`, W - 68, 54);
+  ctx.restore();
+}
+
+// ── HUD ────────────────────────────────────────────────────────
+function drawHUD() {
+  const cls = CLASSES[selectedClass];
+  const mission = MISSIONS[currentMission];
+
+  // Top bar
+  ctx.fillStyle = 'rgba(13,21,32,0.92)';
+  ctx.fillRect(0, 0, W, 36);
+  ctx.strokeStyle = 'rgba(0,229,255,0.2)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0, 36); ctx.lineTo(W, 36); ctx.stroke();
+
+  // Class + mission
+  ctx.fillStyle = cls.color;
+  ctx.font = 'bold 13px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText(`${cls.icon} ${cls.name}`, 12, 24);
+
+  ctx.fillStyle = COLORS.hudText;
+  ctx.font = '12px monospace';
+  ctx.fillText(`M${mission.id}: ${mission.name}`, 120, 24);
+
+  // Timer
+  const timeLeft = Math.max(0, missionTimeLimit - missionTimer);
+  const mins = Math.floor(timeLeft / 60);
+  const secs = Math.floor(timeLeft % 60);
+  ctx.fillStyle = timeLeft < 60 ? '#ef4444' : COLORS.hudAccent;
+  ctx.font = 'bold 14px monospace';
+  ctx.textAlign = 'right';
+  ctx.fillText(`${mins}:${secs.toString().padStart(2,'0')}`, W - 12, 24);
+
+  // Score
+  ctx.fillStyle = COLORS.score;
+  ctx.font = 'bold 13px monospace';
+  ctx.fillText(`$${score}`, W - 80, 24);
+
+  // Bottom bar: Heat + Noise meters
+  const barY = H - 28;
+  ctx.fillStyle = 'rgba(13,21,32,0.92)';
+  ctx.fillRect(0, barY - 8, W, 36);
+  ctx.strokeStyle = 'rgba(0,229,255,0.2)';
+  ctx.beginPath(); ctx.moveTo(0, barY - 8); ctx.lineTo(W, barY - 8); ctx.stroke();
+
+  // Heat bar
+  ctx.fillStyle = COLORS.hudText;
+  ctx.font = '11px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('HEAT', 12, barY + 12);
+  ctx.fillStyle = 'rgba(239,68,68,0.2)';
+  ctx.fillRect(60, barY + 2, 150, 12);
+  ctx.fillStyle = heat > 70 ? '#ff0000' : COLORS.heat;
+  ctx.fillRect(60, barY + 2, heat * 1.5, 12);
+
+  // Noise bar
+  ctx.fillStyle = COLORS.hudText;
+  ctx.fillText('NOISE', 240, barY + 12);
+  ctx.fillStyle = 'rgba(245,158,11,0.2)';
+  ctx.fillRect(298, barY + 2, 150, 12);
+  ctx.fillStyle = COLORS.noise;
+  ctx.fillRect(298, barY + 2, noise * 1.5, 12);
+
+  // Math accuracy
+  ctx.fillStyle = COLORS.hudText;
+  ctx.fillText(`MATH ${mathCorrect}/${mathTotal}`, 480, barY + 12);
+
+  // Ability cooldown (compact)
+  const cls2 = CLASSES[selectedClass];
+  if (abilityCooldown > 0) {
+    ctx.fillStyle = '#64748b';
+    ctx.fillText(`${cls2.abilityName} ${Math.ceil(abilityCooldown)}s`, 570, barY + 12);
+  } else if (abilityBuffType) {
+    ctx.fillStyle = cls2.color;
+    ctx.fillText(`✓ ${abilityBuffType.toUpperCase()}`, 570, barY + 12);
+  } else {
+    ctx.fillStyle = cls2.color;
+    ctx.fillText(`[SPC] ${cls2.abilityName}`, 570, barY + 12);
+  }
+
+  // Gadget status
+  ctx.fillStyle = gadgetAvailable ? '#f59e0b' : '#64748b';
+  ctx.fillText(gadgetAvailable ? '[Q] Gadget' : gadgetEmitting ? 'GADGET ●' : 'Gadget used', 680, barY + 12);
+
+  // Echo + Loot / escape status
+  const echoText = echoRecording ? '● REC' : echoAvailable ? 'ECHO [R]' : echoGhost?.active ? '▶ REPLAY' : 'ECHO USED';
+  if (escapeActive) {
+    const escSecs = Math.ceil(escapeCountdown);
+    const escColor = escSecs <= 15 ? '#ff0000' : '#ef4444';
+    ctx.fillStyle = escColor;
+    ctx.font = 'bold 11px monospace';
+    ctx.fillText(`🚨 ESCAPE ${escSecs}s`, 600, barY + 12);
+    ctx.fillStyle = '#ffd700';
+    ctx.fillText('💎 → EXIT NOW', 720, barY + 12);
+  } else {
+    ctx.fillStyle = echoRecording ? '#ff4444' : echoAvailable ? COLORS.hudAccent : '#64748b';
+    ctx.fillText(echoText, 600, barY + 12);
+    ctx.fillStyle = player.hasLoot ? '#ffd700' : '#64748b';
+    ctx.fillText(player.hasLoot ? '💎 GOT LOOT → EXIT' : '💎 Find loot', 720, barY + 12);
+  }
+
+  // Controls hint
+  ctx.fillStyle = 'rgba(100,116,139,0.5)';
+  ctx.font = '10px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('WASD move · Shift crouch · E interact · R echo · Space ability · Q gadget · M mute', W/2, barY + 26);
+}
+
+// ── MENU SCREEN ────────────────────────────────────────────────
+function drawMenu() {
+  ctx.fillStyle = '#0a0a0f';
+  ctx.fillRect(0, 0, W, H);
+
+  // Title
+  ctx.fillStyle = '#00e5ff';
+  ctx.font = 'bold 48px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('ECHO HEIST', W/2, 120);
+
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '16px monospace';
+  ctx.fillText('Math-Stealth Roguelite', W/2, 155);
+
+  // District info
+  const distNames = ['District 1: Training Gallery','District 2: Camera Commons','District 3: Escape Lines'];
+  const selDist = getDistrict(currentMission);
+  ctx.fillStyle = '#64748b';
+  ctx.font = '13px monospace';
+  ctx.fillText(distNames[selDist] + ` · Mission ${currentMission+1}/30`, W/2, 185);
+
+  // Class selection
+  ctx.fillStyle = '#e0e6ed';
+  ctx.font = 'bold 18px monospace';
+  ctx.fillText('Choose Your Class', W/2, 240);
+
+  const classArr = Object.entries(CLASSES);
+  const cardW = 220, cardH = 160, gap = 30;
+  const startX = (W - (classArr.length * cardW + (classArr.length - 1) * gap)) / 2;
+
+  classArr.forEach(([key, cls], i) => {
+    const x = startX + i * (cardW + gap);
+    const y = 270;
+    const selected = i === menuSelection;
+
+    // Card bg
+    ctx.fillStyle = selected ? 'rgba(0,229,255,0.08)' : 'rgba(30,41,59,0.5)';
+    ctx.strokeStyle = selected ? cls.color : 'rgba(100,116,139,0.3)';
+    ctx.lineWidth = selected ? 2 : 1;
+    ctx.beginPath();
+    ctx.roundRect(x, y, cardW, cardH, 12);
+    ctx.fill();
+    ctx.stroke();
+
+    // Icon
+    ctx.font = '32px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(cls.icon, x + cardW/2, y + 40);
+
+    // Name
+    ctx.fillStyle = cls.color;
+    ctx.font = 'bold 16px monospace';
+    ctx.fillText(cls.name, x + cardW/2, y + 70);
+
+    // Desc (wrap)
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '11px monospace';
+    const lines = cls.desc.split(' · ');
+    lines.forEach((line, li) => {
+      ctx.fillText(line, x + cardW/2, y + 92 + li * 16);
+    });
+
+    // Selection indicator
+    if (selected) {
+      ctx.fillStyle = cls.color;
+      ctx.font = 'bold 13px monospace';
+      ctx.fillText('▸ SELECTED ◂', x + cardW/2, y + cardH - 10);
+    }
+  });
+
+  // Instructions
+  ctx.fillStyle = '#64748b';
+  ctx.font = '13px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('← → to select · Enter to confirm', W/2, H - 60);
+  ctx.fillText('Ages 11–13 · Typed Math Answers · 8–10 min runs', W/2, H - 38);
+}
+
+// ── BRIEFING SCREEN ────────────────────────────────────────────
+function drawBriefing() {
+  const mission = MISSIONS[currentMission];
+  const cls = CLASSES[selectedClass];
+
+  ctx.fillStyle = '#0a0a0f';
+  ctx.fillRect(0, 0, W, H);
+
+  // Header
+  ctx.fillStyle = '#00e5ff';
+  ctx.font = 'bold 14px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(`DISTRICT 1 · ${mission.district.toUpperCase()}`, W/2, 60);
+
+  ctx.fillStyle = '#e0e6ed';
+  ctx.font = 'bold 32px monospace';
+  ctx.fillText(`Mission ${mission.id}: ${mission.name}`, W/2, 110);
+
+  // Objective
+  ctx.fillStyle = '#f59e0b';
+  ctx.font = '16px monospace';
+  ctx.fillText(`Objective: ${mission.objective}`, W/2, 160);
+
+  // Class info
+  ctx.fillStyle = cls.color;
+  ctx.font = 'bold 18px monospace';
+  ctx.fillText(`${cls.icon} Playing as ${cls.name}`, W/2, 220);
+
+  // Mission details
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '14px monospace';
+  ctx.fillText(`${mission.prompts.length} math challenges · ${level ? guards.length : LEVELS[currentMission].guards.length} guards · ${LEVELS[currentMission].cameras.length} cameras`, W/2, 260);
+
+  // Controls reminder
+  const controls = [
+    'WASD — Move', 'Shift — Crouch (quieter, slower)',
+    'E — Interact with terminals/doors', 'R — Record/stop echo',
+    'Esc — Cancel math popup (costs heat)'
+  ];
+  ctx.fillStyle = '#64748b';
+  ctx.font = '12px monospace';
+  ctx.textAlign = 'center';
+  controls.forEach((c, i) => {
+    ctx.fillText(c, W/2, 310 + i * 22);
+  });
+
+  // Tips
+  ctx.fillStyle = '#22c55e';
+  ctx.font = '13px monospace';
+  ctx.fillText('💡 Find the loot, solve puzzles to unlock doors, reach EXIT', W/2, 460);
+  ctx.fillText('💡 Stay quiet and avoid guard vision cones', W/2, 485);
+
+  ctx.fillStyle = '#00e5ff';
+  ctx.font = 'bold 16px monospace';
+  ctx.fillText('Press ENTER to begin', W/2, 540);
+}
+
+// ── RESULTS SCREEN ─────────────────────────────────────────────
+function drawResults() {
+  const mission = MISSIONS[currentMission];
+  const cls = CLASSES[selectedClass];
+
+  ctx.fillStyle = '#0a0a0f';
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.fillStyle = '#22c55e';
+  ctx.font = 'bold 36px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('MISSION COMPLETE', W/2, 80);
+
+  ctx.fillStyle = '#e0e6ed';
+  ctx.font = '18px monospace';
+  ctx.fillText(`${mission.name} · ${cls.name}`, W/2, 120);
+
+  // Stats
+  const stats = [
+    { label: 'Score', value: `$${score}`, color: COLORS.score },
+    { label: 'Math Accuracy', value: mathTotal > 0 ? `${mathCorrect}/${mathTotal} (${Math.round(mathCorrect/mathTotal*100)}%)` : 'N/A', color: COLORS.hudAccent },
+    { label: 'Avg Solve Time', value: mathTimes.length > 0 ? `${(mathTimes.reduce((a,b)=>a+b,0)/mathTimes.length).toFixed(1)}s` : 'N/A', color: '#f59e0b' },
+    { label: 'Final Heat', value: `${Math.round(heat)}%`, color: heat > 50 ? '#ef4444' : '#22c55e' },
+    { label: 'Time', value: `${Math.floor(missionTimer/60)}:${Math.floor(missionTimer%60).toString().padStart(2,'0')}`, color: COLORS.hudText },
+    { label: 'Loot', value: player.hasLoot ? 'Retrieved ✓' : 'Missed ✗', color: player.hasLoot ? '#ffd700' : '#ef4444' }
+  ];
+
+  stats.forEach((s, i) => {
+    const y = 180 + i * 50;
+    ctx.fillStyle = '#64748b';
+    ctx.font = '14px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText(s.label, W/2 - 160, y);
+    ctx.fillStyle = s.color;
+    ctx.font = 'bold 18px monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText(s.value, W/2 + 160, y);
+  });
+
+  // Grade
+  const accuracy = mathTotal > 0 ? mathCorrect / mathTotal : 0;
+  const grade = accuracy >= 0.9 ? 'S' : accuracy >= 0.7 ? 'A' : accuracy >= 0.5 ? 'B' : 'C';
+  const gradeColor = grade === 'S' ? '#ffd700' : grade === 'A' ? '#22c55e' : grade === 'B' ? '#00e5ff' : '#94a3b8';
+
+  ctx.fillStyle = gradeColor;
+  ctx.font = 'bold 64px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(grade, W/2, 530);
+
+  ctx.fillStyle = '#64748b';
+  ctx.font = '13px monospace';
+  ctx.fillText(currentMission < MISSIONS.length - 1 ? 'Press ENTER for next mission' : 'Press ENTER to return to menu', W/2, 580);
+}
+
+// ── CAUGHT SCREEN ──────────────────────────────────────────────
+function drawCaught() {
+  ctx.fillStyle = 'rgba(10,10,15,0.85)';
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.fillStyle = '#ef4444';
+  ctx.font = 'bold 42px monospace';
+  ctx.textAlign = 'center';
+  const reason = escapeCountdown <= 0 ? 'TIME\'S UP!' : 'DETECTED!';
+  ctx.fillText(reason, W/2, H/2 - 40);
+
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '16px monospace';
+  const detail = escapeCountdown <= 0 ? 'The escape timer ran out.' : 'A guard spotted you.';
+  ctx.fillText(detail, W/2, H/2 + 10);
+
+  ctx.fillStyle = '#64748b';
+  ctx.font = '14px monospace';
+  ctx.fillText(`Math: ${mathCorrect}/${mathTotal} · Score: $${score}`, W/2, H/2 + 50);
+
+  ctx.fillStyle = '#00e5ff';
+  ctx.font = 'bold 16px monospace';
+  ctx.fillText('Press ENTER to retry', W/2, H/2 + 100);
+}
+
+// ── VAULT OVERLAY (drawn on canvas behind popup) ─────────────
+function drawVaultOverlay() {
+  // Dark tinted overlay
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  ctx.fillRect(0, 0, W, H);
+
+  // Gold border pulse
+  const pulse = Math.sin(Date.now() / 400) * 0.3 + 0.7;
+  ctx.strokeStyle = `rgba(255,215,0,${pulse * 0.6})`;
+  ctx.lineWidth = 4;
+  ctx.strokeRect(6, 6, W - 12, H - 12);
+
+  // Vault timer
+  const elapsed = (Date.now() - vaultStartTime) / 1000;
+  const remaining = Math.max(0, VAULT_TIME_LIMIT - elapsed);
+  ctx.fillStyle = remaining < 20 ? '#ef4444' : '#ffd700';
+  ctx.font = 'bold 16px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(`VAULT CRACKING · ${Math.ceil(remaining)}s`, W/2, 50);
+
+  // Vault icon
+  ctx.font = '48px sans-serif';
+  ctx.fillText('🔐', W/2, H/2 - 100);
+
+  // Vault timer expired = caught
+  if (remaining <= 0 && vaultActive) {
+    vaultActive = false;
+    mathActive = false;
+    document.getElementById('math-popup').style.display = 'none';
+    gameState = STATE.CAUGHT;
+  }
+}
+
+// ── ESCAPE OVERLAY ────────────────────────────────────────
+function drawEscapeOverlay() {
+  if (!escapeActive) return;
+
+  // Flashing red border
+  const flash = Math.sin(escapeFlashTimer * 4) * 0.4 + 0.4;
+  ctx.strokeStyle = `rgba(239,68,68,${flash})`;
+  ctx.lineWidth = 6;
+  ctx.strokeRect(3, 3, W - 6, H - 6);
+
+  // Escape countdown at top center
+  const secs = Math.ceil(escapeCountdown);
+  const urgent = secs <= 15;
+  ctx.fillStyle = urgent ? '#ff0000' : '#ef4444';
+  ctx.font = `bold ${urgent ? 28 : 22}px monospace`;
+  ctx.textAlign = 'center';
+  ctx.fillText(`🚨 ESCAPE: ${secs}s`, W/2, 65);
+
+  // "ALARM" text flash
+  if (Math.floor(Date.now() / 600) % 2) {
+    ctx.fillStyle = 'rgba(239,68,68,0.15)';
+    ctx.font = 'bold 80px monospace';
+    ctx.fillText('ALARM', W/2, H/2);
+  }
+}
+
+// ── MAIN GAME LOOP ─────────────────────────────────────────────
+let lastTime = 0;
+
+function gameLoop(timestamp) {
+  const dt = Math.min((timestamp - lastTime) / 1000, 0.05);
+  lastTime = timestamp;
+
+  switch (gameState) {
+    case STATE.MENU:
+      drawMenu();
+      break;
+
+    case STATE.BRIEFING:
+      drawBriefing();
+      break;
+
+    case STATE.VAULT:
+      // During vault: guards/cameras still update (tension!)
+      missionTimer += dt;
+      guards.forEach(g => updateGuard(g, dt));
+      cameras.forEach(c => updateCamera(c, dt));
+
+      // Draw world behind vault overlay
+      drawTiles();
+      drawLoot();
+      drawInteractables();
+      drawCameras();
+      drawGuards();
+      drawPlayer();
+      drawHUD();
+      drawVaultOverlay();
+      break;
+
+    case STATE.PLAYING:
+    case STATE.MATH:
+      // Update
+      if (gameState === STATE.PLAYING) {
+        missionTimer += dt;
+        if (missionTimer >= missionTimeLimit) {
+          gameState = STATE.CAUGHT;
+        }
+        updatePlayer(dt);
+        updateEscape(dt);
+        heat = Math.max(0, heat - 0.5 * dt); // slow heat decay
+      }
+      guards.forEach(g => updateGuard(g, dt));
+      cameras.forEach(c => updateCamera(c, dt));
+      updateEcho(dt);
+
+      // Draw
+      drawTiles();
+      drawLoot();
+      drawInteractables();
+      drawCameras();
+      drawGadget();
+      drawEchoGhost();
+      drawGuards();
+      drawPlayer();
+      drawHUD();
+      drawEchoRecordingIndicator();
+      drawEscapeOverlay();
+      break;
+
+    case STATE.RESULTS:
+      drawResults();
+      break;
+
+    case STATE.CAUGHT:
+      // Draw game behind
+      drawTiles();
+      drawLoot();
+      drawInteractables();
+      drawCameras();
+      drawGuards();
+      drawPlayer();
+      drawHUD();
+      drawCaught();
+      break;
+  }
+
+  requestAnimationFrame(gameLoop);
+}
+
+// Start
+requestAnimationFrame(gameLoop);
+
+</script>
+</body>
+</html>

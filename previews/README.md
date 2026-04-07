@@ -84,6 +84,16 @@ previews/
 | `current.html` | Live playable version (P3: Chef Cosina, lab status strip, tiered celebration) |
 | `pass-3.html` | Frozen P3 checkpoint |
 
+### echo-heist/
+
+| File | Role |
+|------|------|
+| `current.html` | Live playable version (P2: class abilities, gadget, audio, hints, 30 missions) |
+| `pass-1.html` | Frozen P1 checkpoint (core loop proof) |
+| `pass-1-record.md` | Pass 1 design record |
+| `pass-2-record.md` | Pass 2 design record |
+| `playtest.js` | Headless test suite (213 tests) |
+
 ---
 
 ## Connection to the OS pipeline
