@@ -132,6 +132,33 @@ At what point does this concept stop generating new challenge?
 - Is the ceiling set by content (fixed levels) or by skill (always room to improve)?
 - Can the game grow into optimization, or is correctness the permanent ceiling?
 
+### Skill distinctness
+
+#### Primary math skill
+What exact math skill does this game practice?
+Be specific: not "arithmetic" but "addition of 2-3 single-digit numbers to reach a target."
+
+#### Grade band
+Where does this skill sit in a Pre-K to Grade 12 curriculum?
+- Pre-K to 1: counting, comparison, early addition
+- Grades 2-3: addition/subtraction fluency, place value, early multiplication
+- Grades 4-5: multiplication/division fluency, fractions, decimals
+- Grades 6-7: ratios, proportional reasoning, ceiling division, early algebra
+- Grades 8-9: linear equations, expressions, variables
+- Grades 10-12: systems, inequalities, optimization, multi-step algebra
+
+#### Closest existing game or reference in the portfolio
+Which existing game or reference already practices the most similar math skill?
+If none, say "new skill — no overlap."
+
+#### Cognitive similarity risk
+Could a student practicing this game develop the same mental skill as an existing game,
+just in a different theme? If yes, the concept may be a skin change, not a skill change.
+
+#### What design strategies are borrowed vs what skill is new
+Name what is borrowed from reference games (loop structure, consequence design,
+urgency model) and what math skill is genuinely new to the portfolio.
+
 ### Minimal proof of wonder
 What is one concrete sign that this game is not just functional, but memorable?
 
