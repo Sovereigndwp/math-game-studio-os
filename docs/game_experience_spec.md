@@ -159,6 +159,37 @@ just in a different theme? If yes, the concept may be a skin change, not a skill
 Name what is borrowed from reference games (loop structure, consequence design,
 urgency model) and what math skill is genuinely new to the portfolio.
 
+### Overlap resolution
+If this concept overlaps strongly with an existing game or reference in both
+primary math skill and core loop, compare them directly before approving
+further build work.
+
+Keep both only if there is a clear reason:
+- meaningful age-band difference (e.g., grades K-2 vs grades 4-5)
+- genuinely different structural family (e.g., accumulation vs selection vs allocation)
+- clearly different mastery path or long-term ceiling
+- distinct curriculum value that justifies both
+
+A new theme alone is not enough to justify keeping both.
+
+If the overlap cannot be resolved by one of the reasons above:
+- keep the stronger concept
+- pause, reshape, or drop the weaker one
+- document the decision here
+
+#### Overlap comparison (fill in if overlap detected)
+
+| Dimension | This concept | Overlapping game |
+|---|---|---|
+| Primary skill | | |
+| Grade band | | |
+| Core loop structure | | |
+| Mastery ceiling | | |
+| Curriculum value | | |
+
+**Decision:** [keep both / reshape this concept / pause this concept / drop this concept]
+**Reason:** [one sentence]
+
 ### Minimal proof of wonder
 What is one concrete sign that this game is not just functional, but memorable?
 
