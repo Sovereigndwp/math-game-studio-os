@@ -53,14 +53,16 @@ Before any new game moves to implementation, it must:
 
 | Concept | Grade band | Status | Pre-build |
 |---|---|---|---|
-| **Firefly Ranger** | Elementary (K-3) | Pre-build approved | Delight Gate pass, FI 0.82, SL 0.79 |
-| **School Trip Fleet** | Middle School (4-7) | Pre-build approved | Delight Gate strong pass, FI 0.84, SL 0.81 |
-| **Power Grid Operator** | High School (8-12) | P1+P2A prototype done | Delight Gate strong pass, FI 0.87, SL 0.83 |
+| **Power Grid Operator** | High School (8-12) | P1+P2A prototype done | Active build — deepest ceiling, most iteration |
+| **School Trip Fleet** | Middle School (4-7) | Pre-build approved | Secondary — ready for P1 after Power Grid validates |
+| **Firefly Ranger** | Elementary (K-3) | Pre-build approved | Purposeful hold — ceiling risk, build only when elementary proof case is needed |
 
 ## Immediate next steps
 
-1. Playtest Power Grid L1-L3 with P2A — validate algebra-first loop
-2. Build Firefly Ranger P1 prototype (L1-L3)
-3. Build School Trip Fleet P1 prototype (L1-L3)
-4. Fire Dispatch P4B done — maintain as secondary
-5. Do not start P4/P5 on Bakery Rush or Unit Circle
+1. Manual Power Grid P2A playtest — answer: "Does it feel like powering a city or typing numbers?"
+2. If Power Grid passes: scope P2B (scarcity introduction)
+3. If Power Grid needs work: diagnose visual legibility vs loop thinness before expanding
+4. School Trip Fleet P1: build after Power Grid direction is confirmed
+5. Firefly Ranger: hold until elementary proof case is specifically needed
+6. Fire Dispatch: maintain as secondary (P4B done)
+7. Bakery Rush / Unit Circle: frozen as learning scaffolds
