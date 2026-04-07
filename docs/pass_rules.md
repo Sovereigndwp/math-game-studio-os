@@ -186,6 +186,7 @@ Move out of P1 when:
 5. New demands must be introduced one at a time
 6. The world model must be legible before pressure begins
 7. Every game must have a reachable win condition at every level
+8. If the game uses typed input, the input system must accept equivalent forms (e.g. 0.5, 1/2, .5 for the same value) and provide at least two tiers of in-play support (e.g. hint + auto-hint, or hint + scaffold). Typed input without equivalence acceptance and graduated support produces format frustration, not math learning.
 
 ---
 
@@ -255,6 +256,7 @@ Move out of P2B when:
 5. Tuning must target behavior, not vague aesthetics
 6. New cognitive demand means lower speed or clutter
 7. The game must test the intended skill, not a shortcut skill
+8. Content difficulty and environmental difficulty must be tunable independently. If math complexity and environmental pressure (speed, timer, hazard count) are locked together, the designer cannot isolate what is causing the player to struggle. Verify at P2B that each axis can be adjusted without moving the other.
 
 ---
 
