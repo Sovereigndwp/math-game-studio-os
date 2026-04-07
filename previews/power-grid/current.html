@@ -20,7 +20,6 @@ body{background:#0a0f1a;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-seri
 .strip{text-align:center;font-size:12px;padding:5px 14px;border-radius:999px;background:rgba(10,20,40,.8);border:1px solid #1e3a5f;font-weight:600}
 .radio{font-size:11px;text-align:center;min-height:14px;font-weight:600}
 
-/* Reserve */
 .reserve{width:260px;padding:12px 18px;background:rgba(10,20,50,.95);border:2px solid #3b82f6;border-radius:14px;text-align:center;z-index:2}
 .reserve-label{font-size:10px;color:#3b82f6;letter-spacing:2px;text-transform:uppercase;font-weight:700}
 .reserve-icon{font-size:26px;margin:2px 0}
@@ -29,7 +28,6 @@ body{background:#0a0f1a;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-seri
 .reserve-fill{height:100%;border-radius:5px;transition:width .6s ease-out,background .3s}
 .reserve-sub{font-size:10px;color:#64748b}
 
-/* Connectors */
 .connectors{display:flex;justify-content:center;width:100%;height:36px;position:relative}
 .conn-trunk{position:absolute;left:50%;top:0;width:2px;height:10px;background:#334155;transform:translateX(-1px)}
 .conn-left,.conn-right{position:absolute;top:10px;width:2px;height:26px;transition:background .3s,box-shadow .3s}
@@ -41,10 +39,10 @@ body{background:#0a0f1a;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-seri
 .branch-h.left{left:calc(25% + 10px);right:50%}
 .branch-h.right{left:50%;right:calc(25% + 10px)}
 
-/* District */
 .districts{display:flex;gap:12px;width:100%}
 .d{flex:1;background:rgba(15,25,45,.95);border:2px solid #1e3a5f;border-radius:14px;padding:14px 16px;transition:all .4s;min-width:0}
 .d.powered{border-color:#22c55e;box-shadow:0 0 24px rgba(34,197,94,.25)}
+.d.unrouted{border-color:#334155;opacity:.45}
 .d-name{font-size:15px;font-weight:700;margin-bottom:4px}
 
 .pbar{width:100%;height:8px;background:#1e293b;border-radius:4px;overflow:hidden;margin:3px 0}
@@ -61,17 +59,13 @@ body{background:#0a0f1a;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-seri
 .sb{padding:6px 16px;font-size:13px;font-weight:700;background:#22c55e;color:#0a0f1a;border:none;border-radius:6px;cursor:pointer}
 .sb:hover{background:#16a34a}.sb:disabled{background:#334155;color:#64748b;cursor:not-allowed}
 
-.rb{width:100%;padding:8px;font-size:12px;font-weight:700;background:#3b82f6;color:#fff;border:none;border-radius:6px;cursor:pointer;margin-top:4px}
-.rb:hover{background:#2563eb}
-
 .fb{text-align:center;padding:6px;border-radius:6px;font-size:11px;font-weight:600;margin-top:4px}
 .fb.ok{background:rgba(34,197,94,.1);color:#22c55e;border:1px solid rgba(34,197,94,.3)}
 .fb.bad{background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.3)}
 
-/* Single district layout */
 .single{width:100%;max-width:340px}
 
-/* Summary panel (inline, not overlay) */
+/* Summary panel */
 .summary{width:100%;background:rgba(10,20,40,.95);border:2px solid #22c55e;border-radius:14px;padding:20px;text-align:center;margin-top:8px}
 .summary.partial{border-color:#f59e0b}
 .summary h2{font-size:17px;margin-bottom:6px;text-shadow:0 0 10px rgba(34,197,94,.4)}
@@ -83,8 +77,16 @@ body{background:#0a0f1a;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-seri
 .nb{margin-top:12px;padding:9px 24px;font-size:13px;font-weight:700;background:#22c55e;color:#0a0f1a;border:none;border-radius:8px;cursor:pointer}
 .nb:hover{background:#16a34a}
 
-/* Unrouted district in complete state */
-.d.unrouted{border-color:#334155;opacity:.45}
+/* Tutorial */
+.tut{width:100%;text-align:center;padding:20px}
+.tut-step{margin:16px 0}
+.tut-caption{font-size:13px;color:#94a3b8;margin-top:8px;line-height:1.6}
+.tut-em{font-size:11px;color:#64748b;font-style:italic;margin-top:4px}
+.tut-dots{display:flex;gap:6px;justify-content:center;margin:12px 0}
+.tut-dot{width:8px;height:8px;border-radius:50%;background:#334155}
+.tut-dot.active{background:#22c55e}
+@keyframes routePulse{0%{box-shadow:0 0 0 rgba(34,197,94,0)}50%{box-shadow:0 0 20px rgba(34,197,94,.5)}100%{box-shadow:0 0 0 rgba(34,197,94,0)}}
+.pulse-glow{animation:routePulse 1s ease-out}
 </style>
 </head>
 <body>
@@ -111,38 +113,149 @@ function buildRound(cfg){
     return{...d,demand,current,missing:demand-current,solved:false,solvedVal:null,routed:false};
   });
   const totalMissing=ds.reduce((s,d)=>s+d.missing,0);
-  // Reserve = exactly enough for all districts (no scarcity in P1)
   return{districts:ds,reserve:totalMissing,reserveLeft:totalMissing};
 }
 
+// ── Tutorial ─────────────────────────────────────────────────────────────────
+
+const TUT_STEPS=[
+  {caption:'Districts need power to stay online.',em:'Each dark district shows how much it needs.',showDistrict:true,showEq:false,showReserve:false,showRoute:false,showGrid:false},
+  {caption:'Solve the missing value to find the shortfall.',em:'The equation tells you exactly how much power is missing.',showDistrict:true,showEq:true,showReserve:false,showRoute:false,showGrid:false},
+  {caption:'Correct answer sends power automatically.',em:'The reserve drains. The district lights up.',showDistrict:true,showEq:true,showReserve:true,showRoute:true,showGrid:false},
+  {caption:'Every district draws from the same shared reserve.',em:'Solve each shortfall to keep the whole city lit.',showDistrict:true,showEq:true,showReserve:true,showRoute:true,showGrid:true},
+];
+
+function Tutorial({onDone}){
+  const[step,setStep]=useState(0);
+  const s=TUT_STEPS[step];
+  const isLast=step===TUT_STEPS.length-1;
+
+  // Auto-advance every 3.5 seconds, or click to advance
+  useEffect(()=>{
+    const id=setTimeout(()=>{if(!isLast)setStep(p=>p+1);},3500);
+    return()=>clearTimeout(id);
+  },[step,isLast]);
+
+  return(
+    <div className="g">
+      <div style={{textAlign:'center',marginTop:16}}>
+        <div style={{fontSize:36}}>⚡</div>
+        <h1 style={{color:'#22c55e',fontSize:20,letterSpacing:3,textShadow:'0 0 12px rgba(34,197,94,.4)'}}>HOW THE GRID WORKS</h1>
+      </div>
+
+      {/* Visual demo area */}
+      <div style={{width:'100%',display:'flex',flexDirection:'column',alignItems:'center',gap:8,minHeight:200}}>
+
+        {/* Reserve — visible from step 3+ */}
+        {s.showReserve&&(
+          <div className="reserve" style={{width:220,padding:'10px 14px'}}>
+            <div className="reserve-label">Shared Reserve</div>
+            <div style={{fontSize:22}}>🔋</div>
+            <div className="reserve-val" style={{fontSize:24,color:s.showRoute?'#22c55e':'#3b82f6'}}>{s.showRoute?'0':'8'} MW</div>
+            <div className="reserve-bar">
+              <div className="reserve-fill" style={{width:s.showRoute?'0%':'100%',background:s.showRoute?'#22c55e':'#3b82f6'}}/>
+            </div>
+          </div>
+        )}
+
+        {/* Connectors — visible from step 3 when routing shown */}
+        {s.showGrid&&(
+          <div className="connectors" style={{height:30}}>
+            <div className="conn-trunk"/>
+            <div className="branch-h left"/><div className="branch-h right"/>
+            <div className="conn-left active"/><div className="conn-right active"/>
+          </div>
+        )}
+
+        {/* District demo cards */}
+        <div style={{display:'flex',gap:12,width:'100%',justifyContent:'center'}}>
+          <div className={`d ${s.showRoute?'powered':''}`} style={{maxWidth:240,flex:'none',width:s.showGrid?'45%':'60%'}}>
+            <div style={{display:'flex',alignItems:'center',gap:6}}>
+              <span style={{fontSize:18}}>🏙️</span>
+              <span className="d-name">Downtown</span>
+              {s.showRoute&&<span style={{fontSize:9,fontWeight:700,color:'#22c55e',background:'rgba(34,197,94,.15)',padding:'2px 6px',borderRadius:4}}>⚡ POWERED</span>}
+            </div>
+            <div className="pbar-label"><span>Power</span><span className="val">{s.showRoute?'12':'4'} / 12 MW</span></div>
+            <div className="pbar"><div className="pbar-fill" style={{width:s.showRoute?'100%':'33%',background:s.showRoute?'#22c55e':'#ef4444'}}/></div>
+            {s.showEq&&(
+              <div className="eq" style={{padding:8}}>
+                <div className="eq-text" style={{fontSize:18}}>4 + <span className="x">{s.showRoute?'8':'x'}</span> = 12</div>
+                {s.showRoute&&<div style={{fontSize:10,color:'#22c55e',marginTop:2}}>✓ x = 8</div>}
+              </div>
+            )}
+          </div>
+
+          {/* Second district — visible only on grid step */}
+          {s.showGrid&&(
+            <div className="d powered" style={{maxWidth:240,flex:'none',width:'45%'}}>
+              <div style={{display:'flex',alignItems:'center',gap:6}}>
+                <span style={{fontSize:18}}>🏥</span>
+                <span className="d-name">Hospital</span>
+                <span style={{fontSize:9,fontWeight:700,color:'#22c55e',background:'rgba(34,197,94,.15)',padding:'2px 6px',borderRadius:4}}>⚡ POWERED</span>
+              </div>
+              <div className="pbar-label"><span>Power</span><span className="val">10 / 10 MW</span></div>
+              <div className="pbar"><div className="pbar-fill" style={{width:'100%',background:'#22c55e'}}/></div>
+              <div className="eq" style={{padding:8}}>
+                <div className="eq-text" style={{fontSize:18}}>3 + <span className="x">7</span> = 10</div>
+                <div style={{fontSize:10,color:'#22c55e',marginTop:2}}>✓ x = 7</div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Single connector for non-grid reserve step */}
+        {s.showReserve&&!s.showGrid&&(
+          <div style={{width:2,height:20,background:s.showRoute?'#22c55e':'#334155',margin:'-4px 0',transition:'background .3s'}}/>
+        )}
+      </div>
+
+      {/* Caption */}
+      <div className="tut-caption">{s.caption}</div>
+      <div className="tut-em">{s.em}</div>
+
+      {/* Dots */}
+      <div className="tut-dots">
+        {TUT_STEPS.map((_,i)=><div key={i} className={`tut-dot ${i<=step?'active':''}`}/>)}
+      </div>
+
+      {/* Button */}
+      {isLast?(
+        <button className="nb" onClick={onDone}>START OPERATING ⚡</button>
+      ):(
+        <button className="nb" style={{background:'#334155',color:'#94a3b8'}} onClick={()=>setStep(p=>Math.min(p+1,TUT_STEPS.length-1))}>NEXT →</button>
+      )}
+    </div>
+  );
+}
+
+// ── Main ─────────────────────────────────────────────────────────────────────
+
 function PowerGrid(){
-  const[screen,setScreen]=useState('menu');
+  const[screen,setScreen]=useState('tutorial');// tutorial | menu | playing | complete
   const[li,setLi]=useState(0);
   const[round,setRound]=useState(null);
-  const[input,setInput]=useState('');
-  const[active,setActive]=useState(0);
-  const[fb,setFb]=useState(null);
+  const[inputs,setInputs]=useState({});// per-district input: {districtId: 'value'}
+  const[fbs,setFbs]=useState({});// per-district feedback: {districtId: {t,m}}
   const[score,setScore]=useState(0);
   const[radio,setRadio]=useState({t:'',c:''});
   const[showOv,setShowOv]=useState(false);
   const[gTimer,setGTimer]=useState(null);
   const resRef=useRef(0);
-  const solveRef=useRef(0);// correct solves
-  const wrongRef=useRef(0);// wrong attempts
+  const solveRef=useRef(0);
+  const wrongRef=useRef(0);
   const startTime=useRef(0);
   const[connState,setConnState]=useState({});
   const[summary,setSummary]=useState(null);
 
   function start(idx){
     const c=LEVELS[idx];const r=buildRound(c);
-    setLi(idx);setRound(r);setInput('');setActive(0);setFb(null);setScore(0);
+    setLi(idx);setRound(r);setInputs({});setFbs({});setScore(0);
     setRadio({t:'',c:''});setShowOv(false);setSummary(null);
     setGTimer(c.globalTimer);resRef.current=r.reserve;
     solveRef.current=0;wrongRef.current=0;startTime.current=Date.now();
     setConnState({});setScreen('playing');
   }
 
-  // Timer
   useEffect(()=>{
     if(screen!=='playing'||gTimer===null||gTimer<=0)return;
     const id=setTimeout(()=>setGTimer(t=>t-1),1000);
@@ -157,66 +270,59 @@ function PowerGrid(){
     const elapsed=Math.round((Date.now()-startTime.current)/1000);
     const cfg=LEVELS[li];
     const timerUsedPct=cfg.globalTimer?((cfg.globalTimer-Math.max(0,gTimer||0))/cfg.globalTimer)*100:null;
-
-    // Stars
     let stars=1;
-    if(powered===total&&wrongRef.current===0) stars=3;
-    else if(powered===total&&wrongRef.current<=2) stars=2;
-
-    // Takeaway
+    if(powered===total&&wrongRef.current===0)stars=3;
+    else if(powered===total&&wrongRef.current<=2)stars=2;
     let tip='';
-    if(powered<total) tip='Some districts lost power. Focus on solving each shortfall before time runs out.';
-    else if(wrongRef.current>2) tip=`You needed ${wrongRef.current} wrong attempts. Try checking: does current + answer = demand?`;
-    else if(wrongRef.current>0) tip='All powered, but with some wrong guesses. Fewer attempts next time for ★★★.';
-    else if(timerUsedPct!==null&&timerUsedPct>80) tip='Flawless math, but tight on time. Faster mental arithmetic would earn a bigger time cushion.';
+    if(powered<total)tip='Some districts lost power. Solve each shortfall before time runs out.';
+    else if(wrongRef.current>2)tip=`You needed ${wrongRef.current} wrong attempts. Check: current + answer = demand.`;
+    else if(wrongRef.current>0)tip='All powered, but with some wrong guesses. Fewer attempts for ★★★.';
+    else if(timerUsedPct!==null&&timerUsedPct>80)tip='Flawless math, but tight on time. Faster solving earns breathing room.';
     else tip='Flawless shift. Every equation solved first try. ⚡';
-
     const starText=['','★ Completed','★★ Good Shift','★★★ Perfect Shift'][stars];
     const starColor=['','#94a3b8','#d1d5db','#fbbf24'][stars];
-
     setSummary({powered,total,elapsed,stars,starText,starColor,tip,
       solves:solveRef.current,wrongs:wrongRef.current,
       mathPts:solveRef.current*100,routePts:powered*40,wrongPts:wrongRef.current*-20});
     setShowOv(true);setScreen('complete');
   }
 
-  function solve(){
-    if(!round||!input)return;
-    const d=round.districts[active];const ans=parseInt(input,10);
+  // Merged solve + auto-route
+  function solveFor(districtId){
+    if(!round)return;
+    const idx=round.districts.findIndex(dd=>dd.id===districtId);
+    const d=round.districts[idx];
+    if(!d||d.routed)return;
+    const val=inputs[districtId];
+    if(!val)return;
+    const ans=parseInt(val,10);
+
     if(ans===d.missing){
+      // Correct — solve AND route in one step
       solveRef.current++;
-      setScore(s=>s+100);
-      setRound(prev=>({...prev,districts:prev.districts.map((dd,i)=>i===active?{...dd,solved:true,solvedVal:ans}:dd)}));
-      setFb({t:'ok',m:`✓ ${d.name} needs ${ans} MW from the reserve.`,id:d.id});
-      setRadio({t:`📻 ${d.name} — shortfall confirmed: ${ans} MW.`,c:'g'});
+      resRef.current-=d.missing;
+      setScore(s=>s+140);// 100 solve + 40 route merged
+      setConnState(prev=>({...prev,[districtId]:'active'}));
+      setRound(prev=>{
+        const updated={...prev,reserveLeft:resRef.current,districts:prev.districts.map((dd,i)=>
+          i===idx?{...dd,solved:true,solvedVal:ans,routed:true}:dd
+        )};
+        if(updated.districts.every(dd=>dd.routed))setTimeout(()=>finish(),800);
+        return updated;
+      });
+      setFbs(prev=>({...prev,[districtId]:{t:'ok',m:`✓ ${ans} MW routed — ${d.name} powered!`}}));
+      setRadio({t:`📻 ${d.name} — powered! ⚡`,c:'g'});
     }else{
       wrongRef.current++;
       setScore(s=>s-20);
-      setFb({t:'bad',m:`✗ Not ${ans}. ${d.name} has ${d.current} and needs ${d.demand}.`,id:d.id});
+      setFbs(prev=>({...prev,[districtId]:{t:'bad',m:`✗ Not ${ans}. ${d.name} has ${d.current} and needs ${d.demand}.`}}));
       setRadio({t:`📻 ${d.name} — recalculate!`,c:'r'});
     }
-    setInput('');
+    setInputs(prev=>({...prev,[districtId]:''}));
   }
 
-  function route(id){
-    const d=round.districts.find(dd=>dd.id===id);
-    resRef.current-=d.solvedVal;
-    setScore(s=>s+40);
-    setConnState(prev=>({...prev,[id]:'active'}));
-    setRound(prev=>{
-      const updated={...prev,reserveLeft:resRef.current,districts:prev.districts.map(dd=>
-        dd.id===id?{...dd,routed:true}:dd
-      )};
-      // Check if all routed
-      if(updated.districts.every(dd=>dd.routed))setTimeout(()=>finish(),800);
-      return updated;
-    });
-    setRadio({t:`📻 ${d.name} — fully powered! ⚡ Grid holding.`,c:'g'});
-    setFb(null);
-    // Move to next
-    const next=round.districts.findIndex((dd,i)=>!dd.routed&&i!==round.districts.findIndex(x=>x.id===id));
-    if(next>=0)setActive(next);
-  }
+  // ── TUTORIAL ──
+  if(screen==='tutorial')return <Tutorial onDone={()=>setScreen('menu')}/>;
 
   // ── MENU ──
   if(screen==='menu')return(
@@ -225,9 +331,6 @@ function PowerGrid(){
         <div style={{fontSize:44}}>⚡</div>
         <h1 style={{color:'#22c55e',fontSize:22,marginTop:6,textShadow:'0 0 14px rgba(34,197,94,.4)',letterSpacing:3}}>POWER GRID</h1>
         <h2 style={{color:'#94a3b8',fontSize:13,letterSpacing:2,fontWeight:400}}>OPERATOR</h2>
-        <p style={{color:'#64748b',fontSize:12,maxWidth:320,margin:'12px auto',lineHeight:1.7}}>
-          Districts need power. Solve for the shortfall. Route electricity from the reserve. Keep the lights on.
-        </p>
       </div>
       {LEVELS.map((lv,i)=>(
         <button key={i} onClick={()=>start(i)} style={{
@@ -242,7 +345,7 @@ function PowerGrid(){
           <div style={{fontSize:10,color:'#22c55e',fontWeight:600}}>▶ PLAY</div>
         </button>
       ))}
-      <div style={{fontSize:9,color:'#334155',textAlign:'center',marginTop:6}}>Power Grid Operator — P1</div>
+      <button onClick={()=>setScreen('tutorial')} style={{fontSize:10,color:'#475569',background:'none',border:'none',cursor:'pointer',marginTop:4}}>↺ Replay tutorial</button>
     </div>
   );
 
@@ -252,48 +355,44 @@ function PowerGrid(){
   const resPct=round.reserve>0?(round.reserveLeft/round.reserve)*100:100;
   const isMulti=round.districts.length>1;
   const allPowered=round.districts.every(d=>d.routed);
+  const isComplete=screen==='complete';
 
-  // ── District card component ──
-  function DistrictCard({d,i,isActive,isComplete}){
+  function DistrictCard({d}){
     const fillPct=d.routed?100:(d.current/d.demand)*100;
     const cls=d.routed?'powered':(isComplete&&!d.routed)?'unrouted':'';
+    const dfb=fbs[d.id];
     return(
-      <div className={`d ${cls}`}
-        onClick={()=>{if(!d.routed&&!isComplete){setActive(i);setFb(null);setInput('');}}}
-        style={{cursor:!d.routed&&!isComplete?'pointer':'default'}}>
+      <div className={`d ${cls}`}>
         <div style={{display:'flex',alignItems:'center',gap:6}}>
           <span style={{fontSize:20}}>{d.emoji}</span>
           <span className="d-name">{d.name}</span>
-          {d.routed&&<span style={{fontSize:10,fontWeight:700,color:'#22c55e',background:'rgba(34,197,94,.15)',padding:'2px 6px',borderRadius:4,marginLeft:4}}>⚡ POWERED</span>}
-          {isComplete&&!d.routed&&<span style={{fontSize:10,fontWeight:700,color:'#ef4444',background:'rgba(239,68,68,.12)',padding:'2px 6px',borderRadius:4,marginLeft:4}}>⛔ DARK</span>}
+          {d.routed&&<span style={{fontSize:10,fontWeight:700,color:'#22c55e',background:'rgba(34,197,94,.15)',padding:'2px 6px',borderRadius:4}}>⚡ POWERED</span>}
+          {isComplete&&!d.routed&&<span style={{fontSize:10,fontWeight:700,color:'#ef4444',background:'rgba(239,68,68,.12)',padding:'2px 6px',borderRadius:4}}>⛔ DARK</span>}
         </div>
 
         <div className="pbar-label"><span>Power</span><span className="val">{d.routed?d.demand:d.current} / {d.demand} MW</span></div>
         <div className="pbar"><div className="pbar-fill" style={{width:`${fillPct}%`,background:fillPct>=100?'#22c55e':fillPct>50?'#f59e0b':'#ef4444'}}/></div>
 
-        <div className="pbar-label" style={{marginTop:4}}><span>Shortfall</span>
-          <span className="val" style={{color:d.solved?'#22c55e':'#fbbf24'}}>{d.solved?`${d.solvedVal} MW`:'? MW'}</span>
-        </div>
-
-        {isActive&&!d.solved&&(
+        {/* Equation — always visible for unsolved districts */}
+        {!d.routed&&!isComplete&&(
           <div className="eq">
             <div className="eq-text">{d.current} + <span className="x">x</span> = {d.demand}</div>
             <div className="eq-hint">How much more does {d.name} need?</div>
             <div className="solve-row">
-              <input className="si" type="number" value={input}
-                onChange={e=>setInput(e.target.value)}
-                onKeyDown={e=>{if(e.key==='Enter')solve();}}
-                placeholder="x" autoFocus/>
-              <button className="sb" onClick={solve} disabled={!input}>SOLVE</button>
+              <input className="si" type="number"
+                value={inputs[d.id]||''}
+                onChange={e=>setInputs(prev=>({...prev,[d.id]:e.target.value}))}
+                onKeyDown={e=>{if(e.key==='Enter')solveFor(d.id);}}
+                placeholder="x"/>
+              <button className="sb" onClick={()=>solveFor(d.id)} disabled={!inputs[d.id]}>SOLVE</button>
             </div>
           </div>
         )}
 
-        {d.solved&&!d.routed&&isActive&&(
-          <button className="rb" onClick={()=>route(d.id)}>⚡ SEND {d.solvedVal} MW TO {d.name.toUpperCase()}</button>
-        )}
+        {/* Solved confirmation (brief) */}
+        {d.routed&&<div style={{fontSize:10,color:'#22c55e',marginTop:4}}>✓ {d.solvedVal} MW routed from reserve</div>}
 
-        {fb&&fb.id===d.id&&<div className={`fb ${fb.t}`}>{fb.m}</div>}
+        {dfb&&<div className={`fb ${dfb.t}`}>{dfb.m}</div>}
       </div>
     );
   }
@@ -316,70 +415,55 @@ function PowerGrid(){
       )}
 
       <div className="strip" style={{color:allPowered?'#22c55e':'#94a3b8'}}>
-        {allPowered?'⚡ All districts powered! Grid stable.':'⚡ Solve each shortfall. Route the power.'}
+        {allPowered?'⚡ All districts powered! Grid stable.':'⚡ Solve each shortfall to power the city.'}
       </div>
 
       <div className="radio" style={{color:radio.c==='r'?'#ef4444':radio.c==='g'?'#22c55e':'#64748b'}}>{radio.t}</div>
 
       {isMulti?(
         <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:0,width:'100%'}}>
-          {/* Reserve */}
           <div className="reserve">
             <div className="reserve-label">Shared Reserve</div>
             <div className="reserve-icon">🔋</div>
-            <div className="reserve-val" style={{color:round.reserveLeft===0?'#22c55e':round.reserveLeft<round.reserve/2?'#f59e0b':'#3b82f6'}}>
+            <div className="reserve-val" style={{color:round.reserveLeft===0?(allPowered?'#22c55e':'#ef4444'):round.reserveLeft<round.reserve/2?'#f59e0b':'#3b82f6'}}>
               {round.reserveLeft} MW
             </div>
             <div className="reserve-bar">
               <div className="reserve-fill" style={{width:`${resPct}%`,background:round.reserveLeft===0&&allPowered?'#22c55e':'#3b82f6'}}/>
             </div>
-            <div className="reserve-sub">{allPowered?'All power distributed!':round.reserveLeft===round.reserve?`Ready to distribute to ${round.districts.length} districts`:`${round.reserve-round.reserveLeft} MW sent`}</div>
+            <div className="reserve-sub">{allPowered?'All power distributed!':round.reserveLeft===round.reserve?`Ready for ${round.districts.length} districts`:`${round.reserve-round.reserveLeft} MW sent`}</div>
           </div>
-
-          {/* Connectors */}
           <div className="connectors">
-            <div className="conn-trunk"/>
-            <div className="branch-h left"/>
-            <div className="branch-h right"/>
+            <div className="conn-trunk"/><div className="branch-h left"/><div className="branch-h right"/>
             <div className={`conn-left ${connState[round.districts[0]?.id]||''}`}/>
             <div className={`conn-right ${connState[round.districts[1]?.id]||''}`}/>
           </div>
-
-          {/* Districts */}
           <div className="districts">
-            {round.districts.map((d,i)=><DistrictCard key={d.id} d={d} i={i} isActive={i===active&&!d.routed} isComplete={screen==='complete'}/>)}
+            {round.districts.map(d=><DistrictCard key={d.id} d={d}/>)}
           </div>
         </div>
       ):(
         <div style={{display:'flex',flexDirection:'column',alignItems:'center',width:'100%'}}>
-          {round.districts.map((d,i)=><div key={d.id} className="single"><DistrictCard d={d} i={i} isActive={!d.routed} isComplete={screen==='complete'}/></div>)}
+          {round.districts.map(d=><div key={d.id} className="single"><DistrictCard d={d}/></div>)}
         </div>
       )}
 
-      {/* Shift Summary — inline below grid, grid stays visible */}
       {showOv&&summary&&(
         <div className={`summary ${summary.powered<summary.total?'partial':''}`}>
           <h2 style={{color:summary.powered===summary.total?'#22c55e':'#f59e0b'}}>
             {summary.powered===summary.total?'⚡ ALL DISTRICTS POWERED':'⚡ SHIFT COMPLETE'}
           </h2>
-
           <div style={{fontSize:18,fontWeight:800,color:summary.starColor,marginBottom:4}}>{summary.starText}</div>
-
           {round.districts.map(d=>(
             <div key={d.id} className={`tl ${d.routed?'saved':'lost'}`}>
               {d.routed?'✅':'⛔'} {d.emoji} {d.name} — {d.routed?'powered':'not powered'}
             </div>
           ))}
-
           <div style={{marginTop:8,padding:'8px 12px',background:'rgba(15,25,45,.8)',borderRadius:8,border:'1px solid #1e3a5f',textAlign:'left'}}>
             <div style={{fontSize:10,color:'#3b82f6',letterSpacing:2,textTransform:'uppercase',fontWeight:700,marginBottom:5}}>Score Breakdown</div>
             <div style={{display:'flex',justifyContent:'space-between',fontSize:11,color:'#94a3b8',padding:'2px 0'}}>
-              <span>Math solved ({summary.solves}×)</span>
-              <span style={{color:'#22c55e',fontWeight:700}}>+{summary.mathPts}</span>
-            </div>
-            <div style={{display:'flex',justifyContent:'space-between',fontSize:11,color:'#94a3b8',padding:'2px 0'}}>
-              <span>Districts routed ({summary.powered}×)</span>
-              <span style={{color:'#3b82f6',fontWeight:700}}>+{summary.routePts}</span>
+              <span>Districts solved + routed ({summary.solves}×)</span>
+              <span style={{color:'#22c55e',fontWeight:700}}>+{summary.solves*140}</span>
             </div>
             {summary.wrongs>0&&(
               <div style={{display:'flex',justifyContent:'space-between',fontSize:11,color:'#94a3b8',padding:'2px 0'}}>
@@ -391,20 +475,14 @@ function PowerGrid(){
               <span>Total</span><span style={{color:'#fbbf24'}}>{score}</span>
             </div>
           </div>
-
           <div style={{fontSize:10,color:'#64748b',marginTop:5}}>
             Time: {summary.elapsed}s{gTimer!==null&&gTimer>0&&` · ${gTimer}s remaining`}
           </div>
-
           <div style={{marginTop:6,padding:'7px 10px',background:'rgba(34,197,94,.06)',border:'1px solid rgba(34,197,94,.2)',borderRadius:8,fontSize:11,color:'#22c55e',lineHeight:1.5}}>
             <strong>💡 </strong>{summary.tip}
           </div>
-
-          {li<LEVELS.length-1?(
-            <button className="nb" onClick={()=>start(li+1)}>NEXT SHIFT →</button>
-          ):(
-            <button className="nb" onClick={()=>{setScreen('menu');setScore(0);}}>BACK TO MENU</button>
-          )}
+          {li<LEVELS.length-1?<button className="nb" onClick={()=>start(li+1)}>NEXT SHIFT →</button>
+          :<button className="nb" onClick={()=>{setScreen('menu');setScore(0);}}>BACK TO MENU</button>}
         </div>
       )}
     </div>
