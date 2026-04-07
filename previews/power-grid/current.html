@@ -71,14 +71,20 @@ body{background:#0a0f1a;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-seri
 /* Single district layout */
 .single{width:100%;max-width:340px}
 
-/* Overlay */
-.ov{position:fixed;inset:0;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;z-index:100}
-.ov-c{background:#0f1729;border:2px solid #22c55e;border-radius:16px;padding:28px;max-width:400px;text-align:center}
-.ov-c h2{color:#22c55e;font-size:18px;margin-bottom:8px;text-shadow:0 0 12px rgba(34,197,94,.4)}
+/* Summary panel (inline, not overlay) */
+.summary{width:100%;background:rgba(10,20,40,.95);border:2px solid #22c55e;border-radius:14px;padding:20px;text-align:center;margin-top:8px}
+.summary.partial{border-color:#f59e0b}
+.summary h2{font-size:17px;margin-bottom:6px;text-shadow:0 0 10px rgba(34,197,94,.4)}
+.summary.partial h2{color:#f59e0b;text-shadow:0 0 10px rgba(245,158,11,.4)}
 .sl{font-size:13px;color:#94a3b8;margin:3px 0}.sl span{color:#fbbf24;font-weight:700}
-.tl{font-size:12px;margin:5px 0;padding:7px;border-radius:6px;background:rgba(34,197,94,.08);color:#22c55e;border:1px solid rgba(34,197,94,.2)}
-.nb{margin-top:14px;padding:9px 24px;font-size:13px;font-weight:700;background:#22c55e;color:#0a0f1a;border:none;border-radius:8px;cursor:pointer}
+.tl{font-size:11px;margin:4px 0;padding:6px;border-radius:6px}
+.tl.saved{background:rgba(34,197,94,.08);color:#22c55e;border:1px solid rgba(34,197,94,.2)}
+.tl.lost{background:rgba(239,68,68,.08);color:#ef4444;border:1px solid rgba(239,68,68,.2)}
+.nb{margin-top:12px;padding:9px 24px;font-size:13px;font-weight:700;background:#22c55e;color:#0a0f1a;border:none;border-radius:8px;cursor:pointer}
 .nb:hover{background:#16a34a}
+
+/* Unrouted district in complete state */
+.d.unrouted{border-color:#334155;opacity:.45}
 </style>
 </head>
 <body>
@@ -248,16 +254,18 @@ function PowerGrid(){
   const allPowered=round.districts.every(d=>d.routed);
 
   // ── District card component ──
-  function DistrictCard({d,i,isActive}){
+  function DistrictCard({d,i,isActive,isComplete}){
     const fillPct=d.routed?100:(d.current/d.demand)*100;
+    const cls=d.routed?'powered':(isComplete&&!d.routed)?'unrouted':'';
     return(
-      <div className={`d ${d.routed?'powered':''}`}
-        onClick={()=>{if(!d.routed){setActive(i);setFb(null);setInput('');}}}
-        style={{cursor:!d.routed?'pointer':'default'}}>
+      <div className={`d ${cls}`}
+        onClick={()=>{if(!d.routed&&!isComplete){setActive(i);setFb(null);setInput('');}}}
+        style={{cursor:!d.routed&&!isComplete?'pointer':'default'}}>
         <div style={{display:'flex',alignItems:'center',gap:6}}>
           <span style={{fontSize:20}}>{d.emoji}</span>
           <span className="d-name">{d.name}</span>
           {d.routed&&<span style={{fontSize:10,fontWeight:700,color:'#22c55e',background:'rgba(34,197,94,.15)',padding:'2px 6px',borderRadius:4,marginLeft:4}}>⚡ POWERED</span>}
+          {isComplete&&!d.routed&&<span style={{fontSize:10,fontWeight:700,color:'#ef4444',background:'rgba(239,68,68,.12)',padding:'2px 6px',borderRadius:4,marginLeft:4}}>⛔ DARK</span>}
         </div>
 
         <div className="pbar-label"><span>Power</span><span className="val">{d.routed?d.demand:d.current} / {d.demand} MW</span></div>
@@ -339,71 +347,64 @@ function PowerGrid(){
 
           {/* Districts */}
           <div className="districts">
-            {round.districts.map((d,i)=><DistrictCard key={d.id} d={d} i={i} isActive={i===active&&!d.routed}/>)}
+            {round.districts.map((d,i)=><DistrictCard key={d.id} d={d} i={i} isActive={i===active&&!d.routed} isComplete={screen==='complete'}/>)}
           </div>
         </div>
       ):(
         <div style={{display:'flex',flexDirection:'column',alignItems:'center',width:'100%'}}>
-          {round.districts.map((d,i)=><div key={d.id} className="single"><DistrictCard d={d} i={i} isActive={!d.routed}/></div>)}
+          {round.districts.map((d,i)=><div key={d.id} className="single"><DistrictCard d={d} i={i} isActive={!d.routed} isComplete={screen==='complete'}/></div>)}
         </div>
       )}
 
-      {/* Shift Summary Overlay */}
+      {/* Shift Summary — inline below grid, grid stays visible */}
       {showOv&&summary&&(
-        <div className="ov">
-          <div className="ov-c">
-            <h2>{summary.powered===summary.total?'⚡ ALL DISTRICTS POWERED':'⚡ SHIFT COMPLETE'}</h2>
+        <div className={`summary ${summary.powered<summary.total?'partial':''}`}>
+          <h2 style={{color:summary.powered===summary.total?'#22c55e':'#f59e0b'}}>
+            {summary.powered===summary.total?'⚡ ALL DISTRICTS POWERED':'⚡ SHIFT COMPLETE'}
+          </h2>
 
-            {/* Star rating */}
-            <div style={{fontSize:20,fontWeight:800,color:summary.starColor,marginBottom:4}}>{summary.starText}</div>
+          <div style={{fontSize:18,fontWeight:800,color:summary.starColor,marginBottom:4}}>{summary.starText}</div>
 
-            {/* District results */}
-            {round.districts.map(d=>(
-              <div key={d.id} className="tl">
-                {d.routed?'✅':'⏱️'} {d.emoji} {d.name} — {d.routed?'powered':'not powered'}
-              </div>
-            ))}
-
-            {/* Score breakdown */}
-            <div style={{marginTop:10,padding:'8px 12px',background:'rgba(15,25,45,.8)',borderRadius:8,border:'1px solid #1e3a5f',textAlign:'left'}}>
-              <div style={{fontSize:10,color:'#3b82f6',letterSpacing:2,textTransform:'uppercase',fontWeight:700,marginBottom:6}}>Score Breakdown</div>
-              <div style={{display:'flex',justifyContent:'space-between',fontSize:12,color:'#94a3b8',padding:'2px 0'}}>
-                <span>Math solved ({summary.solves}×)</span>
-                <span style={{color:'#22c55e',fontWeight:700}}>+{summary.mathPts}</span>
-              </div>
-              <div style={{display:'flex',justifyContent:'space-between',fontSize:12,color:'#94a3b8',padding:'2px 0'}}>
-                <span>Districts routed ({summary.powered}×)</span>
-                <span style={{color:'#3b82f6',fontWeight:700}}>+{summary.routePts}</span>
-              </div>
-              {summary.wrongs>0&&(
-                <div style={{display:'flex',justifyContent:'space-between',fontSize:12,color:'#94a3b8',padding:'2px 0'}}>
-                  <span>Wrong answers ({summary.wrongs}×)</span>
-                  <span style={{color:'#ef4444',fontWeight:700}}>{summary.wrongPts}</span>
-                </div>
-              )}
-              <div style={{display:'flex',justifyContent:'space-between',fontSize:13,color:'#e2e8f0',fontWeight:700,borderTop:'1px solid #1e3a5f',marginTop:4,paddingTop:4}}>
-                <span>Total</span>
-                <span style={{color:'#fbbf24'}}>{score}</span>
-              </div>
+          {round.districts.map(d=>(
+            <div key={d.id} className={`tl ${d.routed?'saved':'lost'}`}>
+              {d.routed?'✅':'⛔'} {d.emoji} {d.name} — {d.routed?'powered':'not powered'}
             </div>
+          ))}
 
-            {/* Time */}
-            <div style={{fontSize:11,color:'#64748b',marginTop:6}}>
-              Time: {summary.elapsed}s
-              {gTimer!==null&&gTimer>0&&` · ${gTimer}s remaining`}
+          <div style={{marginTop:8,padding:'8px 12px',background:'rgba(15,25,45,.8)',borderRadius:8,border:'1px solid #1e3a5f',textAlign:'left'}}>
+            <div style={{fontSize:10,color:'#3b82f6',letterSpacing:2,textTransform:'uppercase',fontWeight:700,marginBottom:5}}>Score Breakdown</div>
+            <div style={{display:'flex',justifyContent:'space-between',fontSize:11,color:'#94a3b8',padding:'2px 0'}}>
+              <span>Math solved ({summary.solves}×)</span>
+              <span style={{color:'#22c55e',fontWeight:700}}>+{summary.mathPts}</span>
             </div>
-
-            {/* Takeaway */}
-            <div style={{marginTop:8,padding:'8px 12px',background:'rgba(34,197,94,.06)',border:'1px solid rgba(34,197,94,.2)',borderRadius:8,fontSize:12,color:'#22c55e',lineHeight:1.5}}>
-              <strong>💡 </strong>{summary.tip}
+            <div style={{display:'flex',justifyContent:'space-between',fontSize:11,color:'#94a3b8',padding:'2px 0'}}>
+              <span>Districts routed ({summary.powered}×)</span>
+              <span style={{color:'#3b82f6',fontWeight:700}}>+{summary.routePts}</span>
             </div>
-
-            {li<LEVELS.length-1?(
-              <button className="nb" onClick={()=>start(li+1)}>NEXT SHIFT →</button>
-            ):(
-              <button className="nb" onClick={()=>{setScreen('menu');setScore(0);}}>BACK TO MENU</button>
+            {summary.wrongs>0&&(
+              <div style={{display:'flex',justifyContent:'space-between',fontSize:11,color:'#94a3b8',padding:'2px 0'}}>
+                <span>Wrong answers ({summary.wrongs}×)</span>
+                <span style={{color:'#ef4444',fontWeight:700}}>{summary.wrongPts}</span>
+              </div>
             )}
+            <div style={{display:'flex',justifyContent:'space-between',fontSize:12,color:'#e2e8f0',fontWeight:700,borderTop:'1px solid #1e3a5f',marginTop:3,paddingTop:3}}>
+              <span>Total</span><span style={{color:'#fbbf24'}}>{score}</span>
+            </div>
           </div>
+
+          <div style={{fontSize:10,color:'#64748b',marginTop:5}}>
+            Time: {summary.elapsed}s{gTimer!==null&&gTimer>0&&` · ${gTimer}s remaining`}
+          </div>
+
+          <div style={{marginTop:6,padding:'7px 10px',background:'rgba(34,197,94,.06)',border:'1px solid rgba(34,197,94,.2)',borderRadius:8,fontSize:11,color:'#22c55e',lineHeight:1.5}}>
+            <strong>💡 </strong>{summary.tip}
+          </div>
+
+          {li<LEVELS.length-1?(
+            <button className="nb" onClick={()=>start(li+1)}>NEXT SHIFT →</button>
+          ):(
+            <button className="nb" onClick={()=>{setScreen('menu');setScore(0);}}>BACK TO MENU</button>
+          )}
         </div>
       )}
     </div>
