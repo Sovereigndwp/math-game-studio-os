@@ -1245,14 +1245,20 @@ function update(dt) {
         roundLog.barAppearedAt = performance.now(); sfxPop();
       }
     }
-    const wt = TIERS[tier].wanderTime;
-    if (wt < Infinity && stateTimer > wt-2 && !wanderWarned) { wanderWarned = true; speak("They're starting to leave!", 0.9); }
   }
   else if (state === 'answer') {
     for (const a of animals) {
       if (a.lateArrival && a.visible) { a.x += (a.targetX-a.x)*0.05; a.opacity = Math.min(1,a.opacity+dt*2); }
       if (a.departed) { a.x += dt*80; a.opacity = Math.max(0,a.opacity-dt); if (a.x>W+50) a.visible=false; }
       if (a.departing && !a.departed && stateTimer + 3 >= a.departureTime) a.departed = true;
+    }
+    // Pacing nudges: first an urgent "hurry up" cue at wanderTime,
+    // then a reassuring "take your time" cue at pauseTime. wanderTime
+    // is now measured against the answer-state stateTimer, which is the
+    // window the player has actually been deliberating.
+    const wt = TIERS[tier].wanderTime;
+    if (wt < Infinity && stateTimer > wt-2 && !wanderWarned) {
+      wanderWarned = true; speak("They're starting to leave!", 0.9);
     }
     const pt = TIERS[tier].pauseTime;
     if (pt < Infinity && stateTimer > pt && !paused) { paused = true; speak("Take your time!", 0.85); }
