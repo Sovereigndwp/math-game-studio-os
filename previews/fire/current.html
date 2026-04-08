@@ -658,11 +658,10 @@
     const randPick = arr => arr[Math.floor(Math.random() * arr.length)];
 
     /**
-     * Returns every demand value in levelConfig.demandRange that can be
-     * reached by exactly choosing a non-empty subset of availableTrucks.
-     * n ≤ 5 so brute-force over 2^n masks is trivial.
+     * Returns every non-empty subset sum reachable from the level's
+     * available trucks. n ≤ 5 so brute-force over 2^n masks is trivial.
      */
-    function getSolvableDemands(levelConfig) {
+    function getReachableSums(levelConfig) {
       const trucks = TRUCK_TYPES.filter(t => levelConfig.trucksAvailable.includes(t.id));
       const caps   = trucks.map(t => t.fireCapacity);
       const n      = caps.length;
@@ -672,8 +671,18 @@
         for (let i = 0; i < n; i++) { if (mask & (1 << i)) sum += caps[i]; }
         reachable.add(sum);
       }
+      return [...reachable];
+    }
+
+    /**
+     * Reachable subset sums intersected with the level's demand range.
+     * Every value returned here is guaranteed solvable AND in the desired
+     * difficulty band.
+     */
+    function getSolvableDemands(levelConfig) {
+      const reachable = getReachableSums(levelConfig);
       const [lo, hi] = levelConfig.demandRange;
-      return [...reachable].filter(s => s >= lo && s <= hi);
+      return reachable.filter(s => s >= lo && s <= hi);
     }
 
     function generateIncident(levelConfig, lvlIdx) {
@@ -692,9 +701,33 @@
       // Generate demand from the per-incident truck subset
       const incidentConfig = { ...levelConfig, trucksAvailable: trucksForCall };
       const solvable = getSolvableDemands(incidentConfig);
-      const demand   = solvable.length > 0
-        ? solvable[Math.floor(Math.random() * solvable.length)]
-        : levelConfig.demandRange[0];
+      let demand;
+      if (solvable.length > 0) {
+        demand = solvable[Math.floor(Math.random() * solvable.length)];
+      } else {
+        // Defensive fallback: no demand in [lo, hi] is reachable from
+        // trucksForCall. Fall back to the reachable subset sum closest to
+        // the midpoint of the requested range — this is always solvable,
+        // even if it sits outside the configured difficulty band. This
+        // path should be unreachable given current LEVEL_CONFIGS, but it
+        // keeps the game playable if a future config edit breaks the
+        // in-range guarantee.
+        const allSums = getReachableSums(incidentConfig);
+        const [lo, hi] = levelConfig.demandRange;
+        const mid = (lo + hi) / 2;
+        let best = allSums[0];
+        let bestDist = Math.abs(best - mid);
+        for (const s of allSums) {
+          const d = Math.abs(s - mid);
+          if (d < bestDist) { best = s; bestDist = d; }
+        }
+        console.warn(
+          `[Fire Dispatch] No demand in [${lo},${hi}] reachable from trucks ` +
+          `[${trucksForCall.join(',')}] (level ${lvlIdx + 1}). ` +
+          `Falling back to ${best}.`
+        );
+        demand = best;
+      }
       const base = randPick(INCIDENTS);
       return {
         ...base,
@@ -706,6 +739,43 @@
     }
 
     function truckById(id) { return TRUCK_TYPES.find(t => t.id === id); }
+
+    /* ─────────────────── CONFIG VALIDATION ─────────────────── */
+    /**
+     * One-time check: every level (and every per-incident exclusion variant)
+     * must have at least one solvable demand inside its difficulty band.
+     * Fires console.error at module load if any combo is unsolvable so a
+     * regression in LEVEL_CONFIGS or TRUCK_TYPES is caught immediately.
+     */
+    (function validateLevelConfigs() {
+      LEVEL_CONFIGS.forEach((cfg, idx) => {
+        // Base config (no exclusion)
+        const baseSolvable = getSolvableDemands(cfg);
+        if (baseSolvable.length === 0) {
+          console.error(
+            `[Fire Dispatch] Level ${idx + 1} has no solvable demand in ` +
+            `[${cfg.demandRange.join(',')}] from trucks [${cfg.trucksAvailable.join(',')}]`
+          );
+        }
+        // Per-incident exclusion variants used by generateIncident at L3+
+        if (idx >= 2 && cfg.trucksAvailable.length >= 5) {
+          const excludable = idx >= 4
+            ? ['ladder', 'ambulance']
+            : cfg.trucksAvailable;
+          excludable.forEach(excludeId => {
+            const subset = cfg.trucksAvailable.filter(id => id !== excludeId);
+            const subSolvable = getSolvableDemands({ ...cfg, trucksAvailable: subset });
+            if (subSolvable.length === 0) {
+              console.error(
+                `[Fire Dispatch] Level ${idx + 1} excluding ${excludeId}: ` +
+                `no solvable demand in [${cfg.demandRange.join(',')}] from ` +
+                `trucks [${subset.join(',')}]`
+              );
+            }
+          });
+        }
+      });
+    })();
 
     /* ─────────────────── MissionCard ─────────────────── */
     function MissionCard({ incidentName, incidentEmoji, locationName, demandValue, urgency, dispatchLine }) {
