@@ -711,10 +711,12 @@ for (let i = 3; i < MISSIONS.length; i++) LEVELS.push(generateLevel(i));
 const STATE = {
   MENU: 'menu', BRIEFING: 'briefing', PLAYING: 'playing',
   MATH: 'math', VAULT: 'vault', PAUSED: 'paused', RESULTS: 'results',
-  CAUGHT: 'caught', MISSION_SELECT: 'mission_select'
+  CAUGHT: 'caught', MISSION_SELECT: 'mission_select', HOW_TO_PLAY: 'how_to_play'
 };
 
-let gameState = STATE.MENU;
+let echoHeistHasSeenIntro = false;
+try { echoHeistHasSeenIntro = localStorage.getItem('echoHeistIntroSeen') === '1'; } catch(e) {}
+let gameState = echoHeistHasSeenIntro ? STATE.MENU : STATE.HOW_TO_PLAY;
 let selectedClass = null;
 let currentMission = 0;
 let level = null;
@@ -918,6 +920,7 @@ document.addEventListener('keydown', e => {
   else if (gameState === STATE.PLAYING) handlePlayingKey(e);
   else if (gameState === STATE.PAUSED) handlePausedKey(e);
   else if (gameState === STATE.MISSION_SELECT) handleMissionSelectKey(e);
+  else if (gameState === STATE.HOW_TO_PLAY) handleHowToPlayKey(e);
 });
 document.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
 
@@ -1756,6 +1759,14 @@ function handleMenuKey(e) {
   }
   if (e.key === 's' || e.key === 'S') { gameState = STATE.MISSION_SELECT; }
   if (e.key === 'd' || e.key === 'D') { startDailyContract(); }
+  if (e.key === 'h' || e.key === 'H') { gameState = STATE.HOW_TO_PLAY; }
+}
+
+function handleHowToPlayKey(e) {
+  if (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape' || e.key === 'h' || e.key === 'H') {
+    gameState = STATE.MENU;
+    try { localStorage.setItem('echoHeistIntroSeen', '1'); } catch(e) {}
+  }
 }
 
 function handleBriefingKey(e) {
@@ -2439,8 +2450,157 @@ function drawMenu() {
   ctx.fillStyle = '#64748b';
   ctx.font = '13px monospace';
   ctx.textAlign = 'center';
-  ctx.fillText(`← → to select · Enter to play · S: mission list · D: daily`, W/2, H - 60);
+  ctx.fillText(`← → select · Enter play · S: missions · D: daily · H: how to play`, W/2, H - 60);
   ctx.fillText(`${completedMissions.size}/30 missions completed`, W/2, H - 38);
+}
+
+// ── HOW TO PLAY SCREEN ──────────────────────────────────────────
+function drawHowToPlay() {
+  ctx.fillStyle = '#0a0a0f';
+  ctx.fillRect(0, 0, W, H);
+
+  const cx = W / 2;
+  const col1X = cx - 270;  // left column
+  const col2X = cx + 20;   // right column
+  const panelW = 250;
+
+  // Title
+  ctx.fillStyle = '#00e5ff';
+  ctx.font = 'bold 32px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('HOW TO PLAY', cx, 50);
+
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '13px monospace';
+  ctx.fillText('Stealth + Math · Ages 11–13', cx, 72);
+
+  // ── Panel 1: What is this? (top-left) ──
+  let py = 100;
+  ctx.fillStyle = 'rgba(0,229,255,0.06)';
+  ctx.strokeStyle = 'rgba(0,229,255,0.2)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.roundRect(col1X, py, panelW, 145, 8); ctx.fill(); ctx.stroke();
+
+  ctx.fillStyle = '#00e5ff';
+  ctx.font = 'bold 13px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('YOUR MISSION', col1X + 12, py + 22);
+
+  ctx.fillStyle = '#cbd5e1';
+  ctx.font = '11px monospace';
+  const missionLines = [
+    'You are a stealth operative.',
+    'Sneak through guarded rooms.',
+    'Solve math to hack terminals,',
+    'unlock doors, and crack vaults.',
+    '',
+    'Goal: reach the vault, crack it,',
+    'then escape before time runs out.',
+    '',
+    'Math IS your lockpick.',
+    'No math, no progress.'
+  ];
+  missionLines.forEach((line, i) => {
+    ctx.fillStyle = line === '' ? 'transparent' : (i >= 8 ? '#00e5ff' : '#cbd5e1');
+    ctx.fillText(line, col1X + 12, py + 42 + i * 14);
+  });
+
+  // ── Panel 2: Controls (top-right) ──
+  ctx.fillStyle = 'rgba(139,92,246,0.06)';
+  ctx.strokeStyle = 'rgba(139,92,246,0.2)';
+  ctx.beginPath(); ctx.roundRect(col2X, py, panelW, 145, 8); ctx.fill(); ctx.stroke();
+
+  ctx.fillStyle = '#a78bfa';
+  ctx.font = 'bold 13px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('CONTROLS', col2X + 12, py + 22);
+
+  ctx.font = '11px monospace';
+  const controls = [
+    ['WASD',  'Move'],
+    ['Shift', 'Crouch (quieter)'],
+    ['E',     'Interact / hack'],
+    ['Enter', 'Submit answer'],
+    ['Tab',   'Focus mode (slow-mo)'],
+    ['Space', 'Class ability'],
+    ['Q',     'Place noise gadget'],
+    ['H',     'Hint during math'],
+    ['F',     'Scaffold reference']
+  ];
+  controls.forEach(([key, desc], i) => {
+    ctx.fillStyle = '#a78bfa';
+    ctx.fillText(key, col2X + 12, py + 42 + i * 13);
+    ctx.fillStyle = '#94a3b8';
+    ctx.fillText(desc, col2X + 70, py + 42 + i * 13);
+  });
+
+  // ── Panel 3: How math works (bottom-left) ──
+  py = 262;
+  ctx.fillStyle = 'rgba(34,197,94,0.06)';
+  ctx.strokeStyle = 'rgba(34,197,94,0.2)';
+  ctx.beginPath(); ctx.roundRect(col1X, py, panelW, 120, 8); ctx.fill(); ctx.stroke();
+
+  ctx.fillStyle = '#4ade80';
+  ctx.font = 'bold 13px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('HOW MATH WORKS', col1X + 12, py + 22);
+
+  ctx.font = '11px monospace';
+  const mathLines = [
+    'A popup appears at doors,',
+    'terminals, vaults, and gates.',
+    '',
+    'Type your answer, press Enter.',
+    '  Correct → door opens, you advance',
+    '  Wrong → heat rises, try again',
+    '',
+    'Hints cost score, not lives.',
+    'Press H for a hint anytime.'
+  ];
+  mathLines.forEach((line, i) => {
+    if (line === '') return;
+    const isHighlight = line.startsWith('  Correct') || line.startsWith('  Wrong');
+    ctx.fillStyle = isHighlight ? (line.startsWith('  Correct') ? '#4ade80' : '#f87171') : '#cbd5e1';
+    ctx.fillText(line, col1X + 12, py + 42 + i * 12);
+  });
+
+  // ── Panel 4: Classes (bottom-right) ──
+  ctx.fillStyle = 'rgba(251,191,36,0.06)';
+  ctx.strokeStyle = 'rgba(251,191,36,0.2)';
+  ctx.beginPath(); ctx.roundRect(col2X, py, panelW, 120, 8); ctx.fill(); ctx.stroke();
+
+  ctx.fillStyle = '#fbbf24';
+  ctx.font = 'bold 13px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('CLASSES', col2X + 12, py + 22);
+
+  ctx.font = '11px monospace';
+  // Hacker
+  ctx.fillStyle = '#00e5ff';
+  ctx.fillText('💻 Hacker', col2X + 12, py + 42);
+  ctx.fillStyle = '#94a3b8';
+  ctx.fillText('Percents & equations', col2X + 100, py + 42);
+  ctx.fillText('Buff: +30% score on next 2', col2X + 22, py + 55);
+
+  // Ghost
+  ctx.fillStyle = '#a78bfa';
+  ctx.fillText('👻 Ghost', col2X + 12, py + 74);
+  ctx.fillStyle = '#94a3b8';
+  ctx.fillText('Fractions & angles', col2X + 100, py + 74);
+  ctx.fillText('Buff: reduce noise instantly', col2X + 22, py + 87);
+
+  // Runner
+  ctx.fillStyle = '#f97316';
+  ctx.fillText('🏃 Runner', col2X + 12, py + 106);
+  ctx.fillStyle = '#94a3b8';
+  ctx.fillText('Rates & integers', col2X + 100, py + 106);
+  ctx.fillText('Buff: 3s silent sprint', col2X + 22, py + 119);
+
+  // Footer
+  ctx.fillStyle = '#475569';
+  ctx.font = '13px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('Press Enter or Esc to continue', cx, H - 28);
 }
 
 // ── BRIEFING SCREEN (PC1: 4 sections) ─────────────────────────────
@@ -2935,6 +3095,10 @@ function gameLoop(timestamp) {
   switch (gameState) {
     case STATE.MENU:
       drawMenu();
+      break;
+
+    case STATE.HOW_TO_PLAY:
+      drawHowToPlay();
       break;
 
     case STATE.BRIEFING:
