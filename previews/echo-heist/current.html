@@ -423,26 +423,26 @@ function generateDistrictMissions(startId, endId, district, defs) {
     'Training Gallery': [
       {text:'Solve: x + {a} = {b}',mk:(a,b)=>({answer:''+(b-a),hint1:'One-step equation',hint2:`${b} − ${a}`}),gen:()=>{const a=3+Math.floor(Math.random()*10),b=a+2+Math.floor(Math.random()*15);return{a,b}}},
       {text:'{a}% of {b} = ?',mk:(a,b)=>({answer:''+((a/100)*b),hint1:'Percent of quantity',hint2:`${a}/100 × ${b}`}),gen:()=>({a:[10,20,25,50][Math.floor(Math.random()*4)],b:(Math.floor(Math.random()*8)+2)*10})},
-      {text:'{a}/{b} of {c} = ?',mk:(a,b,c)=>({answer:''+((a/b)*c),hint1:'Fraction of quantity',hint2:`${c} × ${a} ÷ ${b}`}),gen:()=>{const pairs=[[1,2],[1,3],[2,3],[1,4],[3,4],[2,5],[3,5]];const[a,b]=pairs[Math.floor(Math.random()*pairs.length)];return{a,b,c:b*(1+Math.floor(Math.random()*6))}}},
-      {text:'Round {a} to the nearest {b}.',mk:(a,b)=>{const r=b>=1?Math.round(a/b)*b:parseFloat((Math.round(a/b)*b).toFixed(1));return{answer:''+r,hint1:'Rounding',hint2:`Look at the digit after ${b}`}},gen:()=>{const rules=[[10,()=>10+Math.floor(Math.random()*90)],[0.1,()=>parseFloat((Math.random()*10).toFixed(2))]];const[b,fn]=rules[Math.floor(Math.random()*rules.length)];return{a:fn(),b}}},
+      {text:'{a}/{b} of {c} = ?',mk:(a,b,c)=>({answer:''+Math.round((a/b)*c),hint1:'Fraction of quantity',hint2:`${c} × ${a} ÷ ${b}`}),gen:()=>{const pairs=[[1,2],[1,3],[2,3],[1,4],[3,4],[2,5],[3,5]];const[a,b]=pairs[Math.floor(Math.random()*pairs.length)];return{a,b,c:b*(1+Math.floor(Math.random()*6))}}},
+      {text:'Round {a} to the nearest {b}.',mk:(a,b)=>{const r=b>=1?Math.round(a/b)*b:roundTo(Math.round(a/b)*b,1);return{answer:''+r,hint1:'Rounding',hint2:`Look at the digit after ${b}`}},gen:()=>{const rules=[[10,()=>10+Math.floor(Math.random()*90)],[0.1,()=>parseFloat((Math.random()*10).toFixed(2))]];const[b,fn]=rules[Math.floor(Math.random()*rules.length)];return{a:fn(),b}}},
       {text:'Speed {a} m/s for {b} s. Distance = ?',mk:(a,b)=>({answer:''+(a*b),hint1:'d = r × t',hint2:`${a} × ${b}`}),gen:()=>({a:2+Math.floor(Math.random()*8),b:2+Math.floor(Math.random()*10)})},
       {text:'Heat is {a}. Change of {b}. New heat = ?',mk:(a,b)=>({answer:''+(a+b),hint1:'Integer operation',hint2:`${a} + (${b})`}),gen:()=>({a:Math.floor(Math.random()*15),b:[-7,-5,-3,3,4,6][Math.floor(Math.random()*6)]})}
     ],
     'Camera Commons': [
       {text:'Solve: {a}x + {b} = {c}',mk:(a,b,c)=>({answer:''+((c-b)/a),hint1:'Two-step equation',hint2:`(${c} − ${b}) ÷ ${a}`}),gen:()=>{const a=2+Math.floor(Math.random()*4),x=2+Math.floor(Math.random()*8),b=1+Math.floor(Math.random()*10);return{a,b,c:a*x+b,_x:x}}},
-      {text:'Reduce {a} by {b}%. New value = ?',mk:(a,b)=>({answer:''+(a*(1-b/100)),hint1:'Percent decrease',hint2:`${a} × ${1-b/100}`}),gen:()=>({a:[20,40,50,60,80][Math.floor(Math.random()*5)],b:[10,15,20,25,30][Math.floor(Math.random()*5)]})},
+      {text:'Reduce {a} by {b}%. New value = ?',mk:(a,b)=>({answer:''+roundTo(a*(1-b/100),2),hint1:'Percent decrease',hint2:`${a} × ${1-b/100}`}),gen:()=>({a:[20,40,50,60,80][Math.floor(Math.random()*5)],b:[10,15,20,25,30][Math.floor(Math.random()*5)]})},
       {text:'Convert {a} to {b}.',mk:(a,b)=>{if(b==='percent')return{answer:(parseFloat(a)*100)+'%',hint1:'Decimal → percent',hint2:'Multiply by 100'};return{answer:''+(parseFloat(a.replace('%',''))/100),hint1:'Percent → decimal',hint2:'Divide by 100'}},gen:()=>{const dec=Math.random()>0.5;const v=dec?'0.'+(Math.floor(Math.random()*9)+1)*5:(Math.floor(Math.random()*9)+1)*10+'%';return{a:v,b:dec?'percent':'decimal'}}},
       {text:'Angle: {a}° is supplementary to ? (adds to 180°)',mk:(a)=>({answer:''+(180-a),hint1:'Supplementary angles',hint2:`180 − ${a}`}),gen:()=>({a:30+Math.floor(Math.random()*12)*10})},
-      {text:'Better rate? A: {a1} in {a2} min; B: {b1} in {b2} min.',mk:(a1,a2,b1,b2)=>{const ra=a1/a2,rb=b1/b2;return{answer:ra>=rb?'A':'B',hint1:'Compare rates',hint2:`A=${(ra).toFixed(1)}/min, B=${(rb).toFixed(1)}/min`}},gen:()=>({a1:12+Math.floor(Math.random()*20),a2:2+Math.floor(Math.random()*5),b1:12+Math.floor(Math.random()*20),b2:2+Math.floor(Math.random()*5)})},
+      {text:'Better rate? A: {a1} in {a2} min; B: {b1} in {b2} min.',mk:(a1,a2,b1,b2)=>{const ra=a1/a2,rb=b1/b2;return{answer:ra>rb?'A':'B',hint1:'Divide each: items ÷ time',hint2:'Compare the two quotients'}},gen:()=>{let a1,a2,b1,b2;do{a1=12+Math.floor(Math.random()*20);a2=2+Math.floor(Math.random()*5);b1=12+Math.floor(Math.random()*20);b2=2+Math.floor(Math.random()*5);}while(Math.abs(a1/a2-b1/b2)<0.05);return{a1,a2,b1,b2};}},
       {text:'{a}/{b} + {c}/{d} = ?',mk:(a,b,c,d)=>{const num=a*d+c*b,den=b*d,g=gcd(Math.abs(num),den);return{answer:`${num/g}/${den/g}`,hint1:'Add fractions',hint2:`Common denominator ${b*d}`}},gen:()=>{const pairs=[[1,2,1,4],[1,3,1,6],[2,3,1,6],[3,4,1,8],[1,2,1,3]];const p=pairs[Math.floor(Math.random()*pairs.length)];return{a:p[0],b:p[1],c:p[2],d:p[3]}}}
     ],
     'Escape Lines': [
       {text:'Solve: {a}x − {b} = {c}',mk:(a,b,c)=>({answer:''+((c+b)/a),hint1:'Two-step equation',hint2:`(${c} + ${b}) ÷ ${a}`}),gen:()=>{const a=2+Math.floor(Math.random()*5),x=2+Math.floor(Math.random()*12),b=2+Math.floor(Math.random()*15);return{a,b,c:a*x-b}}},
       {text:'{a}% chance of {b} coins, else {c}. EV = ?',mk:(a,b,c)=>{const ev=(a/100)*b+((100-a)/100)*c;return{answer:ev%1===0?''+ev:ev.toFixed(1),hint1:'Expected value',hint2:`${a/100}×${b} + ${(100-a)/100}×${c}`}},gen:()=>({a:[20,25,30,40,50,60,70,80][Math.floor(Math.random()*8)],b:10+Math.floor(Math.random()*40)*5,c:Math.floor(Math.random()*3)*5})},
       {text:'Distance {a}m at {b} m/s. Time = ?',mk:(a,b)=>({answer:''+(a/b),hint1:'t = d ÷ r',hint2:`${a} ÷ ${b}`}),gen:()=>{const b=2+Math.floor(Math.random()*8);return{a:b*(2+Math.floor(Math.random()*10)),b}}},
-      {text:'Increase {a} by {b}%. Result = ?',mk:(a,b)=>({answer:''+(a*(1+b/100)),hint1:'Percent increase',hint2:`${a} × ${1+b/100}`}),gen:()=>({a:[30,40,50,60,80,100][Math.floor(Math.random()*6)],b:[10,12,15,20,25][Math.floor(Math.random()*5)]})},
-      {text:'Round {a} to nearest {b}.',mk:(a,b)=>{const r=b>=1?Math.round(a/b)*b:parseFloat((Math.round(a/b)*b).toFixed(2));return{answer:''+r,hint1:'Rounding',hint2:'Look at the next digit'}},gen:()=>{const rules=[[100,()=>100+Math.floor(Math.random()*900)],[0.01,()=>parseFloat((Math.random()*5).toFixed(3))]];const[b,fn]=rules[Math.floor(Math.random()*rules.length)];return{a:fn(),b}}},
-      {text:'{a}/{b} of {c} = ?',mk:(a,b,c)=>({answer:''+((a/b)*c),hint1:'Fraction of quantity',hint2:`${c} × ${a} ÷ ${b}`}),gen:()=>{const pairs=[[3,8],[5,6],[7,10],[2,7],[5,8]];const[a,b]=pairs[Math.floor(Math.random()*pairs.length)];return{a,b,c:b*(1+Math.floor(Math.random()*8))}}}
+      {text:'Increase {a} by {b}%. Result = ?',mk:(a,b)=>({answer:''+roundTo(a*(1+b/100),2),hint1:'Percent increase',hint2:`${a} × ${1+b/100}`}),gen:()=>({a:[30,40,50,60,80,100][Math.floor(Math.random()*6)],b:[10,12,15,20,25][Math.floor(Math.random()*5)]})},
+      {text:'Round {a} to nearest {b}.',mk:(a,b)=>{const r=b>=1?Math.round(a/b)*b:roundTo(Math.round(a/b)*b,2);return{answer:''+r,hint1:'Rounding',hint2:'Look at the next digit'}},gen:()=>{const rules=[[100,()=>100+Math.floor(Math.random()*900)],[0.01,()=>parseFloat((Math.random()*5).toFixed(3))]];const[b,fn]=rules[Math.floor(Math.random()*rules.length)];return{a:fn(),b}}},
+      {text:'{a}/{b} of {c} = ?',mk:(a,b,c)=>({answer:''+Math.round((a/b)*c),hint1:'Fraction of quantity',hint2:`${c} × ${a} ÷ ${b}`}),gen:()=>{const pairs=[[3,8],[5,6],[7,10],[2,7],[5,8]];let a,b,c,ans;do{[a,b]=pairs[Math.floor(Math.random()*pairs.length)];c=b*(1+Math.floor(Math.random()*8));ans=Math.round(a/b*c);}while(ans<3);return{a,b,c};}}
     ]
   };
   function gcd(a,b){return b?gcd(b,a%b):a;}
@@ -794,6 +794,9 @@ let totalHintsUsed = 0;
 
 // Pass 4 — scaffold, objectives, auto-hint, persistence
 let scaffoldVisible = false;
+let feedbackOverlays = []; // {text, x, y, timer, color} — world-space floating labels
+let focusTooltipShown = false; // true once player has seen the focus-mode tip
+let focusTooltipTimer = 0;
 let wrongCount = 0;
 let objCount = 0;
 let maxHeat = 0;
@@ -913,6 +916,7 @@ document.addEventListener('keydown', e => {
   else if (gameState === STATE.BRIEFING) handleBriefingKey(e);
   else if (gameState === STATE.RESULTS || gameState === STATE.CAUGHT) handleResultsKey(e);
   else if (gameState === STATE.PLAYING) handlePlayingKey(e);
+  else if (gameState === STATE.PAUSED) handlePausedKey(e);
   else if (gameState === STATE.MISSION_SELECT) handleMissionSelectKey(e);
 });
 document.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
@@ -950,7 +954,10 @@ function checkAnswer(userRaw, correctRaw, tolerance) {
   return false;
 }
 
-// ── ENTITY HELPERS ─────────────────────────────────────────────
+// Fix 1: precise rounding helper — eliminates float drift in answer generation
+function roundTo(v, d) { return Math.round(v * Math.pow(10, d)) / Math.pow(10, d); }
+
+// ── ENTITY HELPERS ───────────────────────────────────────────────
 function tileAt(gx, gy) {
   if (gx < 0 || gx >= COLS || gy < 0 || gy >= ROWS) return T.WALL;
   return level.map[gy][gx];
@@ -1220,7 +1227,7 @@ function loadLevel(missionIdx) {
   scaffoldVisible = false; wrongCount = 0;
   objCount = 0; maxHeat = 0; objCompleted = false; objBonusEarned = 0;
   echoRecording = false; echoBuffer = []; echoGhosts = []; echoCharges = 2;
-  softstepFlashTimer = 0;
+  softstepFlashTimer = 0; feedbackOverlays = []; focusTooltipTimer = 0;
 
   document.getElementById('math-popup').style.display = 'none';
   document.getElementById('vault-progress').style.display = 'none';
@@ -1570,6 +1577,8 @@ function openMathPopup(ia) {
   currentHintsUsed = 0;
   wrongCount = 0;
   scaffoldVisible = false;
+  // PC4: show focus tooltip on first popup if not yet seen
+  if (!focusTooltipShown) focusTooltipTimer = 4.0;
   gameState = STATE.MATH;
 
   const popup = document.getElementById('math-popup');
@@ -1631,6 +1640,10 @@ function closeMathPopup(solved) {
       }
     }
     score += mathInteractable.type === 'escape_gate' ? 100 : 50;
+    // PC2: labeled world-space feedback overlay
+    const fbMap = { door:'\ud83d\udd13 DOOR UNLOCKED', terminal:'\ud83d\udcf7 CAMERA DISABLED', escape_gate:'\ud83d\udead GATE OPEN' };
+    const fbText = fbMap[mathInteractable.type];
+    if (fbText) feedbackOverlays.push({ text:fbText, x:mathInteractable.x, y:mathInteractable.y, timer:2.2, color:'#22c55e' });
   }
 
   mathPrompt = null;
@@ -1661,6 +1674,7 @@ function handleMathKey(e) {
 
   if (e.key === 'Tab') {
     focusModeActive = !focusModeActive;
+    focusTooltipShown = true; focusTooltipTimer = 0; // dismiss tooltip on first use
     const popup = document.getElementById('math-popup');
     focusModeActive ? popup.classList.add('focus-mode') : popup.classList.remove('focus-mode');
     return;
@@ -1673,7 +1687,7 @@ function handleMathKey(e) {
   }
 
   if (e.key === 'Escape') {
-    heat = Math.min(100, heat + 10);
+    heat = Math.min(100, heat + 20); // PC5: skip costs +20 heat
     closeMathPopup(false);
     return;
   }
@@ -1760,6 +1774,10 @@ function handlePlayingKey(e) {
   }
   if (e.key === ' ') { e.preventDefault(); activateAbility(); }
   if (e.key === 'q') placeGadget();
+  if (e.key === 'p' || e.key === 'P') gameState = STATE.PAUSED; // PC5
+}
+function handlePausedKey(e) {
+  if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') gameState = STATE.PLAYING;
 }
 
 // ── CLASS ABILITY SYSTEM ──────────────────────────────────────
@@ -2259,27 +2277,28 @@ function drawHUD() {
   ctx.strokeStyle = 'rgba(0,229,255,0.2)';
   ctx.beginPath(); ctx.moveTo(0, barY - 8); ctx.lineTo(W, barY - 8); ctx.stroke();
 
-  // Heat bar
+  // Heat bar (PC3: show X/100)
   ctx.fillStyle = COLORS.hudText;
   ctx.font = '11px monospace';
   ctx.textAlign = 'left';
-  ctx.fillText('HEAT', 12, barY + 12);
+  ctx.fillText(`HEAT ${Math.round(heat)}/100`, 12, barY + 12);
   ctx.fillStyle = 'rgba(239,68,68,0.2)';
-  ctx.fillRect(60, barY + 2, 150, 12);
+  ctx.fillRect(98, barY + 2, 120, 12);
   ctx.fillStyle = heat > 70 ? '#ff0000' : COLORS.heat;
-  ctx.fillRect(60, barY + 2, heat * 1.5, 12);
+  ctx.fillRect(98, barY + 2, heat * 1.2, 12);
 
   // Noise bar
   ctx.fillStyle = COLORS.hudText;
   ctx.fillText('NOISE', 240, barY + 12);
   ctx.fillStyle = 'rgba(245,158,11,0.2)';
-  ctx.fillRect(298, barY + 2, 150, 12);
+  ctx.fillRect(298, barY + 2, 130, 12);
   ctx.fillStyle = COLORS.noise;
-  ctx.fillRect(298, barY + 2, noise * 1.5, 12);
+  ctx.fillRect(298, barY + 2, noise * 1.3, 12);
 
-  // Math accuracy
+  // Math accuracy + lock counter (PC3)
+  const solvedLocks = interactables.filter(ia=>ia.solved).length;
   ctx.fillStyle = COLORS.hudText;
-  ctx.fillText(`MATH ${mathCorrect}/${mathTotal}`, 480, barY + 12);
+  ctx.fillText(`MATH ${mathCorrect}/${mathTotal}  🔓${solvedLocks}/${interactables.length}`, 450, barY + 12);
 
   // Ability cooldown (compact)
   const cls2 = CLASSES[selectedClass];
@@ -2424,61 +2443,66 @@ function drawMenu() {
   ctx.fillText(`${completedMissions.size}/30 missions completed`, W/2, H - 38);
 }
 
-// ── BRIEFING SCREEN ────────────────────────────────────────────
+// ── BRIEFING SCREEN (PC1: 4 sections) ─────────────────────────────
 function drawBriefing() {
   const mission = MISSIONS[currentMission];
   const cls = CLASSES[selectedClass];
+  const dc = getDConfig();
+  const distNum = getDistrict(currentMission) + 1;
+  const numGuards = LEVELS[currentMission].guards.length;
+  const numCams = LEVELS[currentMission].cameras.length;
 
-  ctx.fillStyle = '#0a0a0f';
-  ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#0a0a0f'; ctx.fillRect(0,0,W,H);
 
-  // Header
-  ctx.fillStyle = '#00e5ff';
-  ctx.font = 'bold 14px monospace';
-  ctx.textAlign = 'center';
-  ctx.fillText(`DISTRICT 1 · ${mission.district.toUpperCase()}`, W/2, 60);
+  // ─ 1. MISSION ─────────────────────────────────────
+  ctx.fillStyle='#00e5ff';ctx.font='bold 10px monospace';ctx.textAlign='left';
+  ctx.fillText('MISSION', W/2-280, 22);
+  ctx.fillStyle='#334155';ctx.fillRect(W/2-280,25,560,1);
+  ctx.fillStyle='#e0e6ed';ctx.font='bold 26px monospace';ctx.textAlign='center';
+  ctx.fillText(`${mission.id}: ${mission.name}`,W/2,54);
+  ctx.fillStyle='#64748b';ctx.font='11px monospace';
+  ctx.fillText(`DISTRICT ${distNum} · ${mission.district.toUpperCase()}`,W/2,72);
+  ctx.fillStyle='#f59e0b';ctx.font='13px monospace';
+  ctx.fillText(`Objective: ${mission.objective}`,W/2,92);
 
-  ctx.fillStyle = '#e0e6ed';
-  ctx.font = 'bold 32px monospace';
-  ctx.fillText(`Mission ${mission.id}: ${mission.name}`, W/2, 110);
+  // ─ 2. OPERATIVE ────────────────────────────────
+  ctx.fillStyle=cls.color;ctx.font='bold 10px monospace';ctx.textAlign='left';
+  ctx.fillText('OPERATIVE',W/2-280,116);
+  ctx.fillStyle='#334155';ctx.fillRect(W/2-280,119,560,1);
+  ctx.fillStyle='#e0e6ed';ctx.font='bold 15px monospace';ctx.textAlign='center';
+  ctx.fillText(`${cls.icon} ${cls.name}  ·  ${cls.abilityName} [SPC]  ·  Cooldown: ${cls.abilityCooldown}s`,W/2,142);
+  ctx.fillStyle='#64748b';ctx.font='11px monospace';
+  ctx.fillText(cls.desc,W/2,160);
 
-  // Objective
-  ctx.fillStyle = '#f59e0b';
-  ctx.font = '16px monospace';
-  ctx.fillText(`Objective: ${mission.objective}`, W/2, 160);
-
-  // Class info
-  ctx.fillStyle = cls.color;
-  ctx.font = 'bold 18px monospace';
-  ctx.fillText(`${cls.icon} Playing as ${cls.name}`, W/2, 220);
-
-  // Mission details
-  ctx.fillStyle = '#94a3b8';
-  ctx.font = '14px monospace';
-  ctx.fillText(`${mission.prompts.length} math challenges · ${level ? guards.length : LEVELS[currentMission].guards.length} guards · ${LEVELS[currentMission].cameras.length} cameras`, W/2, 260);
-
-  // Controls reminder
-  const controls = [
-    'WASD — Move', 'Shift — Crouch (quieter, slower)',
-    'E — Interact with terminals/doors', 'R — Record/stop echo',
-    'Esc — Cancel math popup (costs heat)'
+  // ─ 3. CONTROLS (left) + 4. INTEL (right) ────────────────
+  const lx=W/2-280, rx=W/2+20;
+  ctx.fillStyle='#22c55e';ctx.font='bold 10px monospace';ctx.textAlign='left';
+  ctx.fillText('CONTROLS',lx,182);
+  ctx.fillStyle='#334155';ctx.fillRect(lx,185,258,1);
+  ctx.fillStyle='#f59e0b';ctx.font='bold 10px monospace';
+  ctx.fillText('INTEL',rx,182);
+  ctx.fillStyle='#334155';ctx.fillRect(rx,185,258,1);
+  const ctrls=['WASD — Move','Shift — Crouch (quieter)','E — Interact','F — Scaffold tool','Tab — Focus mode (−2pts/s)','R — Echo record (×2)','H — Hint   P — Pause','Esc — Skip popup (+20 heat)','M — Mute audio'];
+  ctx.fillStyle='#64748b';ctx.font='11px monospace';ctx.textAlign='left';
+  ctrls.forEach((c,i)=>ctx.fillText(c,lx,200+i*18));
+  const intel=[
+    `${mission.prompts.length} math challenges`,
+    `${numGuards} guards  ·  ${numCams} cameras`,
+    `Escape timer: ${dc.escapeTime}s`,
+    `Heat gain: ${dc.heatGainMult}×`,
+    '',
+    '💡 Reach loot to start vault',
+    '💡 Solve vault → escape phase',
+    '💡 Crouch to reduce noise',
+    '💡 Echo distracts guards',
   ];
-  ctx.fillStyle = '#64748b';
-  ctx.font = '12px monospace';
-  ctx.textAlign = 'center';
-  controls.forEach((c, i) => {
-    ctx.fillText(c, W/2, 310 + i * 22);
+  intel.forEach((l,i)=>{
+    ctx.fillStyle=l.startsWith('💡')?'#22c55e':'#64748b';
+    ctx.fillText(l,rx,200+i*18);
   });
 
-  // Tips
-  ctx.fillStyle = '#22c55e';
-  ctx.font = '13px monospace';
-  ctx.fillText('💡 Find the loot, solve puzzles to unlock doors, reach EXIT', W/2, 460);
-  ctx.fillText('💡 Stay quiet and avoid guard vision cones', W/2, 485);
-
-  ctx.fillStyle = '#00e5ff';
-  ctx.font = 'bold 16px monospace';
-  ctx.fillText('Press ENTER to begin', W/2, 540);
+  ctx.fillStyle='#00e5ff';ctx.font='bold 16px monospace';ctx.textAlign='center';
+  ctx.fillText('Press ENTER to begin',W/2,H-24);
 }
 
 // ── RESULTS SCREEN ───────────────────────────────────────────────
@@ -2702,6 +2726,47 @@ function isClassUnlocked(cls) {
   return false;
 }
 
+// ── FEEDBACK OVERLAYS (PC2) ─────────────────────────────────
+function drawFeedbackOverlays() {
+  for (const fb of feedbackOverlays) {
+    const alpha = Math.min(1, fb.timer * 1.5);
+    const dy = (2.2 - fb.timer) * 24; // float upward
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = '#0a0f1a';
+    const tw = ctx.measureText(fb.text).width;
+    ctx.fillRect(fb.x - tw/2 - 4, fb.y - dy - 16, tw + 8, 18);
+    ctx.fillStyle = fb.color;
+    ctx.font = 'bold 11px monospace'; ctx.textAlign = 'center';
+    ctx.fillText(fb.text, fb.x, fb.y - dy);
+    ctx.restore();
+  }
+}
+
+// ── FOCUS TOOLTIP (PC4) ──────────────────────────────────
+function drawFocusTooltip() {
+  if (focusTooltipTimer <= 0) return;
+  const alpha = Math.min(1, focusTooltipTimer * 2);
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  const msg = '⏸ Press Tab to slow time — Focus Mode (−2 pts/sec)';
+  const tw = 340, th = 28, tx = W/2 - tw/2, ty = H/2 - 74;
+  ctx.fillStyle = 'rgba(80,0,140,0.88)';
+  ctx.beginPath(); ctx.roundRect(tx,ty,tw,th,6); ctx.fill();
+  ctx.fillStyle = '#e0c0ff'; ctx.font = 'bold 11px monospace'; ctx.textAlign = 'center';
+  ctx.fillText(msg, W/2, ty + 18);
+  ctx.restore();
+}
+
+// ── PAUSE OVERLAY (PC5) ──────────────────────────────────
+function drawPaused() {
+  ctx.fillStyle = 'rgba(0,0,0,0.62)'; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle = '#e0e6ed'; ctx.font = 'bold 36px monospace'; ctx.textAlign = 'center';
+  ctx.fillText('⏸ PAUSED', W/2, H/2 - 18);
+  ctx.fillStyle = '#64748b'; ctx.font = '14px monospace';
+  ctx.fillText('P or Esc to resume', W/2, H/2 + 20);
+}
+
 // ── SCAFFOLD PANEL (Pass 4) ───────────────────────────────────
 function drawScaffold() {
   if (!scaffoldVisible || !mathActive || !mathPrompt) return;
@@ -2864,6 +2929,8 @@ function gameLoop(timestamp) {
 
   updateParticles(dt);
   updateShake(dt);
+  feedbackOverlays = feedbackOverlays.filter(fb => { fb.timer -= dt; return fb.timer > 0; });
+  if (focusTooltipTimer > 0) focusTooltipTimer = Math.max(0, focusTooltipTimer - dt);
 
   switch (gameState) {
     case STATE.MENU:
@@ -2888,10 +2955,10 @@ function gameLoop(timestamp) {
 
       // Draw world behind vault overlay
       ctx.save(); ctx.translate(shakeX, shakeY);
-      drawTiles(); drawLoot(); drawInteractables(); drawCameras();
+      drawTiles(); drawLoot(); drawInteractables(); drawFeedbackOverlays(); drawCameras();
       drawGuards(); drawPlayer(); drawParticles(); drawAbilityEffects();
       ctx.restore();
-      drawHUD(); drawVaultOverlay(); drawScaffold(); drawFocusOverlay();
+      drawHUD(); drawVaultOverlay(); drawScaffold(); drawFocusOverlay(); drawFocusTooltip();
       break;
 
     case STATE.PLAYING:
@@ -2914,12 +2981,12 @@ function gameLoop(timestamp) {
 
       // Draw
       ctx.save(); ctx.translate(shakeX, shakeY);
-      drawTiles(); drawLoot(); drawInteractables(); drawCameras();
+      drawTiles(); drawLoot(); drawInteractables(); drawFeedbackOverlays(); drawCameras();
       drawGadget(); drawEchoGhost(); drawGuards(); drawPlayer();
       drawParticles(); drawAbilityEffects();
       ctx.restore();
       drawHUD(); drawEchoRecordingIndicator(); drawEscapeOverlay();
-      drawScaffold(); drawFocusOverlay();
+      drawScaffold(); drawFocusOverlay(); drawFocusTooltip();
       break;
 
     case STATE.RESULTS:
@@ -2928,10 +2995,18 @@ function gameLoop(timestamp) {
 
     case STATE.CAUGHT:
       ctx.save(); ctx.translate(shakeX, shakeY);
-      drawTiles(); drawLoot(); drawInteractables(); drawCameras();
+      drawTiles(); drawLoot(); drawInteractables(); drawFeedbackOverlays(); drawCameras();
       drawGuards(); drawPlayer();
       ctx.restore();
       drawHUD(); drawCaught();
+      break;
+
+    case STATE.PAUSED: // PC5
+      ctx.save(); ctx.translate(shakeX, shakeY);
+      drawTiles(); drawLoot(); drawInteractables(); drawCameras();
+      drawGadget(); drawEchoGhost(); drawGuards(); drawPlayer();
+      ctx.restore();
+      drawHUD(); drawPaused();
       break;
 
     case STATE.MISSION_SELECT:
