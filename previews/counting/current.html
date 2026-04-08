@@ -1162,16 +1162,23 @@ function setupRound() {
   // Late arrivals + departures fire DURING the question phase (before the
   // answer bar appears) so the visible count when the player taps always
   // matches the correct answer. Bar delay below adapts to event end time.
-  for (let i=0; i<rd.lateArrivals; i++) {
-    const idx = initialCount+i;
-    if (idx<animals.length) {
-      animals[idx].visible=false; animals[idx].lateArrival=true;
-      animals[idx].lateArrivalTime=0.8+i*0.8; animals[idx].x=-50;
-    }
-  }
+  //
+  // Index layout (disjoint, contiguous, exactly partitions [0, totalAsked)):
+  //   stable    : [0, qty - late)
+  //   late      : [qty - late, qty)        ≡ [totalAsked-dep-late, totalAsked-dep)
+  //   departing : [qty, totalAsked)        ≡ [totalAsked-dep, totalAsked)
+  // Previously these could collide (same animal flagged late + departing),
+  // making one animal walk in and immediately walk back out.
   for (let i=0; i<rd.departures; i++) {
     const idx = totalAsked-1-i;
     if (idx>=0 && idx<animals.length) { animals[idx].departing=true; animals[idx].departureTime=1.2+i*0.8; }
+  }
+  for (let i=0; i<rd.lateArrivals; i++) {
+    const idx = totalAsked - rd.departures - 1 - i;
+    if (idx>=0 && idx<animals.length) {
+      animals[idx].visible=false; animals[idx].lateArrival=true;
+      animals[idx].lateArrivalTime=0.8+i*0.8; animals[idx].x=-50;
+    }
   }
 
   if (rd.others) {
