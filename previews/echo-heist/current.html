@@ -205,7 +205,8 @@ const D3_MISSION_DATA = [
       {id:'d3m21p2',template:'T3',text:'District 3 quota: increase circuit yield by 12.5% from 80 units.\nNew yield = ?',answer:'90',hint1:'Percent increase',hint2:'80 × 1.125'},
       {id:'d3m21p3',template:'T4',text:'District 3 quota: convert 0.045 to a percent.',answer:'4.5%',hint1:'Decimal → percent: multiply by 100',hint2:'0.045 × 100'},
       {id:'d3m21p4',template:'T10',text:'District 3 quota: round 17.86 to the nearest 0.1.',answer:'17.9',hint1:'Look at the hundredths digit',hint2:'17.86 → tenths = 8'},
-      {id:'d3m21p5',template:'T9',text:'District 3 quota: energy is 6. Overclock adds +5.\nNew energy = ?',answer:'11',hint1:'Integer addition',hint2:'6 + 5'}
+      {id:'d3m21p5',template:'T9',text:'District 3 quota: energy is 6. Overclock adds +5.\nNew energy = ?',answer:'11',hint1:'Integer addition',hint2:'6 + 5'},
+      {id:'d3m21p6',template:'T9',text:'District 3 quota: platform window is 45 s. Train delayed 18 s.\nTime left = ?',answer:'27',hint1:'Integer subtraction',hint2:'45 − 18'}
     ],
     vaultPrompts:[
       {id:'d3m21v1',text:'VAULT LOCK 1\n40% of 75 credits = ?',answer:'30',hint1:'Percent of quantity',hint2:'0.40 × 75'},
@@ -238,7 +239,8 @@ const D3_MISSION_DATA = [
       {id:'d3m23p2',template:'T7',text:'District 3 quota: cable length is 72 m. Pull speed is 3 m/s.\nTime = ?',answer:'24',hint1:'t = d ÷ r',hint2:'72 ÷ 3'},
       {id:'d3m23p3',template:'T10',text:'District 3 quota: round 246 to the nearest 10.',answer:'250',hint1:'Look at the ones digit',hint2:'246 → ones = 6, round up'},
       {id:'d3m23p4',template:'T11',text:'District 3 quota: a right angle turn in a pipe is how many degrees?',answer:'90',hint1:'Right angle = 90°',hint2:'Quarter turn of 360°'},
-      {id:'d3m23p5',template:'T9',text:'District 3 quota: stamina is 3. Tool upgrade gives +7.\nNew stamina = ?',answer:'10',hint1:'Integer addition',hint2:'3 + 7'}
+      {id:'d3m23p5',template:'T9',text:'District 3 quota: stamina is 3. Tool upgrade gives +7.\nNew stamina = ?',answer:'10',hint1:'Integer addition',hint2:'3 + 7'},
+      {id:'d3m23p6',template:'T10',text:'District 3 quota: round crane load 437 kg to the nearest 50.',answer:'450',hint1:'Look at the tens digit',hint2:'437 → tens = 3, but 37 is closer to 50 than 0'}
     ],
     vaultPrompts:[
       {id:'d3m23v1',text:'VAULT LOCK 1\nDistance 180 m at 4 m/s. Time = ?',answer:'45',hint1:'t = d ÷ r',hint2:'180 ÷ 4'},
@@ -254,7 +256,8 @@ const D3_MISSION_DATA = [
       {id:'d3m24p2',template:'T6',text:'District 3 quota: 5/6 - 1/3 = ?',answer:'1/2',hint1:'Common denominator is 6',hint2:'5/6 − 2/6'},
       {id:'d3m24p3',template:'T6',text:'District 3 quota: 2/5 + 3/10 = ?',answer:'7/10',hint1:'Common denominator is 10',hint2:'4/10 + 3/10'},
       {id:'d3m24p4',template:'T3',text:'District 3 quota: increase insulation rating by 20% from 55.\nNew rating = ?',answer:'66',hint1:'Percent increase',hint2:'55 × 1.20'},
-      {id:'d3m24p5',template:'T9',text:'District 3 quota: energy is 12. A surge costs -9.\nNew energy = ?',answer:'3',hint1:'Integer subtraction',hint2:'12 + (−9)'}
+      {id:'d3m24p5',template:'T9',text:'District 3 quota: energy is 12. A surge costs -9.\nNew energy = ?',answer:'3',hint1:'Integer subtraction',hint2:'12 + (−9)'},
+      {id:'d3m24p6',template:'T6',text:'District 3 quota: 1/2 + 1/6 = ?',answer:'2/3',hint1:'Common denominator is 6',hint2:'3/6 + 1/6 = 4/6'}
     ],
     vaultPrompts:[
       {id:'d3m24v1',text:'VAULT LOCK 1\n7/8 of 64 = ?',answer:'56',hint1:'Fraction of quantity',hint2:'64 × 7 ÷ 8'},
@@ -270,7 +273,8 @@ const D3_MISSION_DATA = [
       {id:'d3m25p2',template:'T8',text:'District 3 quota: better value/credit?\nA: 56 parts for 7 credits; B: 72 parts for 10.\nType A or B.',answer:'A',hint1:'Divide parts by credits',hint2:'A=8/credit, B=7.2/credit'},
       {id:'d3m25p3',template:'T8',text:'District 3 quota: better m/s?\nA: 150 m in 30 s; B: 180 m in 45 s.\nType A or B.',answer:'A',hint1:'Divide distance by time',hint2:'A=5 m/s, B=4 m/s'},
       {id:'d3m25p4',template:'T3',text:'District 3 quota: apply a 15% discount to 120 credits.\nNew cost = ?',answer:'102',hint1:'Percent decrease',hint2:'120 × 0.85'},
-      {id:'d3m25p5',template:'T10',text:'District 3 quota: round 6.66 to the nearest 0.1.',answer:'6.7',hint1:'Look at the hundredths digit',hint2:'6.66 → hundredths = 6, round up'}
+      {id:'d3m25p5',template:'T10',text:'District 3 quota: round 6.66 to the nearest 0.1.',answer:'6.7',hint1:'Look at the hundredths digit',hint2:'6.66 → hundredths = 6, round up'},
+      {id:'d3m25p6',template:'T7',text:'District 3 quota: sprint 4.5 m/s for 12 s.\nDistance = ?',answer:'54',hint1:'d = r × t',hint2:'4.5 × 12'}
     ],
     vaultPrompts:[
       {id:'d3m25v1',text:'VAULT LOCK 1\nBetter rate?\nA: 63 items in 7 min; B: 50 in 5 min.\nType A or B.',answer:'B',hint1:'Divide to find rate per minute',hint2:'A=9/min, B=10/min'},
@@ -286,7 +290,8 @@ const D3_MISSION_DATA = [
       {id:'d3m26p2',template:'T12',text:'District 3 quota: 60% chance of 20 credits, otherwise 0.\nEV = ?',answer:'12',hint1:'EV = (p × V₁) + ((1−p) × V₂)',hint2:'0.6×20 + 0.4×0'},
       {id:'d3m26p3',template:'T12',text:'District 3 quota: 10% chance of 200 credits, otherwise 15.\nEV = ?',answer:'33.5',hint1:'EV = (p × V₁) + ((1−p) × V₂)',hint2:'0.1×200 + 0.9×15'},
       {id:'d3m26p4',template:'T3',text:'District 3 quota: reduce defect rate by 40% from 12%.\nNew rate = ?',answer:'7.2%',hint1:'Percent decrease',hint2:'12% × 0.60'},
-      {id:'d3m26p5',template:'T9',text:'District 3 quota: heat is 2. Short circuit adds +9.\nNew heat = ?',answer:'11',hint1:'Integer addition',hint2:'2 + 9'}
+      {id:'d3m26p5',template:'T9',text:'District 3 quota: heat is 2. Short circuit adds +9.\nNew heat = ?',answer:'11',hint1:'Integer addition',hint2:'2 + 9'},
+      {id:'d3m26p6',template:'T12',text:'District 3 quota: 20% chance of 75 credits, otherwise 5.\nEV = ?',answer:'19',hint1:'EV = (p × V₁) + ((1−p) × V₂)',hint2:'0.2×75 + 0.8×5'}
     ],
     vaultPrompts:[
       {id:'d3m26v1',text:'VAULT LOCK 1\n40% chance of 100 credits, else 0.\nEV = ?',answer:'40',hint1:'EV = p × value (else 0)',hint2:'0.40 × 100'},
@@ -319,7 +324,8 @@ const D3_MISSION_DATA = [
       {id:'d3m28p2',template:'T2',text:'District 3 quota: solve 5x - 20 = 55.',answer:'15',hint1:'Two-step equation',hint2:'Add 20, divide by 5'},
       {id:'d3m28p3',template:'T3',text:'District 3 quota: reduce power draw by 12.5% from 96 W.\nNew draw = ?',answer:'84',hint1:'Percent decrease',hint2:'96 × 0.875'},
       {id:'d3m28p4',template:'T4',text:'District 3 quota: convert 37.5% to decimal.',answer:'0.375',hint1:'Percent → decimal: divide by 100',hint2:'37.5 ÷ 100'},
-      {id:'d3m28p5',template:'T9',text:'District 3 quota: energy is 5. Maintenance restores +4.\nNew energy = ?',answer:'9',hint1:'Integer addition',hint2:'5 + 4'}
+      {id:'d3m28p5',template:'T9',text:'District 3 quota: energy is 5. Maintenance restores +4.\nNew energy = ?',answer:'9',hint1:'Integer addition',hint2:'5 + 4'},
+      {id:'d3m28p6',template:'T11',text:'District 3 quota: alarm cone is 90° wide, 30° is already blocked.\nRemaining sweep = ?',answer:'60',hint1:'Subtract blocked from total',hint2:'90 − 30'}
     ],
     vaultPrompts:[
       {id:'d3m28v1',text:'VAULT LOCK 1\nSolve: 4x - 9 = 31.',answer:'10',hint1:'Two-step equation',hint2:'Add 9, divide by 4'},
@@ -335,7 +341,8 @@ const D3_MISSION_DATA = [
       {id:'d3m29p2',template:'T7',text:'District 3 quota: shift time is 2.5 h at 18 units/h.\nTotal units = ?',answer:'45',hint1:'d = r × t',hint2:'2.5 × 18'},
       {id:'d3m29p3',template:'T10',text:'District 3 quota: round 1449 to the nearest 100.',answer:'1400',hint1:'Look at the tens digit',hint2:'1449 → tens = 4, round down'},
       {id:'d3m29p4',template:'T11',text:'District 3 quota: full rotation of a dial is how many degrees?',answer:'360',hint1:'Full rotation = 360°',hint2:'One complete turn'},
-      {id:'d3m29p5',template:'T9',text:'District 3 quota: stamina is 10. Heavy crate costs -6.\nNew stamina = ?',answer:'4',hint1:'Integer subtraction',hint2:'10 + (−6)'}
+      {id:'d3m29p5',template:'T9',text:'District 3 quota: stamina is 10. Heavy crate costs -6.\nNew stamina = ?',answer:'4',hint1:'Integer subtraction',hint2:'10 + (−6)'},
+      {id:'d3m29p6',template:'T3',text:'District 3 quota: reduce a 200 m path by 15%.\nNew path = ?',answer:'170',hint1:'Percent decrease',hint2:'200 × 0.85'}
     ],
     vaultPrompts:[
       {id:'d3m29v1',text:'VAULT LOCK 1\nRobot moves 3.6 m/s for 50 s. Distance = ?',answer:'180',hint1:'d = r × t',hint2:'3.6 × 50'},
@@ -1115,11 +1122,11 @@ function updateGuard(g, dt) {
           g.state = 'investigate';
           g.investigateTarget = { x: player.x, y: player.y };
           g.alertTimer = 3;
-          heat = Math.min(100, heat + 15);
+          heat = Math.min(100, heat + 15 * getDConfig().heatGainMult);
         } else if (g.state === 'investigate' && dist < effectiveRange * 0.6) {
           g.state = 'chase';
           g.chaseTimer = 6;
-          heat = Math.min(100, heat + 25);
+          heat = Math.min(100, heat + 25 * getDConfig().heatGainMult);
         }
       }
     }
@@ -1197,7 +1204,7 @@ function updateCamera(cam, dt) {
     const coneHalf = 35 * DEG;
     if (dist < cam.range && Math.abs(diff) < coneHalf) {
       if (hasLineOfSight(cam.x, cam.y, player.x, player.y)) {
-        heat = Math.min(100, heat + 20 * dt);
+        heat = Math.min(100, heat + 20 * dt * getDConfig().heatGainMult);
         if (heat >= 100) gameState = STATE.CAUGHT;
       }
     }
@@ -1614,6 +1621,16 @@ function tryInteract() {
 }
 
 function openMathPopup(ia) {
+  // Defensive: if the interactable has no prompt (e.g. a procedural level
+  // allocated more interactables than the mission has prompts), auto-solve
+  // and mark it inert so the player can't trigger a crash on it.
+  if (!ia.prompt) {
+    ia.solved = true;
+    if (ia.type === 'door' && level && level.map && typeof ia.gy === 'number' && typeof ia.gx === 'number') {
+      level.map[ia.gy][ia.gx] = T.DOOR_OPEN;
+    }
+    return;
+  }
   mathActive = true;
   mathPrompt = ia.prompt;
   mathInteractable = ia;
