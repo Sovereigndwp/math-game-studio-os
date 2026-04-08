@@ -33,6 +33,19 @@
   #math-popup.ability-mode input:focus{border-color:var(--cls-color,#00e5ff)}
   #popup-hint-area{color:#f59e0b;font-size:13px;margin-top:8px;min-height:18px;font-style:italic}
   #math-popup.focus-mode{box-shadow:0 0 80px rgba(168,85,247,0.75)!important;border-color:#a855f7!important}
+  #terminal-intro strong{font-weight:700}
+  .hint-tooltip-wrap{position:relative;cursor:help;border-bottom:1px dotted rgba(148,163,184,0.4);padding-bottom:1px}
+  .hint-tooltip{
+    display:none;position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);
+    white-space:nowrap;background:#1e293b;border:1px solid rgba(100,116,139,0.4);
+    color:#94a3b8;font-size:10px;line-height:1.4;padding:5px 8px;border-radius:6px;
+    pointer-events:none;z-index:200;box-shadow:0 4px 12px rgba(0,0,0,0.5);
+  }
+  .hint-tooltip::after{
+    content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);
+    border:5px solid transparent;border-top-color:#1e293b;
+  }
+  .hint-tooltip-wrap:hover .hint-tooltip{display:block}
 </style>
 </head>
 <body>
@@ -40,11 +53,37 @@
 <div id="ui-overlay">
   <div id="math-popup">
     <h3 id="popup-title">Terminal</h3>
+    <div id="terminal-intro" style="display:none; margin-bottom:14px; padding:12px 14px; background:rgba(0,229,255,0.07); border:1px solid rgba(0,229,255,0.25); border-radius:8px; font-family:monospace;">
+      <div style="color:#00e5ff; font-size:11px; font-weight:bold; text-transform:uppercase; letter-spacing:1.5px; margin-bottom:8px;">🎯 What you're doing</div>
+      <div style="color:#cbd5e1; font-size:12px; line-height:1.6; margin-bottom:10px;">
+        You're hacking a security node. <strong style="color:#fff;">Solve the math problem to crack it</strong> and move deeper into the heist.
+      </div>
+      <div style="color:#00e5ff; font-size:11px; font-weight:bold; text-transform:uppercase; letter-spacing:1.5px; margin-bottom:6px;">🔢 How to answer</div>
+      <div style="color:#cbd5e1; font-size:12px; line-height:1.6; margin-bottom:10px;">
+        Type your answer and press <strong style="color:#fff;">Enter</strong> to submit.<br>
+        Accepted: <span style="color:#ffd700;">12</span> · <span style="color:#ffd700;">3.5</span> · <span style="color:#ffd700;">3/4</span> · <span style="color:#ffd700;">25%</span>
+      </div>
+      <div style="color:#00e5ff; font-size:11px; font-weight:bold; text-transform:uppercase; letter-spacing:1.5px; margin-bottom:6px;">⚠️ Heat &amp; penalties</div>
+      <div style="color:#cbd5e1; font-size:12px; line-height:1.6;">
+        <span style="color:#ef4444; font-weight:bold;">HEAT</span> = how suspicious the guards are (0–100). At 100 you're caught.<br>
+        Wrong answer → <span style="color:#ef4444;">+5 Heat</span> &nbsp;·&nbsp;
+        Skip (Esc) → <span style="color:#ef4444;">+20 Heat</span> &nbsp;·&nbsp;
+        Hint (H) → <span style="color:#f59e0b;">−50 score pts</span>
+      </div>
+      <div style="color:#64748b; font-size:10px; margin-top:10px; text-align:center;">Press Enter to begin your first challenge ↓</div>
+    </div>
     <div class="prompt-text" id="popup-prompt"></div>
     <input type="text" id="popup-input" autocomplete="off" spellcheck="false"/>
     <div class="feedback" id="popup-feedback"></div>
     <div id="popup-hint-area"></div>
-    <div class="hint" id="popup-hint-line">Press Enter to submit · Esc to cancel (costs heat) · H for hint (−50)</div>
+    <div id="format-reminder" style="display:none; margin:6px 0 10px; gap:6px; flex-wrap:wrap; opacity:0.55; align-items:center;">
+      <span style="font-size:10px; color:#64748b; margin-right:2px;">accepted:</span>
+      <span style="font-family:monospace;font-size:11px;color:#94a3b8;background:rgba(148,163,184,0.08);border:1px solid rgba(148,163,184,0.15);border-radius:4px;padding:2px 7px;">12</span>
+      <span style="font-family:monospace;font-size:11px;color:#94a3b8;background:rgba(148,163,184,0.08);border:1px solid rgba(148,163,184,0.15);border-radius:4px;padding:2px 7px;">3.5</span>
+      <span style="font-family:monospace;font-size:11px;color:#94a3b8;background:rgba(148,163,184,0.08);border:1px solid rgba(148,163,184,0.15);border-radius:4px;padding:2px 7px;">3/4</span>
+      <span style="font-family:monospace;font-size:11px;color:#94a3b8;background:rgba(148,163,184,0.08);border:1px solid rgba(148,163,184,0.15);border-radius:4px;padding:2px 7px;">25%</span>
+    </div>
+    <div class="hint" id="popup-hint-line">Enter to submit · <span class="hint-tooltip-wrap">Esc = skip (+20 Heat)<span class="hint-tooltip">Leaving a node mid-hack triggers a proximity alert.</span></span> · H = hint (−50 score pts) · F = scaffold<span id="popup-guard-note" style="color:#f59e0b;margin-left:6px;"></span></div>
     <div class="vault-progress" id="vault-progress" style="display:none"></div>
   </div>
 </div>
@@ -799,6 +838,9 @@ let scaffoldVisible = false;
 let feedbackOverlays = []; // {text, x, y, timer, color} — world-space floating labels
 let focusTooltipShown = false; // true once player has seen the focus-mode tip
 let focusTooltipTimer = 0;
+let mathIntroSeen = false;
+let mathIntroDismissed = false;
+try { mathIntroSeen = localStorage.getItem('echoHeistMathIntroDone') === '1'; } catch(e) {}
 let wrongCount = 0;
 let objCount = 0;
 let maxHeat = 0;
@@ -1495,7 +1537,7 @@ function handleVaultKey(e) {
     } else {
       wrongCount++;
       streaks[tpl] = 0;
-      feedback.textContent = '✗ Wrong code — try again';
+      feedback.textContent = `✗ Wrong code — answer: ${mathPrompt.answer} · Heat +8`;
       feedback.className = 'feedback fb-wrong';
       sfxWrong();
       triggerShake(4, 0.35);
@@ -1604,6 +1646,31 @@ function openMathPopup(ia) {
   input.value = '';
   feedback.textContent = '';
   popup.style.display = 'block';
+
+  const guardNoteEl = document.getElementById('popup-guard-note');
+  if (guardNoteEl) {
+    guardNoteEl.textContent = focusModeActive
+      ? ' · ⏸ Focus: guards at 25% speed'
+      : ' · ⚠ Guards still moving!';
+  }
+
+  const fmtEl = document.getElementById('format-reminder');
+  const introEl = document.getElementById('terminal-intro');
+  if (!mathIntroSeen && introEl) {
+    introEl.style.display = 'block';
+    mathIntroDismissed = false;
+    document.getElementById('popup-prompt').style.visibility = 'hidden';
+    document.getElementById('popup-input').style.visibility = 'hidden';
+    document.getElementById('popup-hint-line').style.visibility = 'hidden';
+    if (fmtEl) fmtEl.style.display = 'none';
+  } else {
+    if (introEl) introEl.style.display = 'none';
+    document.getElementById('popup-prompt').style.visibility = '';
+    document.getElementById('popup-input').style.visibility = '';
+    document.getElementById('popup-hint-line').style.visibility = '';
+    if (fmtEl) fmtEl.style.display = 'flex';
+  }
+
   input.focus();
 }
 
@@ -1660,14 +1727,16 @@ function showHint(free = false) {
   if (currentHintsUsed >= 2) { hintArea.textContent = 'No more hints available'; return; }
   currentHintsUsed++;
   totalHintsUsed++;
+  let hintCostActual = 0;
   if (!free) {
     const tplH = mathPrompt.template || 'vault';
     const masteryMult = masteryTemplates[tplH] ? 0.75 : 1.0;
-    score = Math.max(0, score - Math.floor(dc.hintCost * masteryMult));
+    hintCostActual = Math.floor(dc.hintCost * masteryMult);
+    score = Math.max(0, score - hintCostActual);
   }
   const h1 = mathPrompt.hint1 || mathPrompt.notes || 'Think carefully';
   const h2 = mathPrompt.hint2 || 'Try a different approach';
-  const prefix = free ? '🔔 Auto-hint: ' : '💡 ';
+  const prefix = free ? '🔔 Auto-hint: ' : `💡 (−${hintCostActual} score pts) `;
   hintArea.textContent = currentHintsUsed === 1 ? `${prefix}${h1}` : `${prefix}${h2}`;
 }
 
@@ -1680,6 +1749,12 @@ function handleMathKey(e) {
     focusTooltipShown = true; focusTooltipTimer = 0; // dismiss tooltip on first use
     const popup = document.getElementById('math-popup');
     focusModeActive ? popup.classList.add('focus-mode') : popup.classList.remove('focus-mode');
+    const gnEl = document.getElementById('popup-guard-note');
+    if (gnEl) {
+      gnEl.textContent = focusModeActive
+        ? ' · ⏸ Focus: guards at 25% speed'
+        : ' · ⚠ Guards still moving!';
+    }
     return;
   }
 
@@ -1697,6 +1772,20 @@ function handleMathKey(e) {
 
   if (e.key === 'Enter') {
     e.preventDefault();
+    if (!mathIntroSeen && !mathIntroDismissed) {
+      mathIntroDismissed = true;
+      mathIntroSeen = true;
+      try { localStorage.setItem('echoHeistMathIntroDone', '1'); } catch(e) {}
+      const introEl = document.getElementById('terminal-intro');
+      if (introEl) introEl.style.display = 'none';
+      document.getElementById('popup-prompt').style.visibility = '';
+      document.getElementById('popup-input').style.visibility = '';
+      document.getElementById('popup-hint-line').style.visibility = '';
+      const fmtDismiss = document.getElementById('format-reminder');
+      if (fmtDismiss) fmtDismiss.style.display = 'flex';
+      document.getElementById('popup-input').focus();
+      return;
+    }
     const userAnswer = input.value;
     if (!userAnswer.trim()) return;
     mathTotal++;
@@ -1730,7 +1819,7 @@ function handleMathKey(e) {
     } else {
       wrongCount++;
       streaks[tpl] = 0;
-      feedback.textContent = '✗ Try again';
+      feedback.textContent = `✗ Incorrect — answer: ${mathPrompt.answer} · Heat +5`;
       feedback.className = 'feedback fb-wrong';
       sfxWrong();
       triggerShake(3, 0.3);
@@ -2823,14 +2912,29 @@ function drawVaultOverlay() {
   // Vault timer
   const elapsed = (Date.now() - vaultStartTime) / 1000;
   const remaining = Math.max(0, VAULT_TIME_LIMIT - elapsed);
-  ctx.fillStyle = remaining < 20 ? '#ef4444' : '#ffd700';
-  ctx.font = 'bold 16px monospace';
+  const isUrgent = remaining <= 15;
+
+  if (isUrgent && remaining > 0) {
+    const flashAlpha = (Math.sin(Date.now() / 250) * 0.5 + 0.5) * 0.18;
+    ctx.fillStyle = `rgba(239,68,68,${flashAlpha})`;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  ctx.fillStyle = isUrgent ? '#ff2020' : remaining < 30 ? '#ef4444' : '#ffd700';
+  ctx.font = isUrgent ? 'bold 36px monospace' : 'bold 16px monospace';
   ctx.textAlign = 'center';
-  ctx.fillText(`VAULT CRACKING · ${Math.ceil(remaining)}s`, W/2, 50);
+  ctx.fillText(`VAULT CRACKING · ${Math.ceil(remaining)}s`, W/2, isUrgent ? 56 : 50);
+
+  if (isUrgent && remaining > 0) {
+    const bannerPulse = Math.sin(Date.now() / 200) * 0.35 + 0.65;
+    ctx.fillStyle = `rgba(245,158,11,${bannerPulse * 0.92})`;
+    ctx.font = 'bold 13px monospace';
+    ctx.fillText("⚠  VAULT SEALING — answer NOW or you're caught", W/2, 80);
+  }
 
   // Vault icon
   ctx.font = '48px sans-serif';
-  ctx.fillText('🔐', W/2, H/2 - 100);
+  ctx.fillText('🔐', W/2, isUrgent ? H/2 - 90 : H/2 - 100);
 
   // Vault timer expired = caught
   if (remaining <= 0 && vaultActive) {
