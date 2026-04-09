@@ -12,6 +12,42 @@ advances.
 concepts for learners across K–12. The pipeline catches weak ideas early and
 gives strong ideas a clear path from concept to prototype build handoff.
 
+> **Note:** This README's Pipeline, Agent, Gate engine, Misconception Architect, and Benchmark sections describe the **Era 1 Python pipeline** — one of three coexisting layers in this repo. The repo also contains an **Era 2 OS design framework** and an **Era 3 Taskade-first review/release pipeline**. See [Repository layers](#repository-layers) immediately below for the full picture before diving into the pipeline sections.
+
+## Repository layers
+
+This repo contains three layers that coexist. Each serves a different purpose and has a different lifecycle. Understanding this upfront matters — the Python pipeline described below is one of the three, not the whole story.
+
+| Layer | What it is | Where it lives | Read first |
+|---|---|---|---|
+| **Era 1 — Python pipeline** | Multi-agent system that takes a raw concept command and runs it through 9 deterministic stages with gate enforcement. Produces JSON artifacts validated against schemas. Still working, still useful, still benchmarked. | `pipeline.py`, `agents/`, `engine/`, `orchestrator/`, `scripts/`, `artifacts/schemas/`, `utils/`, `tests/` | [`pipeline.py`](pipeline.py) and the [Pipeline](#pipeline) section below |
+| **Era 2 — OS design framework** | The quality and design rulebook that governs how games are built. Not a runnable system — a canonical reference humans and agents consult before and during game work. Also includes the blueprint for a future LangGraph-based orchestrator. | `docs/os_spec_2026.md`, `docs/game_experience_spec.md`, `docs/delight_gate.md`, `docs/pass_rules.md`, `docs/game_design_intelligence.md`, `docs/learning_and_generalization.md`, `orchestrator_v3/` (blueprint, not yet running) | [`docs/os_spec_2026.md`](docs/os_spec_2026.md) |
+| **Era 3 — Review + release pipeline** | The live production workflow. Taskade owns the active pipeline, concept lanes, and gate decisions. GitHub is the review and release archive. Games move approved concept → review build → shipped release via a `repository_dispatch` workflow triggered by a Taskade GREEN gate. | `concepts/<slug>/`, `reviews/<slug>/current/`, `games/<slug>/releases/<version>/`, `.github/workflows/promote-build.yml`, `docs/pipeline_policy.md`, `docs/concept_lanes.md`, `memory/registries/family_registry.json` | [`docs/pipeline_policy.md`](docs/pipeline_policy.md) |
+
+**The three eras coexist.** Era 1 has not been deprecated. Era 2 is not a replacement for Era 1. Era 3 is the newest layer and owns the end-to-end release path, but does not touch the Era 1 pipeline's internals.
+
+### Era 3 filesystem paths at a glance
+
+- [`concepts/<slug>/`](concepts/) — approved concept packets, P1 Definition of Done, locked approvals, misconception notes
+- [`reviews/<slug>/current/index.html`](reviews/) — the mutable active review build for each game
+- [`games/<slug>/releases/<version>/index.html`](games/) — immutable, SemVer-tagged, shipped releases (empty at the time of writing)
+- [`.github/workflows/promote-build.yml`](.github/workflows/promote-build.yml) — the only path a file is allowed to take from `reviews/` to `games/`
+- [`docs/pipeline_policy.md`](docs/pipeline_policy.md) — the full Era 3 policy
+- [`docs/concept_lanes.md`](docs/concept_lanes.md) — the active concept lane tracker
+
+## Where to start reading
+
+| If you are... | Start with |
+|---|---|
+| New to the repo and want the big picture | This README's [Repository layers](#repository-layers) section above, then [`docs/pipeline_policy.md`](docs/pipeline_policy.md) |
+| Running the Era 1 Python pipeline | The [Pipeline](#pipeline) and [Quick start](#quick-start) sections below, plus [`pipeline.py`](pipeline.py) |
+| Designing a new game or critiquing an existing one | [`docs/os_spec_2026.md`](docs/os_spec_2026.md), then [`docs/game_experience_spec.md`](docs/game_experience_spec.md), [`docs/delight_gate.md`](docs/delight_gate.md), [`docs/pass_rules.md`](docs/pass_rules.md) |
+| Shipping a game release | [`docs/pipeline_policy.md`](docs/pipeline_policy.md) and [`.github/workflows/promote-build.yml`](.github/workflows/promote-build.yml) |
+| Tracking which concepts are active right now | [`docs/concept_lanes.md`](docs/concept_lanes.md) |
+| Setting up the dev environment | [`RUNBOOK.md`](RUNBOOK.md) |
+
+---
+
 ## Modes
 
 - **Stub mode** — deterministic keyword-based agents, no API key needed, about
