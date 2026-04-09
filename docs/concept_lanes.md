@@ -72,7 +72,7 @@ See [`memory/registries/family_registry.json`](../memory/registries/family_regis
 - **Slug:** `echo-heist`
 - **Display title:** Echo Heist
 - **Concept source of truth:** none (`concepts/echo-heist/` does not exist)
-- **Informal concept source:** [`docs/concept_inputs/Echo Heist Game Concept.md`](concept_inputs/Echo Heist Game Concept.md) (1750 lines, ChatGPT export). A duplicate partial export lives at `reviews/echo-heist/current/Echo Heist Game Concept.md` (1407 lines) — tracked as cleanup follow-up (Cleanup Step 2, not yet done).
+- **Informal concept source:** [`docs/concept_inputs/Echo Heist Game Concept.md`](concept_inputs/Echo Heist Game Concept.md) (1750 lines, ChatGPT export)
 - **Family:** Pending Formal Family Placement *(pseudo-family — no documented family fits this concept; see [`memory/registries/family_registry.json`](../memory/registries/family_registry.json))*
 - **Interaction type:** `pending_taxonomy_placement` — hybrid game; the math subloop (single-expression compute-and-answer) is not represented in the canonical taxonomy
 - **Primary standard:** `null` — no formal alignment packet. Multi-topic content across districts 1–3 (addition, subtraction, rounding, percents, fractions, rates, expected value); no single-standard mapping.

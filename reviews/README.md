@@ -50,7 +50,7 @@ Humans write to `reviews/<slug>/current/` through normal development work: edits
 |---|---|---|
 | `bakery` | Active review build | `index.html`, `pass-3.html` |
 | `counting` | Active review build | `index.html` |
-| `echo-heist` | Active review build | `index.html`, `pass-1.html`, `pass-1-record.md` through `pass-5-record.md`, `playtest.js`, plus a legacy concept doc (duplicate of `docs/concept_inputs/Echo Heist Game Concept.md`, tracked as cleanup follow-up) |
+| `echo-heist` | Active review build | `index.html`, `pass-1.html`, `pass-1-record.md` through `pass-5-record.md`, `playtest.js` |
 | `fire` | Active review build | `index.html`, `pass-3.html` |
 | `power-grid` | Active review build | `index.html` |
 | `unitcircle` | Active review build | `index.html`, `pass-3.html` |

@@ -132,7 +132,7 @@
         "review_path": "reviews/echo-heist/current/index.html",
         "pass_record_source": "reviews/echo-heist/current/pass-1-record.md through pass-5-record.md (in-place, not in artifacts/pass_records/)",
         "concept_source_of_truth": null,
-        "concept_source_of_truth_note": "No concepts/echo-heist/ folder exists. Concept description lives in docs/concept_inputs/Echo Heist Game Concept.md (1750 lines) with a duplicate of a different export at reviews/echo-heist/current/Echo Heist Game Concept.md (1407 lines). Duplicate cleanup is tracked as Cleanup Step 2, not done yet.",
+        "concept_source_of_truth_note": "No concepts/echo-heist/ folder exists. Concept description lives in docs/concept_inputs/Echo Heist Game Concept.md.",
         "family_placement_note": "Not formally placed. No documented family fits this concept.",
         "release_state": "never_shipped"
       },
