@@ -1,0 +1,102 @@
+name: Promote Build (GREEN Gate → Release Archive)
+
+on:
+  repository_dispatch:
+    types: [promote_build]
+
+permissions:
+  contents: write   # commit + tag to main
+
+concurrency:
+  group: promote-build-${{ github.event.client_payload.slug }}
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0   # needed for tags + checking existing releases
+
+      - name: Read payload
+        id: payload
+        run: |
+          echo "slug=${{ github.event.client_payload.slug }}" >> $GITHUB_OUTPUT
+          echo "version=${{ github.event.client_payload.version }}" >> $GITHUB_OUTPUT
+          echo "gate_status=${{ github.event.client_payload.gate_status }}" >> $GITHUB_OUTPUT
+          echo "gate_url=${{ github.event.client_payload.gate_url }}" >> $GITHUB_OUTPUT
+          echo "summary=${{ github.event.client_payload.summary }}" >> $GITHUB_OUTPUT
+
+      - name: Validate payload (must be GREEN)
+        run: |
+          set -euo pipefail
+          test -n "${{ steps.payload.outputs.slug }}"
+          test -n "${{ steps.payload.outputs.version }}"
+          if [ "${{ steps.payload.outputs.gate_status }}" != "GREEN" ]; then
+            echo "Blocked: gate_status must be GREEN (got '${{ steps.payload.outputs.gate_status }}')"
+            exit 1
+          fi
+
+      - name: Validate review build exists
+        run: |
+          set -euo pipefail
+          SLUG="${{ steps.payload.outputs.slug }}"
+          test -f "reviews/${SLUG}/current/index.html" || (echo "Missing reviews/${SLUG}/current/index.html" && exit 1)
+
+      - name: Validate release folder does not already exist
+        run: |
+          set -euo pipefail
+          SLUG="${{ steps.payload.outputs.slug }}"
+          VER="${{ steps.payload.outputs.version }}"
+          if [ -e "games/${SLUG}/releases/${VER}" ]; then
+            echo "Release already exists: games/${SLUG}/releases/${VER}"
+            exit 1
+          fi
+
+      - name: Promote review → release
+        run: |
+          set -euo pipefail
+          SLUG="${{ steps.payload.outputs.slug }}"
+          VER="${{ steps.payload.outputs.version }}"
+
+          mkdir -p "games/${SLUG}/releases/${VER}"
+          cp -R "reviews/${SLUG}/current/." "games/${SLUG}/releases/${VER}/"
+
+      - name: Commit to main
+        run: |
+          set -euo pipefail
+          SLUG="${{ steps.payload.outputs.slug }}"
+          VER="${{ steps.payload.outputs.version }}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add "games/${SLUG}/releases/${VER}"
+          git status --porcelain
+
+          git commit -m "Release ${SLUG} v${VER}"
+
+      - name: Tag release
+        run: |
+          set -euo pipefail
+          SLUG="${{ steps.payload.outputs.slug }}"
+          VER="${{ steps.payload.outputs.version }}"
+          TAG="game/${SLUG}/v${VER}"
+
+          # Fail if tag already exists
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag already exists: $TAG"
+            exit 1
+          fi
+
+          git tag -a "$TAG" -m "Release ${SLUG} v${VER}"
+
+      - name: Push commit + tag
+        run: |
+          set -euo pipefail
+          git push origin main
+          git push origin --tags
