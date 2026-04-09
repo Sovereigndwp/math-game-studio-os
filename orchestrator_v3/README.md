@@ -32,7 +32,11 @@ orchestrator_v3/
 - `subgraphs/` — Research, Design, Evaluation, Packaging subgraphs
 - `agents/` — Python node implementations (Phase 3 build)
 - `memory/` — Project and system memory stores
+- `prompts/repair/` — Reserved subdirectory of `prompts/` for the future repair flow (no current contents)
+- `prompts/system/` — Reserved subdirectory of `prompts/` for future graph-wide system prompts (no current contents)
 - Human review UI
+
+**Note on local directory state:** None of the planned subdirectories listed above should exist on disk until their corresponding build phase begins. Git does not track any of them — a fresh clone of this repo will not contain them. If your local working tree happens to contain empty directories for any of these (e.g. `orchestrator_v3/memory/`, `orchestrator_v3/prompts/repair/`, `orchestrator_v3/prompts/system/`), they are leftover cosmetic artifacts from earlier scaffolding work and can be safely removed with `rm -rf`. Do not add `.gitkeep` files or README stubs to them — that would promote cosmetic artifacts to tracked directories and contradict the "not here yet" framing above.
 
 ## When to build
 
