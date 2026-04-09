@@ -1,6 +1,6 @@
 # Math Game Factory Orchestrator V3
 
-Blueprint and stub implementation for the LangGraph-based orchestration system.
+Blueprint and stub implementation for the LangGraph-based orchestration system. The **live** Era 1 orchestrator currently used by `pipeline.py` lives at [`orchestrator/`](../orchestrator/README.md) — not here.
 
 **Status: Design-committed. Not yet running.**
 
