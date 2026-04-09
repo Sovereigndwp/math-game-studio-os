@@ -44,10 +44,11 @@ interaction type, or standard has been proven in the portfolio.
 - **Primary standard:** CCSS.MATH.CONTENT.1.OA.C.6 *(alignment claim, not fluency claim; see concept.md fluency caution)*
 - **Grade band:** K–2 core (Grade 2+ ceiling layers gated)
 - **Current stage:** Approved concept, entering normalization
-- **Build state:** No preview build — deferred. **No prototype exists.**
+- **Build state:** No review build — deferred. **No prototype exists.**
 - **Playtest state:** None. No learners have played this concept.
 - **P1 Definition of Done:** Drafted, not yet checked. See [`concepts/snack-line-shuffle/p1_definition_of_done.md`](../concepts/snack-line-shuffle/p1_definition_of_done.md).
-- **Intended preview path:** `previews/snack-line-shuffle/current.html` (not created)
+- **Intended review path:** `reviews/snack-line-shuffle/current/index.html` (not created)
+- **Slug-level placeholder:** [`reviews/snack-line-shuffle/README.md`](../reviews/snack-line-shuffle/README.md) — documents why no prototype exists yet
 - **First member of family:** yes — structurally, not evidentially
 - **First proof case for interaction type:** yes — pending a prototype that actually demonstrates the type
 - **Next agent after normalization:** Game Design Critic (reviews P1 pass record — *after* P1 implementation, which requires separate approval)

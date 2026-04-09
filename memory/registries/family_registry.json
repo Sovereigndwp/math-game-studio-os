@@ -14,7 +14,7 @@
         "first_in_family": true,
         "first_proof_case_for_interaction_type": true,
         "concept_source_of_truth": "concepts/snack-line-shuffle/",
-        "intended_preview_path": "previews/snack-line-shuffle/current.html"
+        "intended_review_path": "reviews/snack-line-shuffle/current/index.html"
       }
     ],
     "coverage_status": "structurally registered, not yet proven",

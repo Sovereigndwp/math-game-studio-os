@@ -7,11 +7,11 @@ Snack Line Shuffle
 Approved concept entering normalization and repo placement.
 
 ## Current build state
-No preview build yet.
-No `current.html` should be created at this stage.
+No review build yet.
+No `index.html` should be created at this stage.
 
-## Intended preview path
-`previews/snack-line-shuffle/current.html`
+## Intended review path
+`reviews/snack-line-shuffle/current/index.html`
 
 ## Interaction type
 `sequence_and_order`
@@ -42,6 +42,7 @@ Normalize this concept into the repo:
 Game Design Critic reviews the P1 pass record.
 Prototype Engineer owns the next pre-build to build transition after that.
 
-## Preview policy
-Preview folder is deferred.
-Do not create `previews/snack-line-shuffle/current.html` until explicit build approval is given.
+## Review build policy
+Review build is deferred.
+Do not create `reviews/snack-line-shuffle/current/index.html` until explicit build approval is given.
+A slug-level placeholder at `reviews/snack-line-shuffle/README.md` reserves the path and documents the deferred state.
