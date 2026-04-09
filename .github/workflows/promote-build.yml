@@ -41,6 +41,28 @@ jobs:
             exit 1
           fi
 
+      - name: Validate slug and version format
+        env:
+          SLUG: ${{ steps.payload.outputs.slug }}
+          VER: ${{ steps.payload.outputs.version }}
+        run: |
+          set -euo pipefail
+          if ! [[ "$SLUG" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]]; then
+            echo "Blocked: slug must match ^[a-z0-9]+(-[a-z0-9]+)*\$"
+            echo "  (kebab-case, lowercase alphanumerics, single hyphens only;"
+            echo "   no uppercase, no underscores, no slashes, no spaces)"
+            echo "Received: '$SLUG'"
+            exit 1
+          fi
+          if ! [[ "$VER" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Blocked: version must match ^[0-9]+\.[0-9]+\.[0-9]+\$"
+            echo "  (strict SemVer MAJOR.MINOR.PATCH; no leading 'v',"
+            echo "   no pre-release suffix, no build metadata)"
+            echo "Received: '$VER'"
+            exit 1
+          fi
+          echo "slug and version format validated: slug=$SLUG, version=$VER"
+
       - name: Validate review build exists
         run: |
           set -euo pipefail
