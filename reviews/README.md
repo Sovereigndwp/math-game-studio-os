@@ -1,111 +1,84 @@
-# Playable Prototype Checkpoints
+# reviews/
 
-Files in this folder are **playable prototype snapshots** — not final product files, not throwaway junk.
+## What this is
 
-Open any `.html` file directly in a browser. No server required.
+The **mutable review-build layer** of the Math Game Studio OS. This is where the active, in-development version of every game prototype lives.
 
----
+**Nothing here is a shipped artifact.** Review builds are explicitly *not* releases. They may change between any two commits. A file at `reviews/<slug>/current/index.html` does not mean the game has been approved, playtested successfully, or declared ship-ready.
 
-## What these files are
+Shipped, immutable, SemVer-tagged releases live in [`games/`](../games/). See [`docs/pipeline_policy.md`](../docs/pipeline_policy.md) for the full policy.
 
-Each file is a frozen, self-contained checkpoint of a game prototype at a specific design stage.
-
-They are:
-- **Temporary** in the sense of not final product
-- **Permanent** in the sense of useful design history
-
-Their value is as:
-- Testable states
-- Audit trail
-- Comparison points between passes
-- Handoff artifacts
-- Proof that a concept improved from one pass to the next
-
----
-
-## Pass convention
-
-Every game follows the same three-pass structure. A new pass file is created only when it marks a **meaningful design shift** — not for every small change.
-
-| Pass | Purpose | Keep if it proves |
-|------|---------|-------------------|
-| **Pass 1** | Core loop proof | The basic loop works · the math is inside the action · the concept works at all |
-| **Pass 2** | Pressure and progression proof | The loop survives pressure · progression helps · the game starts to feel alive |
-| **Pass 3** | UI, feedback, and feel proof | Emotional presence · feedback quality · reward rhythm · the game starts to feel real |
-
-**Good reasons to create a new pass file:**
-- New mechanic
-- New pacing model
-- New difficulty structure
-- New UI behavior
-- Major feedback upgrade
-
-**Do not keep every small change.** `pass-2-ui-v2.html` only exists if it changes feel meaningfully.
-
----
-
-## Folder structure
+## Canonical layout
 
 ```
-previews/
-  [game-name]/
-    current.html    ← live playable version (always the latest)
-    pass-3.html     ← frozen P3 snapshot (historical checkpoint)
+reviews/
+  <slug>/
+    current/
+      index.html           ← active review build (rolling head of dev work)
+      [pass-N.html]        ← optional historical pass snapshot
+      [pass-N-record.md]   ← optional pass-N design record
+      [other per-game files]
 ```
 
-### Naming rule
-
-- `current.html` is the **source of truth** — all new fixes and passes go here
-- `pass-N.html` files are **frozen snapshots** created only when you need a historical checkpoint
-- History lives in pass records, scorecards, and git — not in filename proliferation
-
----
-
-## Games
-
-### bakery/
-
-| File | Role |
-|------|------|
-| `current.html` | Live playable version (P3: chef character, status strip, tiered celebration) |
-| `pass-3.html` | Frozen P3 checkpoint |
-
-### fire/
-
-| File | Role |
-|------|------|
-| `current.html` | Live playable version (P3: incident personality, dispatch status strip, L5 victory) |
-| `pass-3.html` | Frozen P3 checkpoint |
-
-### unitcircle/
-
-| File | Role |
-|------|------|
-| `current.html` | Live playable version (P3: Chef Cosina, lab status strip, tiered celebration) |
-| `pass-3.html` | Frozen P3 checkpoint |
-
-### echo-heist/
-
-| File | Role |
-|------|------|
-| `current.html` | Live playable version (P2: class abilities, gadget, audio, hints, 30 missions) |
-| `pass-1.html` | Frozen P1 checkpoint (core loop proof) |
-| `pass-1-record.md` | Pass 1 design record |
-| `pass-2-record.md` | Pass 2 design record |
-| `playtest.js` | Headless test suite (213 tests) |
-
----
-
-## Connection to the OS pipeline
-
-These files are the output of **Phase D: Playable Pass Generation** in the pipeline:
+The canonical path referenced by the policy doc, the `promote-build` workflow, and the family registry is:
 
 ```
-Phase A  →  Idea intake          (Stages 0–5)
-Phase B  →  Prototype shaping    (Stages 6–8)
-Phase C  →  Implementation       (Stages 9–10)
-Phase D  →  Playable passes      previews/[game]/current.html
-Phase E  →  Improvement loop     playtest_diagnostic → revision_brief → next patch
+reviews/<slug>/current/index.html
 ```
 
-Each game's `current.html` reflects the latest completed pass.
+### Pass files are optional
+
+A `current/` directory may also contain one or more `pass-N.html` snapshots and `pass-N-record.md` design records. These are **not required**. They exist only when a historical playable checkpoint is worth preserving outside of git history.
+
+The only file in `current/` that must always exist is `index.html`. It is always the head of the current development work. Pass files are a convenience for comparison and handoff, not a required structure.
+
+### Mutability
+
+`reviews/<slug>/current/` is **mutable**. Files there may be edited, replaced, or deleted as development proceeds. There is no SemVer tag, no immutability guarantee, no frozen state.
+
+If you need an immutable snapshot of a build at a specific quality bar, that is what the release archive (`games/<slug>/releases/<version>/`) is for. See [`games/README.md`](../games/README.md).
+
+## How writes happen
+
+Humans write to `reviews/<slug>/current/` through normal development work: edits, commits, passes, playtest iterations, bug fixes.
+
+**The `promote-build` workflow does not write to `reviews/`.** Promotion copies *from* `reviews/<slug>/current/` *to* `games/<slug>/releases/<version>/`. The flow is one-way: reviews → games, never the reverse.
+
+## Current games
+
+| Slug | State | Contents of `current/` |
+|---|---|---|
+| `bakery` | Active review build | `index.html`, `pass-3.html` |
+| `counting` | Active review build | `index.html` |
+| `echo-heist` | Active review build | `index.html`, `pass-1.html`, `pass-1-record.md` through `pass-5-record.md`, `playtest.js`, plus a legacy concept doc (duplicate of `docs/concept_inputs/Echo Heist Game Concept.md`, tracked as cleanup follow-up) |
+| `fire` | Active review build | `index.html`, `pass-3.html` |
+| `power-grid` | Active review build | `index.html` |
+| `unitcircle` | Active review build | `index.html`, `pass-3.html` |
+| `snack-line-shuffle` | **Placeholder only** | `README.md` at the slug level; no `current/` subdirectory, no prototype exists yet |
+
+The `snack-line-shuffle` entry is deliberately asymmetric. See [`reviews/snack-line-shuffle/README.md`](snack-line-shuffle/README.md) and [`concepts/snack-line-shuffle/status.md`](../concepts/snack-line-shuffle/status.md) for why.
+
+## Related layers
+
+| Layer | Path | Purpose |
+|---|---|---|
+| Concepts | [`concepts/<slug>/`](../concepts/) | Approved specs, P1 Definition of Done, misconception notes |
+| **Reviews** | `reviews/<slug>/current/` *(this directory)* | Mutable in-development builds |
+| Releases | [`games/<slug>/releases/<version>/`](../games/) | Immutable shipped artifacts |
+
+## Related documents
+
+| Doc | Purpose |
+|---|---|
+| [`docs/pipeline_policy.md`](../docs/pipeline_policy.md) | Full pipeline policy |
+| [`docs/concept_lanes.md`](../docs/concept_lanes.md) | Active concept lane tracker |
+| [`games/README.md`](../games/README.md) | Release archive rules |
+| [`.github/workflows/promote-build.yml`](../.github/workflows/promote-build.yml) | GREEN gate → release workflow |
+
+## What this directory is NOT
+
+- ❌ Not a release archive (that is `games/`)
+- ❌ Not a concept spec layer (that is `concepts/`)
+- ❌ Not the V1 Python pipeline output layer (that is `memory/job_workspaces/`, gitignored)
+- ❌ Not a historical record of every pass — git history is the primary record
+- ❌ Not a staging area for the release workflow — the workflow reads from here but does not write here
