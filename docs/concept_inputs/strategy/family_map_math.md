@@ -140,6 +140,31 @@ It likely needs more loop sharpening before it becomes a prototype priority.
 
 ---
 
+## Family 5 — Compare and Order
+
+### Core idea
+The player computes small values, compares their magnitudes, and places items in a ranked order (ascending or descending). The core cognitive act is compute → compare → rank-order, which is structurally distinct from exact-sum composition and from pattern prediction.
+
+### Shared interaction pattern
+**Sequence and Order** (canonical interaction type `sequence_and_order`).
+
+### Core player feeling
+Comparison, ranking, ordering confidence.
+
+### Strongest current concepts
+- Snack Line Shuffle (first K–2 proof case)
+
+### Why this family matters
+This family fills the widest current portfolio gap at once:
+- a K–2 grade band (no other current concept lives here)
+- a distinct cognitive act that does not reduce to either Quantity and Fulfillment or Sequence and Predict
+- room for future K–12 ordering games across multiple math domains without forcing them into prediction or composition framings
+
+### Strategic note
+Snack Line Shuffle is the first K–2 member of this family and the first proof case for the canonical `sequence_and_order` interaction type. Family coverage must **not** be marked as fully proven until a P1 prototype exists and passes its Definition of Done — this entry establishes the family structurally, not evidentially.
+
+---
+
 ## Current Family Priority Order
 
 ### 1. Quantity and Fulfillment

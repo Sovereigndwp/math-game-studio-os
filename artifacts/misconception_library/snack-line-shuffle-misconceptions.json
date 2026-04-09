@@ -1,0 +1,64 @@
+{
+  "game_name": "Snack Line Shuffle",
+  "game_family": "sequence_and_order",
+  "concept": "Compute small addition/subtraction totals, compare by magnitude, and place items in ranked order",
+  "age_band": "5-7",
+  "math_domain": "Number and Operations — Addition and Subtraction within 20",
+  "primary_standard": "CCSS.MATH.CONTENT.1.OA.C.6",
+  "schema_completeness": "partial",
+  "schema_completeness_note": "Core fields (id, category, label, description) are populated from the approved concept packet (M4-M7). Detection signals, feedback responses, clean replay tasks, and reflection prompts are pending Misconception Architect enrichment after P1 playtest data exists. Do not treat this file as final until that enrichment pass has run.",
+  "misconceptions": [
+    {
+      "id": "snack_leftmost_digit_dominance",
+      "packet_id": "M4",
+      "category": "concept_confusion",
+      "label": "Leftmost digit dominance",
+      "description": "The child ranks by the first visible digit rather than by the computed total.",
+      "likely_cause": null,
+      "how_it_appears_in_play": null,
+      "detection_signal": null,
+      "best_feedback_response": null,
+      "best_clean_replay_task": null,
+      "reflection_prompt": null
+    },
+    {
+      "id": "snack_operation_sign_blindness",
+      "packet_id": "M5",
+      "category": "representation_mismatch",
+      "label": "Operation sign blindness",
+      "description": "The child treats plus and minus as decoration and attends only to the visible numerals.",
+      "likely_cause": null,
+      "how_it_appears_in_play": null,
+      "detection_signal": null,
+      "best_feedback_response": null,
+      "best_clean_replay_task": null,
+      "reflection_prompt": null
+    },
+    {
+      "id": "snack_zero_subtraction_overgeneralisation",
+      "packet_id": "M6",
+      "category": "concept_confusion",
+      "label": "Zero-subtraction overgeneralisation",
+      "description": "The child overgeneralises from n+0=n and mishandles n-0 or similar zero relationships.",
+      "likely_cause": null,
+      "how_it_appears_in_play": null,
+      "detection_signal": null,
+      "best_feedback_response": null,
+      "best_clean_replay_task": null,
+      "reflection_prompt": null
+    },
+    {
+      "id": "snack_bigger_number_first_wins",
+      "packet_id": "M7",
+      "category": "concept_confusion",
+      "label": "Bigger number first = bigger result",
+      "description": "The child anchors on the larger numeral in the expression and assumes that expression must produce the larger total.",
+      "likely_cause": null,
+      "how_it_appears_in_play": null,
+      "detection_signal": null,
+      "best_feedback_response": null,
+      "best_clean_replay_task": null,
+      "reflection_prompt": null
+    }
+  ]
+}

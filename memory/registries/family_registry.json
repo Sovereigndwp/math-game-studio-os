@@ -1,1 +1,23 @@
-[]
+[
+  {
+    "family_name": "Compare and Order",
+    "interaction_type": "sequence_and_order",
+    "first_proof_case": "Snack Line Shuffle",
+    "members": [
+      {
+        "name": "Snack Line Shuffle",
+        "grade_band": "K-2",
+        "grade_band_notes": "K-1 core; Grade 2+ layers gated as ceiling",
+        "primary_standard": "CCSS.MATH.CONTENT.1.OA.C.6",
+        "stage": "approved_concept",
+        "build_state": "no_preview_yet",
+        "first_in_family": true,
+        "first_proof_case_for_interaction_type": true,
+        "concept_source_of_truth": "concepts/snack-line-shuffle/",
+        "intended_preview_path": "previews/snack-line-shuffle/current.html"
+      }
+    ],
+    "coverage_status": "structurally registered, not yet proven",
+    "notes": "First K-2 family in the portfolio. First proof case for the sequence_and_order interaction type. Family coverage must not be marked as fully proven until a P1 prototype exists and passes its Definition of Done."
+  }
+]

@@ -51,3 +51,11 @@ interaction_types:
     reflection_prompts_focus: "Pattern identification and prediction"
     example_games: []
     notes: "Player identifies a rule and applies it to predict the next state."
+
+  sequence_and_order:
+    id: sequence_and_order
+    label: "Sequence and Order"
+    math_concepts: ["magnitude comparison", "ordering", "inequality reasoning", "ranked placement"]
+    reflection_prompts_focus: "Compute, compare, and justify rank placement"
+    example_games: ["Snack Line Shuffle"]
+    notes: "Player computes values, compares their magnitudes, and places items in a ranked order (ascending or descending). Structurally distinct from sequence_and_predict: the goal is not pattern identification for prediction, but rank-ordering of known-but-uncomputed values. Snack Line Shuffle is the first proof case for this type."
