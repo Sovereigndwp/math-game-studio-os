@@ -37,13 +37,20 @@ For the current repo-side family registry, see [`memory/registries/family_regist
 | Field | Value |
 |---|---|
 | **Taskade space URL** | `https://www.taskade.com/spaces/63ifx7l9wtgfvsop/app/default/preview` |
-| **Taskade space name** | not yet decided |
+| **Taskade space ID** | `63ifx7l9wtgfvsop` |
+| **Taskade space name** | `Concept Journey Dashboard` |
+| **Taskade space emoji** | 🔥 |
+| **Taskade space visibility** | `collaborator` |
 | **Owner / account** | not yet decided |
 | **Alternate or secondary spaces** | none |
+| **Space export repo** | [`github.com/Sovereigndwp/math-games`](https://github.com/Sovereigndwp/math-games) (description: `"Exported from Taskade"`) |
+| **Last confirmed export** | `2026-04-10T14:51:53.528Z` (from `taskade_exports/manifest.json`) |
 
 ### Current note
 
-The space URL is known and stable. The space name and accountable owner are **not yet decided**. That is currently the highest-value missing governance decision because it affects credential ownership, rotation, and document maintenance.
+The space URL, space ID, space name (`Concept Journey Dashboard`), emoji, and visibility (`collaborator`) are all confirmed from the 2026-04-10 export manifest and are now durable in the repo. The **accountable owner** is still not yet decided at the governance level and remains the highest-value missing decision because it affects credential ownership, rotation, and document maintenance. Do not assume the GitHub owner of the export repo is the accountable Taskade owner unless this is explicitly recorded.
+
+A normalized snapshot of all Taskade projects, agents, and automations lives in [`taskade_exports/`](../taskade_exports/) — see [`taskade_exports/README.md`](../taskade_exports/README.md) for the full inventory.
 
 ---
 
@@ -101,31 +108,36 @@ If the question is "what is the durable documented structure?" the answer should
 
 These are the currently known Taskade agents. This section refers to **Taskade agents**, not the Era 1 Python pipeline agents in the repo's `agents/` directory.
 
-### Active agents
+### Active agents (14 total — confirmed from 2026-04-10 export)
 
-| Agent | Role | Trigger | Owner | Status |
-|---|---|---|---|---|
-| **Math Question QA** | QA agent for math-question content and correctness checks. | manual — run when a QA check is requested | not yet decided | active |
-| **Pass Closure Agent** | Captures post-pass learnings and promotes validated rules back into the OS. | event-driven — after a completed prototype pass / pass closure request | not yet decided | active |
-| **Game Build Standards Agent** | Runs Stage 8.5 Build Standards Gate (CO + MG compliance) and returns GREEN/AMBER/RED. | manual — invoked immediately after Prototype Engineer outputs (Stage 8) | not yet decided | active |
-| **Player Clarity Auditor** | Audits first-time user clarity and instructional/UX comprehension risks. | manual — run when a clarity audit is requested | not yet decided | active |
-| **Pipeline Orchestrator** | Coordinates the end-to-end concept pipeline from idea → spec → gate → build handoff. | manual — run when pipeline coordination is requested | not yet decided | active |
-| **Subject Expansion Scout** | Scouts and proposes new subject/domain expansions and opportunities. | manual — run when expansion scouting is requested | not yet decided | active |
-| **Prototype Engineer** | Produces prototype specs/build-ready handoffs (Stages 6–8). | manual — run when a prototype spec is requested | not yet decided | active |
-| **Curriculum Architect** | Ensures standards alignment, learning objectives, and curriculum fit. | manual — run when curriculum alignment is requested | not yet decided | active |
-| **Brainstorming Specialist** | Generates raw game ideas and variations for a given learning goal/theme. | manual — run when ideation is requested | not yet decided | active |
-| **Software Developer** | Implements the game after Stage 8.5 GREEN gate approval. | manual — started only after GREEN gate | not yet decided | active |
-| **Game Design Critic** | Provides rigorous gate reviews and critiques to enforce quality and viability. | manual — run when a design review is requested | not yet decided | active |
+The 2026-04-10 Taskade export contains **17 agent definition JSON files** in [`taskade_exports/agents/`](../taskade_exports/agents/). Of these, 14 are active and 3 are explicitly deprecated. The roster below is sourced from the export, not from informal recall.
 
-### Deprecated agents still present
+| Agent | Taskade agent ID | Role | Trigger | Owner | Status |
+|---|---|---|---|---|---|
+| **Math Question QA** | `01KNMYTFPEHNWARKW3EBMPSXPQ` | QA agent for math-question content and correctness checks. | manual — run when a QA check is requested | not yet decided | active |
+| **Pass Closure Agent** | `01KNQKQDTCWCX46233P9SC50RH` | Captures post-pass learnings and promotes validated rules back into the OS. | event-driven — after a completed prototype pass / pass closure request | not yet decided | active |
+| **Game Build Standards Agent** | `01KNQF8R7MKP55BTX318H0HFYG` | Runs Stage 8.5 Build Standards Gate (CO + MG compliance) and returns GREEN/AMBER/RED. Evaluates specs against [`docs/build_standards_gate.md`](build_standards_gate.md). | manual — invoked immediately after Prototype Engineer outputs (Stage 8) | not yet decided | active |
+| **Player Clarity Auditor** | `01KNN06QC17WFGVCFNGJ5FJRA4` | Audits first-time user clarity and instructional/UX comprehension risks. Author of the Echo Heist clarity audit. | manual — run when a clarity audit is requested | not yet decided | active |
+| **Pipeline Orchestrator** | `01KNMNAPBV02J41TQPV2W5XV51` | Coordinates the end-to-end concept pipeline from idea → spec → gate → build handoff. | manual — run when pipeline coordination is requested | not yet decided | active |
+| **Subject Expansion Scout** | `01KNMNA5N5S9TDB6XV9VV79YH0` | Scouts and proposes new subject/domain expansions and opportunities. | manual — run when expansion scouting is requested | not yet decided | active |
+| **Prototype Engineer** | `01KNMN9NTZ9R9SVMEPPB2RPQ57` | Produces prototype specs/build-ready handoffs (Stages 6–8). | manual — run when a prototype spec is requested | not yet decided | active |
+| **Curriculum Architect** | `01KNMN97E63DVSZFE50AW67BN6` | Ensures standards alignment, learning objectives, and curriculum fit. | manual — run when curriculum alignment is requested | not yet decided | active |
+| **Brainstorming Specialist** | `01KNM59YXXTZ9XVS17KJ2JPV1M` | Generates raw game ideas and variations for a given learning goal/theme. | manual — run when ideation is requested | not yet decided | active |
+| **Software Developer** | `01KNM0J5XFMSQTNF126ER8MS6R` | Implements the game after Stage 8.5 GREEN gate approval. | manual — started only after GREEN gate | not yet decided | active |
+| **Game Design Critic** | `01KNM0ECMQFA8EYBP45WTV587M` | Provides rigorous gate reviews and critiques to enforce quality and viability. | manual — run when a design review is requested | not yet decided | active |
+| **Content Expansion Agent** | `01KNT43VDGP9ZHWD4PP2D0FJTS` | P2b specialist: analyses content set, plans difficulty ramp, writes content expansion spec, validates misconception coverage, checks CCSS alignment. Author of the Trig Tower M1-rounds draft. | manual — P2b work | not yet decided | active |
+| **Release Gate Agent** | `01KNT44QZCAS478T59ZCH4PVSB` | 5-domain release certification: Build Standards Compliance, Content Completeness, Player Clarity, QA Audit Status, Pass Record Completeness. Issues GREEN/AMBER/RED. Authority is final. | manual — run when release certification is requested | not yet decided | active |
+| **Trig Tower Tutor** | `01KNT2RH182338E1EEG9755Q36` | Game-specific tutor agent for the Trig Tower prototype. | manual — embedded in Trig Tower UI as slide-in chat | not yet decided | active |
+
+### Deprecated agents still present (3 total — confirmed from 2026-04-10 export)
 
 These agents still exist in Taskade but are explicitly deprecated and should not be used for active system work.
 
-| Agent | Role | Trigger | Owner | Status |
-|---|---|---|---|---|
-| **⛔ Project Manager [DEPRECATED]** | Deprecated project management agent (do not use). | manual — legacy only | not yet decided | active (deprecated) |
-| **⛔ SEO Content Writer [DEPRECATED]** | Deprecated SEO writing agent (do not use). | manual — legacy only | not yet decided | active (deprecated) |
-| **⛔ Researcher [DEPRECATED]** | Deprecated research agent (do not use). | manual — legacy only | not yet decided | active (deprecated) |
+| Agent | Taskade agent ID | Role | Trigger | Owner | Status |
+|---|---|---|---|---|---|
+| **⛔ Project Manager [DEPRECATED]** | `01KNM1GS0FMEFMD1Y93SA1CD8Y` | Deprecated project management agent (do not use). | manual — legacy only | not yet decided | active (deprecated) |
+| **⛔ SEO Content Writer [DEPRECATED]** | `01KNM1PQG1KA37BNBT3BCJX0GH` | Deprecated SEO writing agent (do not use). | manual — legacy only | not yet decided | active (deprecated) |
+| **⛔ Researcher [DEPRECATED]** | `01KNM0ENKR4NDJG812FK33969Y` | Deprecated research agent (do not use). | manual — legacy only | not yet decided | active (deprecated) |
 
 ### Governance note
 
@@ -137,21 +149,36 @@ Many agents are operationally live, but ownership is still unset. This creates a
 
 ### Current known state
 
-No live workflows or automations have yet been confirmed from the current retrieval view of the Taskade space.
+The 2026-04-10 Taskade export contains 15 automation JSON files under `taskade_exports/automations/`. This is the current durable export-based view of configured automations captured at export time. It is not a claim that these are the only automations that have ever existed in the space, and it does not by itself prove current enable-state or runtime usage.
 
-| Field | Value |
-|---|---|
-| **Workflow discovery state** | not yet discovered in this space via current retrieval (no automations returned) |
-| **Purpose** | not yet decided |
-| **Trigger** | not yet decided |
-| **Outputs** | not yet decided |
-| **Status** | not yet decided |
+| Automation | Taskade flow ID | Trigger (displayName in JSON) |
+|---|---|---|
+| **Game Design Pipeline Review** | `01KNM0B599YCAR5Y2JN47G8XZQ` | New Game Concept Submitted |
+| **Agent Tool: Researcher** | `01KNM1NFCBFA5DPEB839QG78YC` | Agent Tool |
+| **Agent Tool: Researcher** (duplicate entry) | `01KNM1P1RV4ZQJGBZ16ZP3WV7N` | Agent Tool |
+| **Agent Tool: Brainstorming Specialist** | `01KNM5G0R2E5P9PRQC42TGAB41` | Agent Tool |
+| **Brainstorm → Pipeline Review** | `01KNMNC88WD2TCGE2S8E5F7AF7` | New Game Concept Added (`task.added`) |
+| **GO Decision → Curriculum Slot Assignment** | `01KNMND4MFXZQ73J0GFAMZX452` | GO Decision Logged on Pipeline Concept |
+| **Misconception Architect — Post-Pipeline Analysis** | `01KNMPE00ZG4RQAW7V4J1MZ1GX` | Game Concept — GO Decision |
+| **Pass Closure — Learning Capture & Promotion** | `01KNMPFZ021BFFKKN66GNKWD34` | Pass Completed — Capture Learnings |
+| **Pull Request Issue Flow** | `01KNMRW4009NXSJJQ4H03D44BR` | New Pull Request (GitHub integration) |
+| **Echo Heist — Question Audit Pipeline** | `01KNMYV115D5QC7T5MG7A0J80T` | Template Task Flow |
+| **Scout Brief → Brainstorming Specialist Handoff** | `01KNQN2SYG36XVDY3ZX57V5Z06` | Scout Expansion Brief Received |
+| **Scout Brief → Brainstorming Specialist Handoff v2** | `01KNQNCTBH5YSHP7AP4KACRG92` | Scout Expansion Brief Received |
+| **Pass Closure Agent Automation** | `01KNQQECN35WHYYRMY8KZSRW1X` | (trigger metadata absent in export) |
+| **Pipeline Stage Advancement — GO advances, NO-GO archives** | `01KNSQWQDBVEKXJC9HSY4C3JS9` | GO / NO-GO Decision Changed |
+| **Pass Execution — Stage Work Dispatch (P2A→Release)** | `01KNT45P8NDC6AYZKGKCC961SQ` | Pipeline Stage Advanced (P2A → Release) |
 
-### Interpretation note
+### Interpretation notes
 
-This does **not** prove there are no workflows in Taskade. It only means that, from the current retrieval path used during documentation, no automations were returned. Treat this section as an honest temporary record of current visibility, not a claim that the space has no workflows.
+Observations based strictly on what the exported JSON files contain:
 
-If workflows are later confirmed, this section should be revised.
+- **Two "Agent Tool: Researcher" entries exist** — `01KNM1NFCBFA5DPEB839QG78YC` and `01KNM1P1RV4ZQJGBZ16ZP3WV7N` — with different IDs. The Researcher agent itself is marked `[DEPRECATED]` in the agent roster above. The deprecated-agent status does not automatically disable its tool flows; if the Researcher agent is retired, these two flow entries should be audited and removed from the Taskade space.
+- **Only the Pull Request Issue Flow** (`01KNMRW4009NXSJJQ4H03D44BR`) is triggered by a GitHub event in this export. It is the only automation with any observable connection to this repo's GitHub workflow surface. The other 14 automations operate entirely inside Taskade by their trigger displayNames.
+- **No automation in this export explicitly targets** the `promote-build.yml` workflow via `repository_dispatch`. Whether the release-bridge automation exists outside this export, exists inside an automation not yet captured as a saved flow, or does not yet exist at all is an open governance question.
+- **Owner and enable-state** are not recorded inside the exported JSON files. Both remain separate open questions that a future export or Taskade-side audit would need to answer.
+
+If a future export changes any of the above, this section should be revised against that new export, not against recollection.
 
 ---
 
@@ -353,21 +380,32 @@ Do **not** update this document for:
 
 ## Current governance gaps
 
-The following are explicitly unresolved as of this snapshot:
+Updated against the 2026-04-10 Taskade export. Items that were closed by the export are marked **RESOLVED**; new items that the export surfaced are marked **NEW OPEN**; items that remain open are left as "not yet decided".
 
-1. **Taskade space name** — not yet decided
-2. **Owner / account** — not yet decided
-3. **Agent ownership** — not yet decided for every listed agent
-4. **Workflow discovery** — no automations returned from current retrieval path
-5. **PAT storage location** — not yet decided
-6. **PAT rotation policy** — not yet decided
-7. **Review cadence** — not yet decided
-8. **Maintainer** — not yet decided
-9. **Next scheduled review date** — not yet decided
+### Resolved by the 2026-04-10 export
+
+1. ✅ **Taskade space name** — **RESOLVED** (`Concept Journey Dashboard`, confirmed from `taskade_exports/manifest.json`)
+2. ✅ **Workflow discovery state** — **RESOLVED** for existence. The export-based view in the Workflows section above documents 15 automation JSON files by ID, title, and trigger displayName. Per-automation owner, enable-state, and runtime-usage documentation remain open and are tracked as a separate item below.
+
+### Newly surfaced by the 2026-04-10 export
+
+3. **NEW OPEN — Duplicate "Agent Tool: Researcher" automations.** Two flow entries exist (`01KNM1NFCBFA5DPEB839QG78YC` and `01KNM1P1RV4ZQJGBZ16ZP3WV7N`), and the Researcher agent itself is marked deprecated. Both flow entries should be audited and at least one removed on the Taskade side.
+4. **NEW OPEN — No GitHub dispatch automation captured.** None of the 15 exported automations explicitly targets `promote-build.yml` via `repository_dispatch`. Either the release-bridge automation is not captured in this export or it does not yet exist as a saved flow. This affects the durable release handoff path documented below.
+
+### Still open (unchanged from prior snapshot)
+
+5. **Accountable Owner / account for the space** — not yet decided. The GitHub owner of the export repo is not automatically the accountable Taskade owner unless this is explicitly recorded.
+6. **Per-agent ownership** — not yet decided for any of the 14 active agents or 3 deprecated agents. The 2026-04-10 export makes this list itemisable by Taskade agent ID, which is a prerequisite for assigning per-agent owners, but the owner field itself remains unset.
+7. **PAT storage location** — not yet decided
+8. **PAT rotation policy** — not yet decided
+9. **Per-automation enable-state / runtime-usage documentation** — not recorded inside the exported JSON files; not yet decided
+10. **Review cadence for this document** — not yet decided
+11. **Maintainer of this document** — not yet decided
+12. **Next scheduled review date** — not yet decided
 
 ### Recommended next decision
 
-Decide and record a single accountable **Owner / account** for the space first. That decision should happen before finalizing PAT storage, PAT rotation responsibility, or long-term maintainer ownership.
+Now that space name, agent roster, and automation roster are resolved at the identification level, the highest-value next decision is still the single accountable **Owner / account** for the space. That decision should happen before finalizing PAT storage, PAT rotation responsibility, per-agent owner assignments, or long-term maintainer ownership.
 
 ---
 
@@ -408,11 +446,14 @@ Until a formal cadence exists, this document should be reviewed whenever:
 |---|---|
 | [`docs/pipeline_policy.md`](pipeline_policy.md) | canonical Era 3 policy |
 | [`docs/concept_lanes.md`](concept_lanes.md) | repo-side lane snapshot |
+| [`docs/build_standards_gate.md`](build_standards_gate.md) | Stage 8.5 Build Standards Gate policy (normalized from Taskade project `pBj7H2VZq1WPfZBs`) |
+| [`docs/taskade_concept_inbox.md`](taskade_concept_inbox.md) | Taskade-tracked concepts with no formal repo packet |
 | [`memory/registries/family_registry.json`](../memory/registries/family_registry.json) | machine-readable family/game registry |
 | [`reviews/README.md`](../reviews/README.md) | review-build layer |
 | [`games/README.md`](../games/README.md) | release-archive layer |
 | [`.github/workflows/promote-build.yml`](../.github/workflows/promote-build.yml) | GitHub-side enforcement of release dispatch |
 | [`docs/repo_systems_audit_2026-04-09.md`](repo_systems_audit_2026-04-09.md) | post-migration structural audit |
+| [`taskade_exports/README.md`](../taskade_exports/README.md) | raw Taskade export snapshot provenance and layout |
 
 ## Document metadata
 
@@ -422,4 +463,5 @@ Until a formal cadence exists, this document should be reviewed whenever:
 | **Mode** | Option A — real values where known; explicit unset values allowed (`"none"` / `"not yet decided"`); no invented values |
 | **Status** | durable structure reference |
 | **Date created** | 2026-04-09 |
-| **Date last reviewed** | 2026-04-09 |
+| **Date last reviewed** | 2026-04-10 (refreshed after first full Taskade export normalization) |
+| **Authoritative snapshot** | [`taskade_exports/`](../taskade_exports/) — full 2026-04-10 export of the `Concept Journey Dashboard` space |
